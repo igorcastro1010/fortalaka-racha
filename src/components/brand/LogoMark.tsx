@@ -23,7 +23,7 @@ export function LogoMark({
         fill
         priority={priority}
         sizes={size === "login" ? "144px" : size === "profile" ? "80px" : size === "loading" ? "96px" : "56px"}
-        className={size === "login" || size === "loading" ? "object-cover" : "object-contain p-[5px]"}
+        className={size === "login" || size === "loading" || size === "header" ? "object-cover" : "object-contain p-[5px]"}
       />
     </div>
   );

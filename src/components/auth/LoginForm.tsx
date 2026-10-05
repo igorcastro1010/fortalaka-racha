@@ -1,6 +1,7 @@
 "use client";
 
 import { Lock } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { LogoMark } from "@/components/brand/LogoMark";
@@ -12,11 +13,14 @@ export function LoginForm({ initialError }: { initialError?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(initialError ?? "");
+  const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setMessage("");
     setIsLoading(true);
 
     try {
@@ -49,6 +53,36 @@ export function LoginForm({ initialError }: { initialError?: string }) {
       setError("Nao foi possivel entrar agora. Tente novamente.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    setError("");
+    setMessage("");
+
+    if (!email) {
+      setError("Informe seu e-mail para receber o link de recuperacao.");
+      return;
+    }
+
+    setIsSendingReset(true);
+
+    try {
+      const supabase = createClient();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (resetError) {
+        setError("Nao foi possivel enviar o link de recuperacao. Confira o e-mail e tente novamente.");
+        return;
+      }
+
+      setMessage("Enviamos um link de recuperacao para o seu e-mail.");
+    } catch {
+      setError("Nao foi possivel enviar o link de recuperacao agora.");
+    } finally {
+      setIsSendingReset(false);
     }
   }
 
@@ -101,12 +135,34 @@ export function LoginForm({ initialError }: { initialError?: string }) {
               </p>
             ) : null}
 
+            {message ? (
+              <p className="mt-4 rounded-[16px] bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">
+                {message}
+              </p>
+            ) : null}
+
             <button
               className="mt-5 h-[52px] w-full rounded-[18px] bg-red-600 text-base font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-75 disabled:active:scale-100"
-              disabled={isLoading}
+              disabled={isLoading || isSendingReset}
             >
               {isLoading ? "Entrando..." : "Entrar"}
             </button>
+
+            <button
+              type="button"
+              onClick={handlePasswordReset}
+              disabled={isLoading || isSendingReset}
+              className="mt-4 w-full text-center text-sm font-black text-neutral-700 transition hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSendingReset ? "Enviando..." : "Esqueci minha senha"}
+            </button>
+
+            <p className="mt-5 text-center text-sm font-bold text-zinc-600">
+              Nao tem uma conta?{" "}
+              <Link className="font-black text-red-600 transition hover:text-red-700" href="/cadastro">
+                Criar conta
+              </Link>
+            </p>
           </form>
         </div>
       </div>

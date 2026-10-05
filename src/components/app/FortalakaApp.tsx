@@ -1,14 +1,17 @@
 "use client";
 
 import {
+  CalendarDays,
   ClipboardList,
+  Clock3,
   Home,
   MapPin,
   Pencil,
+  Shield,
   Trophy,
   User,
+  UserPlus,
   Users,
-  Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
@@ -44,7 +47,7 @@ export function FortalakaApp({ profile }: { profile: Profile }) {
     <main className="min-h-screen bg-neutral-950 text-neutral-950">
       <div className="mx-auto min-h-screen w-full max-w-[430px] bg-[#f3f3f4] shadow-2xl shadow-black/35">
         <div className="min-h-screen px-4 pb-[calc(104px+env(safe-area-inset-bottom))] pt-[calc(16px+env(safe-area-inset-top))]">
-          <AppHeader />
+          {activeTab !== "home" && <AppHeader />}
           {activeTab === "home" && <HomeScreen profile={profile} onOpenRacha={() => setActiveTab("racha")} />}
           {activeTab === "racha" && <RachaScreen />}
           {activeTab === "teams" && <TeamsScreen />}
@@ -75,56 +78,103 @@ function AppHeader() {
 }
 
 function HomeScreen({ profile, onOpenRacha }: { profile: Profile; onOpenRacha: () => void }) {
+  const displayName = getDisplayName(profile);
+  const firstName = getFirstName(displayName);
+
   return (
-    <section className="space-y-3.5">
-      <div>
-        <p className="text-sm font-bold text-zinc-600">Boa noite, {profile.name}</p>
-        <h2 className="mt-0.5 text-[29px] font-black leading-tight tracking-normal">Pronto para quinta?</h2>
+    <section className="-mx-4 space-y-5 px-5">
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <LogoMark size="header" />
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-red-600">Racha</p>
+            <h1 className="truncate text-[24px] font-black uppercase leading-none tracking-normal text-neutral-950">
+              Fortalaka
+            </h1>
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-black text-neutral-800 shadow-sm">
+          {getRoleLabel(profile.role)}
+        </span>
+      </header>
+
+      <div className="space-y-1">
+        <p className="text-sm font-semibold text-zinc-700">Boa noite, {firstName}</p>
+        <h2 className="text-[32px] font-black leading-[1.02] tracking-normal text-neutral-950">
+          Pronto pra quinta?
+        </h2>
       </div>
 
-      <Card className="overflow-hidden bg-neutral-950 p-0 text-white ring-0">
-        <div className="space-y-4 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-red-300">Proximo Racha</p>
-              <h3 className="mt-2 text-2xl font-black">{nextMatch.day}</h3>
-              <p className="mt-1 text-sm font-bold text-zinc-300">{nextMatch.date}</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <LogoMark size="card" />
-              <div className="rounded-[20px] border border-white/10 bg-white/[0.08] px-4 py-3 text-right">
-                <p className="text-xs font-bold uppercase text-zinc-400">Horario</p>
-                <p className="text-4xl font-black leading-none">{nextMatch.time}</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 rounded-[18px] border border-white/10 bg-white/[0.07] p-3 text-sm font-bold text-zinc-100">
-            <MapPin size={17} className="shrink-0 text-red-300" />
-            {nextMatch.address}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <CountCard label="goleiros" value={goalkeepers.length} />
-            <CountCard label="jogadores de linha" value={fieldPlayers.length} />
-          </div>
-          <button
-            onClick={onOpenRacha}
-            className="h-12 w-full rounded-[18px] bg-red-600 text-base font-black uppercase text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98]"
-          >
-            Ver racha
-          </button>
+      <Card className="space-y-4 rounded-[24px] p-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-red-600">Proximo Racha</p>
+          <span className="shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[11px] font-black uppercase text-zinc-700">
+            Quinta
+          </span>
         </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <InfoBlock icon={CalendarDays} label="Data" value={nextMatch.date} />
+          <InfoBlock icon={Clock3} label="Horario" value={nextMatch.time} />
+        </div>
+
+        <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-zinc-700">
+          <MapPin size={18} className="shrink-0 text-red-600" />
+          <span className="truncate">{nextMatch.address}</span>
+        </div>
+
+        <div className="h-px bg-zinc-100" />
+
+        <div className="grid grid-cols-3 gap-2">
+          <HomeCount icon={Shield} value={goalkeepers.length} label="Goleiros" />
+          <HomeCount icon={Users} value={fieldPlayers.length} label="Linha" />
+          <HomeCount icon={UserPlus} value={substitutes.length} label="Suplentes" />
+        </div>
+
+        <button
+          onClick={onOpenRacha}
+          className="mt-1 h-14 w-full rounded-[18px] bg-red-600 text-base font-black uppercase text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98]"
+        >
+          Ver racha
+        </button>
       </Card>
 
-      <Card className="flex items-center gap-3 bg-white p-3.5">
-        <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-red-50 text-red-600">
-          <Zap size={22} fill="currentColor" />
+      <Card className="flex items-center gap-3 rounded-[18px] bg-neutral-950 p-4 text-white ring-0">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] bg-red-600 text-white">
+          <CalendarDays size={20} />
         </div>
-        <div>
-          <p className="text-sm font-black">Faltam 5 dias para o proximo racha</p>
-          <p className="text-xs font-bold text-zinc-600">Lista aberta para confirmacoes.</p>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black">Faltam 5 dias para o proximo racha</p>
+          <p className="mt-0.5 text-xs font-bold text-zinc-300">Quinta-feira, as {nextMatch.time}</p>
         </div>
       </Card>
     </section>
+  );
+}
+
+function InfoBlock({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-[18px] border border-zinc-100 bg-zinc-50 p-3">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] bg-white text-red-600 ring-1 ring-zinc-200">
+        <Icon size={19} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-600">{label}</p>
+        <p className="truncate text-base font-black text-neutral-950">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function HomeCount({ icon: Icon, value, label }: { icon: LucideIcon; value: number; label: string }) {
+  return (
+    <div className="rounded-[16px] bg-zinc-50 p-2.5 text-center ring-1 ring-zinc-100">
+      <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-[12px] bg-white text-red-600 ring-1 ring-zinc-200">
+        <Icon size={17} />
+      </div>
+      <p className="mt-1.5 text-xl font-black leading-none text-neutral-950">{value}</p>
+      <p className="mt-1 truncate text-[11px] font-bold text-zinc-700">{label}</p>
+    </div>
   );
 }
 
@@ -209,6 +259,7 @@ function RankingScreen() {
 function ProfileScreen({ profile }: { profile: Profile }) {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const displayName = getDisplayName(profile);
 
   async function handleSignOut() {
     setIsSigningOut(true);
@@ -227,7 +278,7 @@ function ProfileScreen({ profile }: { profile: Profile }) {
             <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">
               {getRoleLabel(profile.role)}
             </p>
-            <h2 className="truncate text-3xl font-black">{profile.name}</h2>
+            <h2 className="truncate text-3xl font-black">{displayName}</h2>
             <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-sm font-black">
               Nota media <span className="text-red-300">8.9</span>
             </div>
@@ -316,15 +367,6 @@ function ScreenTitle({ title, subtitle }: { title: string; subtitle: string }) {
   );
 }
 
-function CountCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-[18px] border border-white/10 bg-white/[0.08] p-3">
-      <p className="text-2xl font-black leading-none">{value}</p>
-      <p className="mt-1.5 text-[11px] font-black uppercase text-zinc-300">{label}</p>
-    </div>
-  );
-}
-
 function ActionButton({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
   return (
     <button className="flex min-h-16 items-center gap-3 rounded-[20px] border border-zinc-200 bg-white p-3 text-left text-sm font-black text-neutral-950 shadow-sm transition hover:border-red-200 hover:bg-red-50 active:scale-[0.98]">
@@ -398,4 +440,19 @@ function getInitials(name: string) {
     .map((part) => part[0])
     .join("")
     .toUpperCase();
+}
+
+function getDisplayName(profile: Profile) {
+  const name = profile.name.trim();
+  const emailPrefix = profile.email?.split("@")[0]?.trim();
+
+  if (!name || (emailPrefix && name.toLowerCase() === emailPrefix.toLowerCase())) {
+    return "Jogador";
+  }
+
+  return name;
+}
+
+function getFirstName(name: string) {
+  return name.trim().split(" ")[0] || "Jogador";
 }

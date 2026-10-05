@@ -53,7 +53,6 @@ begin
     coalesce(
       nullif(new.raw_user_meta_data ->> 'name', ''),
       nullif(new.raw_user_meta_data ->> 'full_name', ''),
-      nullif(split_part(new.email, '@', 1), ''),
       'Jogador'
     ),
     'jogador',
