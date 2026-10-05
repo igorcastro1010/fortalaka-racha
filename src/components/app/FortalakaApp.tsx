@@ -17,6 +17,7 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { TeamsScreen } from "@/components/teams/TeamsScreen";
 import { LogoMark } from "@/components/brand/LogoMark";
 import {
   fieldPlayers,
@@ -25,7 +26,6 @@ import {
   profile as mockProfile,
   ranking,
   substitutes,
-  teams,
 } from "@/data/mock";
 import { getRoleLabel, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
@@ -50,7 +50,7 @@ export function FortalakaApp({ profile }: { profile: Profile }) {
           {activeTab !== "home" && <AppHeader />}
           {activeTab === "home" && <HomeScreen profile={profile} onOpenRacha={() => setActiveTab("racha")} />}
           {activeTab === "racha" && <RachaScreen />}
-          {activeTab === "teams" && <TeamsScreen />}
+          {activeTab === "teams" && <TeamsScreen profile={profile} />}
           {activeTab === "ranking" && <RankingScreen />}
           {activeTab === "profile" && <ProfileScreen profile={profile} />}
         </div>
@@ -189,39 +189,6 @@ function RachaScreen() {
       <PlayerSection title="Goleiros" accent="bg-red-600" players={goalkeepers} />
       <PlayerSection title="Linha" accent="bg-neutral-950" players={fieldPlayers} />
       <PlayerSection title="Suplentes" accent="bg-zinc-400" players={substitutes} />
-    </section>
-  );
-}
-
-function TeamsScreen() {
-  return (
-    <section className="space-y-3.5">
-      <ScreenTitle title="Times" subtitle="Escalacao ficticia preparada para o racha" />
-      {teams.map((team) => (
-        <Card key={team.name} className="space-y-3.5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className={`h-8 w-8 rounded-[14px] ring-1 ring-black/10 ${team.color}`} />
-              <div>
-                <h3 className="text-lg font-black">{team.name}</h3>
-                <p className="text-xs font-bold text-zinc-600">{team.players.length} jogadores</p>
-              </div>
-            </div>
-            <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black text-zinc-700">
-              Colete
-            </span>
-          </div>
-          <div className="rounded-[18px] border border-red-100 bg-red-50 p-3">
-            <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-red-700">Goleiro</p>
-            <PlayerRow name={team.players[0]} compact tone="white" />
-          </div>
-          <div className="grid gap-1.5">
-            {team.players.slice(1).map((player) => (
-              <PlayerRow key={player} name={player} compact />
-            ))}
-          </div>
-        </Card>
-      ))}
     </section>
   );
 }
