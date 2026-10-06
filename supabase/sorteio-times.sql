@@ -70,9 +70,15 @@ create table if not exists public.times (
   confirmado boolean not null default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
-  constraint times_numero_check check (numero between 1 and 4),
+  constraint times_numero_check check (numero >= 1),
   constraint times_racha_numero_unique unique (racha_id, numero)
 );
+
+alter table public.times
+drop constraint if exists times_numero_check;
+
+alter table public.times
+add constraint times_numero_check check (numero >= 1);
 
 create table if not exists public.time_jogadores (
   id uuid primary key default gen_random_uuid(),

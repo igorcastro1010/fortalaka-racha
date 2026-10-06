@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fieldPlayers, goalkeepers } from "@/data/mock";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
-import { drawTeams, hasCompleteTeams, swapPlayers, validateFieldPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
+import { drawTeams, getTeamCount, hasCompleteTeams, swapPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
 import { confirmTeams, getCurrentRoundTeamsState, updateRoundStatus, type RoundParticipant, type RoundStatus, type RoundTeamsState } from "@/lib/teams/repository";
 
 type TeamsScreenProps = {
@@ -49,7 +49,6 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
   const goalkeepersToShow = roundState ? roundState.goalkeepers : createMockGoalkeepers();
   const fieldPlayersToUse = roundState ? roundState.fieldPlayers : createMockFieldPlayers();
-  const validationError = validateFieldPlayers(fieldPlayersToUse);
   const roundStatus = roundState?.status ?? "aberto";
   const confirmed = roundStatus === "times_confirmados" || roundStatus === "finalizado" || Boolean(roundState?.confirmed);
   const listClosed = roundStatus === "lista_fechada";
@@ -60,6 +59,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     () => fieldPlayersToUse.filter((player) => player).length,
     [fieldPlayersToUse],
   );
+  const teamsToFormCount = getTeamCount(confirmedPlayersCount);
+  const hasPlayersToDraw = confirmedPlayersCount > 0;
 
   function handleDrawTeams() {
     setError("");
@@ -70,8 +71,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       return;
     }
 
-    if (validationError) {
-      setError(validationError);
+    if (!hasPlayersToDraw) {
+      setError("Nenhum jogador de linha disponível para sorteio.");
       return;
     }
 
@@ -220,7 +221,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
           </div>
           <div>
             <p className="text-lg font-black">{confirmedPlayersCount} jogadores de linha</p>
-            <p className="text-xs font-bold text-zinc-600">Disponiveis para 4 times de 5</p>
+            <p className="text-xs font-bold text-zinc-600">{getTeamsToFormLabel(teamsToFormCount)}</p>
           </div>
         </div>
       </Card>
@@ -241,12 +242,13 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
             setSelectedPlayerId(null);
           }}
           onConfirm={handleConfirmTeams}
+          canDraw={hasPlayersToDraw}
         />
       ) : null}
 
       {error ? <Feedback tone="error" text={error} /> : null}
       {message ? <Feedback tone="success" text={message} /> : null}
-      {listClosed && validationError && !draw ? <Feedback tone="neutral" text={validationError} /> : null}
+      {listClosed && !hasPlayersToDraw ? <Feedback tone="neutral" text="Nenhum jogador de linha disponível para sorteio." /> : null}
       {adjustMode ? <Feedback tone="neutral" text="Toque em um jogador e depois em outro jogador de outro time para trocar." /> : null}
 
       {isLoading ? <Feedback tone="neutral" text="Carregando times..." /> : null}
@@ -276,7 +278,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
         <Card>
           <p className="text-base font-black">Nenhum sorteio feito ainda.</p>
           <p className="mt-1 text-sm font-bold text-zinc-600">
-            {organizer ? "Use o botao de sorteio para gerar os 4 times." : "Aguarde a confirmacao dos organizadores."}
+            {organizer ? "Use o botao de sorteio para gerar os times." : "Aguarde a confirmacao dos organizadores."}
           </p>
         </Card>
       ) : null}
@@ -296,6 +298,7 @@ function OrganizerControls({
   onReopenList,
   onToggleAdjust,
   onConfirm,
+  canDraw,
 }: {
   hasDraw: boolean;
   confirmed: boolean;
@@ -308,6 +311,7 @@ function OrganizerControls({
   onReopenList: () => void;
   onToggleAdjust: () => void;
   onConfirm: () => void;
+  canDraw: boolean;
 }) {
   return (
     <div className="grid gap-2">
@@ -331,7 +335,7 @@ function OrganizerControls({
       ) : null}
       <button
         onClick={onDraw}
-        disabled={!listClosed || finalized}
+        disabled={!listClosed || finalized || !canDraw}
         className="flex h-12 items-center justify-center gap-2 rounded-[18px] bg-red-600 text-sm font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {hasDraw ? <RefreshCw size={18} /> : <Shuffle size={18} />}
@@ -404,7 +408,7 @@ function RoundStatusBadge({ status }: { status: RoundStatus }) {
 
   const descriptions: Record<RoundStatus, string> = {
     aberto: "Organizadores podem editar participantes. Sorteio oficial ainda bloqueado.",
-    lista_fechada: "Lista fechada. O sorteio padrão fica disponível quando houver exatamente 20 jogadores de linha.",
+    lista_fechada: "Lista fechada. O sorteio fica disponível quando houver pelo menos um jogador de linha.",
     times_confirmados: "Times salvos e liberados para visualizacao dos jogadores.",
     finalizado: "Rodada encerrada. Times preservados no historico.",
   };
@@ -482,6 +486,14 @@ function createMockFieldPlayers(): RoundParticipant[] {
     type: "linha",
     status: "confirmado",
   }));
+}
+
+function getTeamsToFormLabel(teamCount: number) {
+  if (teamCount <= 0) {
+    return "Nenhum time será formado";
+  }
+
+  return teamCount === 1 ? "1 time será formado" : `${teamCount} times serão formados`;
 }
 
 function getInitials(name: string) {

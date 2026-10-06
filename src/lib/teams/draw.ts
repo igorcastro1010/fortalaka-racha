@@ -15,39 +15,34 @@ export type TeamDraw = {
   teams: DrawTeam[];
 };
 
-export const REQUIRED_FIELD_PLAYERS = 20;
-export const TEAM_COUNT = 4;
-export const PLAYERS_PER_TEAM = 5;
+export const MAX_PLAYERS_PER_TEAM = 5;
 
-export function validateFieldPlayers(players: TeamPlayer[]) {
-  if (players.length < REQUIRED_FIELD_PLAYERS) {
-    return `Há ${players.length} jogadores de linha. O sorteio padrão exige 20.`;
-  }
-
-  if (players.length > REQUIRED_FIELD_PLAYERS) {
-    return `Há ${players.length} jogadores de linha. Ajuste os participantes antes do sorteio padrão.`;
-  }
-
-  return "";
+export function getTeamCount(playerCount: number) {
+  return Math.ceil(playerCount / MAX_PLAYERS_PER_TEAM);
 }
 
 export function drawTeams(players: TeamPlayer[]): TeamDraw {
-  const validationError = validateFieldPlayers(players);
-
-  if (validationError) {
-    throw new Error(validationError);
+  if (!players.length) {
+    throw new Error("Nenhum jogador de linha disponível para sorteio.");
   }
 
   const shuffled = shuffle(players);
-  const teams: DrawTeam[] = Array.from({ length: TEAM_COUNT }, (_, teamIndex) => {
+  const teamCount = getTeamCount(shuffled.length);
+  const basePlayersPerTeam = Math.floor(shuffled.length / teamCount);
+  const teamsWithExtraPlayer = shuffled.length % teamCount;
+  let nextPlayerIndex = 0;
+
+  const teams: DrawTeam[] = Array.from({ length: teamCount }, (_, teamIndex) => {
     const number = teamIndex + 1;
-    const start = teamIndex * PLAYERS_PER_TEAM;
+    const teamSize = basePlayersPerTeam + (teamIndex < teamsWithExtraPlayer ? 1 : 0);
+    const teamPlayers = shuffled.slice(nextPlayerIndex, nextPlayerIndex + teamSize);
+    nextPlayerIndex += teamSize;
 
     return {
       id: `time-${number}`,
       name: `Time ${number}`,
       number,
-      players: shuffled.slice(start, start + PLAYERS_PER_TEAM),
+      players: teamPlayers,
     };
   });
 
@@ -80,7 +75,15 @@ export function swapPlayers(draw: TeamDraw, fromPlayerId: string, toPlayerId: st
 }
 
 export function hasCompleteTeams(draw: TeamDraw) {
-  return draw.teams.length === TEAM_COUNT && draw.teams.every((team) => team.players.length === PLAYERS_PER_TEAM);
+  if (!draw.teams.length || draw.teams.some((team) => !team.players.length || team.players.length > MAX_PLAYERS_PER_TEAM)) {
+    return false;
+  }
+
+  const teamSizes = draw.teams.map((team) => team.players.length);
+  const smallestTeam = Math.min(...teamSizes);
+  const largestTeam = Math.max(...teamSizes);
+
+  return largestTeam - smallestTeam <= 1;
 }
 
 function shuffle(players: TeamPlayer[]) {
