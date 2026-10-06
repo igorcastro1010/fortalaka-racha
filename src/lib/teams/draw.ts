@@ -21,11 +21,11 @@ export const PLAYERS_PER_TEAM = 5;
 
 export function validateFieldPlayers(players: TeamPlayer[]) {
   if (players.length < REQUIRED_FIELD_PLAYERS) {
-    return "Sao necessarios 20 jogadores de linha para formar 4 times de 5.";
+    return `Há ${players.length} jogadores de linha. O sorteio padrão exige 20.`;
   }
 
   if (players.length > REQUIRED_FIELD_PLAYERS) {
-    return "Existem mais de 20 jogadores disponiveis. Ajuste a lista antes de sortear.";
+    return `Há ${players.length} jogadores de linha. Ajuste os participantes antes do sorteio padrão.`;
   }
 
   return "";

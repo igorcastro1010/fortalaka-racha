@@ -180,18 +180,13 @@ export function RachaScreen({ profile }: { profile: Profile }) {
     setError("");
     setMessage("");
 
-    if (counts.goalkeepers !== 2 || counts.fieldPlayers !== 20) {
-      setError("Para fechar a lista, a rodada precisa ter 2 goleiros fixos e exatamente 20 jogadores de linha confirmados.");
-      return;
-    }
-
     setIsSaving(true);
 
     try {
       const supabase = createClient();
       await updateRoundStatus(supabase, round.roundId, "lista_fechada");
       await loadRound();
-      setMessage("Lista fechada. Sorteio liberado na aba Times.");
+      setMessage("Lista fechada. A edicao normal esta bloqueada ate um organizador reabrir.");
     } catch {
       setError("Nao foi possivel fechar a lista.");
     } finally {

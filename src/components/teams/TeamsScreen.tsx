@@ -47,8 +47,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     };
   }, []);
 
-  const goalkeepersToShow = roundState?.goalkeepers.length ? roundState.goalkeepers : createMockGoalkeepers();
-  const fieldPlayersToUse = roundState?.fieldPlayers.length ? roundState.fieldPlayers : createMockFieldPlayers();
+  const goalkeepersToShow = roundState ? roundState.goalkeepers : createMockGoalkeepers();
+  const fieldPlayersToUse = roundState ? roundState.fieldPlayers : createMockFieldPlayers();
   const validationError = validateFieldPlayers(fieldPlayersToUse);
   const roundStatus = roundState?.status ?? "aberto";
   const confirmed = roundStatus === "times_confirmados" || roundStatus === "finalizado" || Boolean(roundState?.confirmed);
@@ -145,12 +145,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       return;
     }
 
-    if (goalkeepersToShow.length !== 2 || validationError) {
-      setError("Para fechar a lista, a rodada precisa ter 2 goleiros fixos e exatamente 20 jogadores de linha confirmados.");
-      return;
-    }
-
-    await changeRoundStatus("lista_fechada", "Lista fechada. Sorteio liberado.");
+    await changeRoundStatus("lista_fechada", "Lista fechada. A edicao normal esta bloqueada ate um organizador reabrir.");
   }
 
   async function handleReopenList() {
@@ -251,6 +246,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
       {error ? <Feedback tone="error" text={error} /> : null}
       {message ? <Feedback tone="success" text={message} /> : null}
+      {listClosed && validationError && !draw ? <Feedback tone="neutral" text={validationError} /> : null}
       {adjustMode ? <Feedback tone="neutral" text="Toque em um jogador e depois em outro jogador de outro time para trocar." /> : null}
 
       {isLoading ? <Feedback tone="neutral" text="Carregando times..." /> : null}
@@ -408,7 +404,7 @@ function RoundStatusBadge({ status }: { status: RoundStatus }) {
 
   const descriptions: Record<RoundStatus, string> = {
     aberto: "Organizadores podem editar participantes. Sorteio oficial ainda bloqueado.",
-    lista_fechada: "Lista valida e fechada. Sorteio, novo sorteio e ajustes liberados.",
+    lista_fechada: "Lista fechada. O sorteio padrão fica disponível quando houver exatamente 20 jogadores de linha.",
     times_confirmados: "Times salvos e liberados para visualizacao dos jogadores.",
     finalizado: "Rodada encerrada. Times preservados no historico.",
   };
