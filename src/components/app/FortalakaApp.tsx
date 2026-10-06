@@ -19,12 +19,12 @@ import { useState } from "react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { RachaScreen } from "@/components/rounds/RachaScreen";
 import { TeamsScreen } from "@/components/teams/TeamsScreen";
+import { PlayerPerformance } from "@/components/players/PlayerPerformance";
 import { ProfilePhoto } from "@/components/players/ProfilePhoto";
 import {
   fieldPlayers,
   goalkeepers,
   nextMatch,
-  profile as mockProfile,
   ranking,
   substitutes,
 } from "@/data/mock";
@@ -212,8 +212,6 @@ function RankingScreen() {
 function ProfileScreen({ profile }: { profile: Profile }) {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const displayName = getDisplayName(profile);
-
   async function handleSignOut() {
     setIsSigningOut(true);
     const supabase = createClient();
@@ -224,52 +222,8 @@ function ProfileScreen({ profile }: { profile: Profile }) {
 
   return (
     <section className="space-y-3.5">
+      <PlayerPerformance profile={profile} />
       <ProfilePhoto profile={profile} />
-      <Card className="bg-neutral-950 p-4 text-white ring-0">
-        <div className="flex items-center gap-4">
-          <LogoMark size="profile" />
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">
-              {getRoleLabel(profile.role)}
-            </p>
-            <h2 className="truncate text-3xl font-black">{displayName}</h2>
-            <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-sm font-black">
-              Nota media <span className="text-red-300">8.9</span>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <h3 className="mb-3 text-lg font-black">Estatisticas</h3>
-        <div className="grid grid-cols-2 gap-2">
-          {mockProfile.stats
-            .filter((stat) => stat.label !== "Nota media")
-            .map((stat) => (
-              <div key={stat.label} className="rounded-[18px] border border-zinc-200 bg-zinc-50 p-3">
-                <p className="text-xs font-bold uppercase text-zinc-600">{stat.label}</p>
-                <p className="mt-1 text-2xl font-black">{stat.value}</p>
-              </div>
-            ))}
-        </div>
-      </Card>
-
-      <Card>
-        <h3 className="mb-3 text-lg font-black">Ultimos jogos</h3>
-        <div className="space-y-1.5">
-          {mockProfile.recentGames.map((game) => (
-            <div key={game.date} className="flex items-center justify-between rounded-[18px] border border-zinc-200 bg-zinc-50 p-3">
-              <div>
-                <p className="font-black">{game.result}</p>
-                <p className="text-sm font-bold text-zinc-600">{game.date}</p>
-              </div>
-              <p className="rounded-full bg-white px-3 py-1 text-sm font-black text-zinc-700 ring-1 ring-black/5">
-                {game.goals} gols / {game.assists} ast
-              </p>
-            </div>
-          ))}
-        </div>
-      </Card>
 
       <button
         onClick={handleSignOut}
