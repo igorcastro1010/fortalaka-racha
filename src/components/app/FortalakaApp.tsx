@@ -6,7 +6,6 @@ import {
   Clock3,
   Home,
   MapPin,
-  Pencil,
   Shield,
   Trophy,
   User,
@@ -17,8 +16,9 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { TeamsScreen } from "@/components/teams/TeamsScreen";
 import { LogoMark } from "@/components/brand/LogoMark";
+import { RachaScreen } from "@/components/rounds/RachaScreen";
+import { TeamsScreen } from "@/components/teams/TeamsScreen";
 import {
   fieldPlayers,
   goalkeepers,
@@ -49,7 +49,7 @@ export function FortalakaApp({ profile }: { profile: Profile }) {
         <div className="min-h-screen px-4 pb-[calc(104px+env(safe-area-inset-bottom))] pt-[calc(16px+env(safe-area-inset-top))]">
           {activeTab !== "home" && <AppHeader />}
           {activeTab === "home" && <HomeScreen profile={profile} onOpenRacha={() => setActiveTab("racha")} />}
-          {activeTab === "racha" && <RachaScreen />}
+          {activeTab === "racha" && <RachaScreen profile={profile} />}
           {activeTab === "teams" && <TeamsScreen profile={profile} />}
           {activeTab === "ranking" && <RankingScreen />}
           {activeTab === "profile" && <ProfileScreen profile={profile} />}
@@ -175,21 +175,6 @@ function HomeCount({ icon: Icon, value, label }: { icon: LucideIcon; value: numb
       <p className="mt-1.5 text-xl font-black leading-none text-neutral-950">{value}</p>
       <p className="mt-1 truncate text-[11px] font-bold text-zinc-700">{label}</p>
     </div>
-  );
-}
-
-function RachaScreen() {
-  return (
-    <section className="space-y-3.5">
-      <ScreenTitle title="Racha" subtitle={`${nextMatch.day}, ${nextMatch.date} as ${nextMatch.time}`} />
-      <div className="grid grid-cols-2 gap-2.5">
-        <ActionButton icon={ClipboardList} label="Colar lista do WhatsApp" />
-        <ActionButton icon={Pencil} label="Editar lista" />
-      </div>
-      <PlayerSection title="Goleiros" accent="bg-red-600" players={goalkeepers} />
-      <PlayerSection title="Linha" accent="bg-neutral-950" players={fieldPlayers} />
-      <PlayerSection title="Suplentes" accent="bg-zinc-400" players={substitutes} />
-    </section>
   );
 }
 
@@ -334,51 +319,6 @@ function ScreenTitle({ title, subtitle }: { title: string; subtitle: string }) {
   );
 }
 
-function ActionButton({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-  return (
-    <button className="flex min-h-16 items-center gap-3 rounded-[20px] border border-zinc-200 bg-white p-3 text-left text-sm font-black text-neutral-950 shadow-sm transition hover:border-red-200 hover:bg-red-50 active:scale-[0.98]">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-neutral-950 text-white">
-        <Icon size={20} />
-      </span>
-      <span>{label}</span>
-    </button>
-  );
-}
-
-function PlayerSection({ title, accent, players }: { title: string; accent: string; players: string[] }) {
-  return (
-    <Card>
-      <div className="mb-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className={`h-3 w-3 rounded-full ${accent}`} />
-          <h3 className="text-lg font-black">{title}</h3>
-        </div>
-        <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700">
-          {players.length} participantes
-        </span>
-      </div>
-      <div className="divide-y divide-zinc-100">
-        {players.map((player) => (
-          <PlayerRow key={player} name={player} />
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-function PlayerRow({ name, compact = false, tone = "zinc" }: { name: string; compact?: boolean; tone?: "zinc" | "white" }) {
-  return (
-    <div
-      className={`flex items-center gap-3 ${compact ? "min-h-10 py-1.5" : "min-h-12 py-2"} ${
-        tone === "white" ? "rounded-[16px] bg-white px-2.5 ring-1 ring-red-100" : "px-0"
-      }`}
-    >
-      <Avatar initials={getInitials(name)} compact={compact} />
-      <p className="min-w-0 flex-1 truncate text-sm font-black">{name}</p>
-    </div>
-  );
-}
-
 function Avatar({ initials, compact = false }: { initials: string; compact?: boolean }) {
   return (
     <div
@@ -398,15 +338,6 @@ function MiniStat({ label, value }: { label: string; value: string | number }) {
       <p className="mt-0.5 text-[10px] font-bold uppercase text-zinc-600">{label}</p>
     </div>
   );
-}
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
 }
 
 function getDisplayName(profile: Profile) {
