@@ -239,42 +239,38 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   }
 
   return (
-    <section className="space-y-3.5">
+    <section className="flex flex-col gap-3">
       <div>
         <h2 className="text-[29px] font-black leading-tight tracking-normal">Times</h2>
         <p className="mt-0.5 text-sm font-bold text-zinc-600">
-          {confirmed ? "Times confirmados para a rodada" : "Sorteio liberado quando a lista fechar"}
+          Sorteio da rodada
         </p>
       </div>
 
       {roundState ? <>
       <RoundStatusBadge status={roundStatus} />
 
-      <Card className="space-y-3">
+      <Card className="order-5 space-y-2">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-red-600">Goleiros Fixos</p>
-            <h3 className="mt-1 text-lg font-black">Fora do sorteio</h3>
+            <h3 className="text-xs font-bold text-zinc-700">Goleiros fixos · {goalkeepersToShow.length}</h3>
           </div>
-          <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black text-zinc-700">
-            {goalkeepersToShow.length} goleiros
-          </span>
         </div>
         <div className="grid gap-2">
+          {!goalkeepersToShow.length && <p className="text-xs text-zinc-500">Nenhum goleiro definido</p>}
           {goalkeepersToShow.map((goalkeeper) => (
             <PlayerPill key={goalkeeper.id} player={goalkeeper} />
           ))}
         </div>
       </Card>
 
-      <Card className="flex items-center justify-between gap-3 p-3.5">
+      <Card className="order-[35] flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-red-50 text-red-600">
-            <Users size={22} />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-600">
+            <Users size={19} />
           </div>
           <div>
-            <p className="text-xs font-bold text-zinc-600">Jogadores disponíveis para sorteio</p>
-            <p className="text-lg font-black">{confirmedPlayersCount} jogadores de linha</p>
+            <p className="text-sm font-black">{confirmedPlayersCount} jogadores de linha</p>
             <p className="text-xs font-bold text-zinc-600">{getTeamsToFormLabel(teamsToFormCount)}</p>
           </div>
         </div>
@@ -320,7 +316,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       ) : null}
 
       {canShowTeams && draw ? (
-        <div className="space-y-3">
+        <div className="order-10 space-y-3">
           {draw.teams.map((team) => (
             <TeamCard
               key={team.id}
@@ -334,10 +330,10 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       ) : null}
 
       {canShowTeams && !draw && !isLoading && !error ? (
-        <Card>
+        <Card className="order-10">
           <p className="text-base font-black">Nenhum sorteio feito ainda.</p>
           <p className="mt-1 text-sm font-bold text-zinc-600">
-            {organizer ? "Use o botao de sorteio para gerar os times." : "Aguarde a confirmacao dos organizadores."}
+            {organizer ? "Feche a lista e toque em Sortear Times." : "Aguarde a confirmacao dos organizadores."}
           </p>
         </Card>
       ) : null}
@@ -373,12 +369,12 @@ function OrganizerControls({
   canDraw: boolean;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="order-20 grid gap-2">
       {!listClosed && !confirmed && !finalized ? (
         <button
           onClick={onCloseList}
           disabled={isSaving}
-          className="h-12 rounded-[18px] bg-neutral-950 text-sm font-black uppercase tracking-wide text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          className="order-3 h-11 rounded-[14px] border border-zinc-200 bg-white text-xs font-bold uppercase tracking-wide text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Fechar lista
         </button>
@@ -387,7 +383,7 @@ function OrganizerControls({
         <button
           onClick={onReopenList}
           disabled={isSaving}
-          className="h-11 rounded-[16px] border border-zinc-200 bg-white text-xs font-black uppercase text-neutral-950 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          className="order-3 h-11 rounded-[14px] border border-zinc-200 bg-white text-xs font-bold uppercase text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Reabrir / editar rodada
         </button>
@@ -404,7 +400,7 @@ function OrganizerControls({
         <button
           onClick={onToggleAdjust}
           disabled={!hasDraw || !listClosed || finalized || isSaving}
-          className="h-11 rounded-[16px] border border-zinc-200 bg-white text-xs font-black uppercase text-neutral-950 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          className="order-2 h-11 rounded-[14px] border border-zinc-200 bg-white text-xs font-bold uppercase text-zinc-700 transition hover:bg-zinc-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {adjustMode ? "Concluir ajuste" : "Ajustar times"}
         </button>
@@ -432,17 +428,17 @@ function TeamCard({
   onPlayerClick: (player: TeamPlayer) => void;
 }) {
   return (
-    <Card className="space-y-3.5">
+    <Card className="space-y-2 border-t-2 border-red-600">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-black">{team.name}</h3>
+          <h3 className="text-lg font-black">Time {team.number}</h3>
           <p className="text-xs font-bold text-zinc-600">{team.players.length} jogadores</p>
         </div>
         <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700">
-          Time {team.number}
+          {team.name}
         </span>
       </div>
-      <div className="grid gap-1.5">
+      <div className="divide-y divide-zinc-100">
         {team.players.map((player) => (
           <PlayerPill
             key={player.id}
@@ -465,22 +461,14 @@ function RoundStatusBadge({ status }: { status: RoundStatus }) {
     finalizado: "Racha finalizado",
   };
 
-  const descriptions: Record<RoundStatus, string> = {
-    aberto: "Organizadores podem editar participantes. Sorteio oficial ainda bloqueado.",
-    lista_fechada: "Lista fechada. O sorteio fica disponível quando houver pelo menos um jogador de linha.",
-    times_confirmados: "Times salvos e liberados para visualizacao dos jogadores.",
-    finalizado: "Rodada encerrada. Times preservados no historico.",
-  };
-
   return (
-    <div className="rounded-[18px] bg-white p-3 shadow-sm ring-1 ring-black/5">
+    <div className="order-[30] rounded-[16px] bg-white p-3 ring-1 ring-black/5">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-black">{labels[status]}</p>
-        <span className="rounded-full bg-red-50 px-3 py-1 text-[11px] font-black uppercase text-red-700">
+        <p className="text-xs font-bold">{labels[status]}</p>
+        <span className="rounded-full bg-red-50 px-2 py-1 text-[9px] font-bold uppercase text-red-700">
           {status.replace("_", " ")}
         </span>
       </div>
-      <p className="mt-1 text-xs font-bold text-zinc-600">{descriptions[status]}</p>
     </div>
   );
 }
@@ -501,12 +489,12 @@ function PlayerPill({
       type="button"
       onClick={onClick}
       disabled={!clickable}
-      className={`flex min-h-11 w-full items-center gap-3 rounded-[16px] px-2.5 text-left transition ${
-        selected ? "bg-red-50 ring-2 ring-red-500" : "bg-zinc-50 ring-1 ring-zinc-100"
+      className={`flex min-h-11 w-full items-center gap-2.5 rounded-lg py-1 text-left transition ${
+        selected ? "bg-red-50 ring-2 ring-red-500" : "bg-transparent"
       } ${clickable ? "active:scale-[0.99]" : "cursor-default"}`}
     >
       <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} size="sm" />
-      <span className="min-w-0 flex-1 truncate text-sm font-black text-neutral-950">{player.name}</span>
+      <span className="min-w-0 flex-1 break-words text-sm font-bold leading-snug text-neutral-950">{player.name}</span>
     </button>
   );
 }
@@ -522,7 +510,7 @@ function Feedback({ text, tone }: { text: string; tone: "error" | "success" | "n
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-[22px] bg-white p-4 shadow-[0_8px_22px_rgba(0,0,0,0.035)] ring-1 ring-black/5 ${className}`}>{children}</div>;
+  return <div className={`rounded-[18px] bg-white p-3 shadow-[0_8px_22px_rgba(0,0,0,0.035)] ring-1 ring-black/5 ${className}`}>{children}</div>;
 }
 
 function getTeamsToFormLabel(teamCount: number) {
