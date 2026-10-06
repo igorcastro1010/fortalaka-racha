@@ -7,9 +7,12 @@ export type RoundParticipant = TeamPlayer & {
   status: "confirmado" | "suplente" | "ausente" | "removido";
 };
 
+export type RoundStatus = "aberto" | "lista_fechada" | "times_confirmados" | "finalizado";
+
 export type RoundTeamsState = {
   roundId: string;
   roundName: string;
+  status: RoundStatus;
   goalkeepers: RoundParticipant[];
   fieldPlayers: RoundParticipant[];
   teams: DrawTeam[];
@@ -20,6 +23,7 @@ type RachaRow = {
   id: string;
   nome: string | null;
   data: string | null;
+  estado: RoundStatus;
 };
 
 type ParticipantRow = {
@@ -46,7 +50,7 @@ type TeamRow = {
 export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promise<RoundTeamsState | null> {
   const { data: round, error: roundError } = await supabase
     .from("rachas")
-    .select("id, nome, data")
+    .select("id, nome, data, estado")
     .order("data", { ascending: false })
     .limit(1)
     .maybeSingle<RachaRow>();
@@ -86,6 +90,7 @@ export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promi
   return {
     roundId: round.id,
     roundName: round.nome ?? "Racha atual",
+    status: round.estado,
     goalkeepers: normalizedParticipants.filter((participant) => participant.type === "goleiro" && participant.status === "confirmado"),
     fieldPlayers: normalizedParticipants.filter((participant) => participant.type === "linha" && participant.status === "confirmado"),
     teams: normalizedTeams,
@@ -134,6 +139,23 @@ export async function confirmTeams(supabase: SupabaseClient, roundId: string, te
     if (playersError) {
       throw playersError;
     }
+  }
+
+  const { error: roundError } = await supabase
+    .from("rachas")
+    .update({ estado: "times_confirmados" })
+    .eq("id", roundId);
+
+  if (roundError) {
+    throw roundError;
+  }
+}
+
+export async function updateRoundStatus(supabase: SupabaseClient, roundId: string, status: RoundStatus) {
+  const { error } = await supabase.from("rachas").update({ estado: status }).eq("id", roundId);
+
+  if (error) {
+    throw error;
   }
 }
 

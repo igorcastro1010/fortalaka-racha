@@ -6,7 +6,7 @@ import { fieldPlayers, goalkeepers } from "@/data/mock";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
 import { drawTeams, hasCompleteTeams, swapPlayers, validateFieldPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
-import { confirmTeams, getCurrentRoundTeamsState, type RoundParticipant, type RoundTeamsState } from "@/lib/teams/repository";
+import { confirmTeams, getCurrentRoundTeamsState, updateRoundStatus, type RoundParticipant, type RoundStatus, type RoundTeamsState } from "@/lib/teams/repository";
 
 type TeamsScreenProps = {
   profile: Profile;
@@ -50,7 +50,10 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   const goalkeepersToShow = roundState?.goalkeepers.length ? roundState.goalkeepers : createMockGoalkeepers();
   const fieldPlayersToUse = roundState?.fieldPlayers.length ? roundState.fieldPlayers : createMockFieldPlayers();
   const validationError = validateFieldPlayers(fieldPlayersToUse);
-  const confirmed = Boolean(roundState?.confirmed);
+  const roundStatus = roundState?.status ?? "aberto";
+  const confirmed = roundStatus === "times_confirmados" || roundStatus === "finalizado" || Boolean(roundState?.confirmed);
+  const listClosed = roundStatus === "lista_fechada";
+  const finalized = roundStatus === "finalizado";
   const canShowTeams = organizer || confirmed;
 
   const confirmedPlayersCount = useMemo(
@@ -61,6 +64,11 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   function handleDrawTeams() {
     setError("");
     setMessage("");
+
+    if (!listClosed) {
+      setError("Feche a lista da rodada antes de sortear os times.");
+      return;
+    }
 
     if (validationError) {
       setError(validationError);
@@ -78,7 +86,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   }
 
   function handlePlayerClick(player: TeamPlayer) {
-    if (!organizer || !adjustMode || !draw || confirmed) {
+    if (!organizer || !adjustMode || !draw || !listClosed) {
       return;
     }
 
@@ -105,6 +113,11 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       return;
     }
 
+    if (!listClosed) {
+      setError("A lista precisa estar fechada para confirmar os times.");
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -123,14 +136,70 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     }
   }
 
+  async function handleCloseList() {
+    setError("");
+    setMessage("");
+
+    if (!roundState?.roundId) {
+      setError("Cadastre a rodada no Supabase antes de fechar a lista.");
+      return;
+    }
+
+    if (goalkeepersToShow.length !== 2 || validationError) {
+      setError("Para fechar a lista, a rodada precisa ter 2 goleiros fixos e exatamente 20 jogadores de linha confirmados.");
+      return;
+    }
+
+    await changeRoundStatus("lista_fechada", "Lista fechada. Sorteio liberado.");
+  }
+
+  async function handleReopenList() {
+    if (!roundState?.roundId) {
+      return;
+    }
+
+    if (!window.confirm("Reabrir a lista permite editar participantes e pode exigir novo sorteio. Deseja continuar?")) {
+      return;
+    }
+
+    await changeRoundStatus("aberto", "Lista reaberta para ajustes.");
+    setAdjustMode(false);
+    setSelectedPlayerId(null);
+  }
+
+  async function changeRoundStatus(status: RoundStatus, successMessage: string) {
+    if (!roundState?.roundId) {
+      return;
+    }
+
+    setIsSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const supabase = createClient();
+      await updateRoundStatus(supabase, roundState.roundId, status);
+      const updatedState = await getCurrentRoundTeamsState(supabase);
+      setRoundState(updatedState);
+      setDraw(updatedState?.teams.length ? { teams: updatedState.teams } : draw);
+      setMessage(successMessage);
+    } catch {
+      setError("Nao foi possivel atualizar o estado da rodada.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <section className="space-y-3.5">
       <div>
         <h2 className="text-[29px] font-black leading-tight tracking-normal">Times</h2>
         <p className="mt-0.5 text-sm font-bold text-zinc-600">
-          {confirmed ? "Times confirmados para a rodada" : "Sorteio oficial do racha"}
+          {confirmed ? "Times confirmados para a rodada" : "Sorteio liberado quando a lista fechar"}
         </p>
       </div>
+
+      <RoundStatusBadge status={roundStatus} />
 
       <Card className="space-y-3">
         <div className="flex items-center justify-between gap-3">
@@ -165,9 +234,13 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
         <OrganizerControls
           hasDraw={Boolean(draw)}
           confirmed={confirmed}
+          listClosed={listClosed}
+          finalized={finalized}
           adjustMode={adjustMode}
           isSaving={isSaving}
           onDraw={handleDrawTeams}
+          onCloseList={handleCloseList}
+          onReopenList={handleReopenList}
           onToggleAdjust={() => {
             setAdjustMode((current) => !current);
             setSelectedPlayerId(null);
@@ -196,7 +269,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
               key={team.id}
               team={team}
               selectedPlayerId={selectedPlayerId}
-              adjustMode={adjustMode && organizer && !confirmed}
+              adjustMode={adjustMode && organizer && listClosed}
               onPlayerClick={handlePlayerClick}
             />
           ))}
@@ -218,25 +291,52 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 function OrganizerControls({
   hasDraw,
   confirmed,
+  listClosed,
+  finalized,
   adjustMode,
   isSaving,
   onDraw,
+  onCloseList,
+  onReopenList,
   onToggleAdjust,
   onConfirm,
 }: {
   hasDraw: boolean;
   confirmed: boolean;
+  listClosed: boolean;
+  finalized: boolean;
   adjustMode: boolean;
   isSaving: boolean;
   onDraw: () => void;
+  onCloseList: () => void;
+  onReopenList: () => void;
   onToggleAdjust: () => void;
   onConfirm: () => void;
 }) {
   return (
     <div className="grid gap-2">
+      {!listClosed && !confirmed && !finalized ? (
+        <button
+          onClick={onCloseList}
+          disabled={isSaving}
+          className="h-12 rounded-[18px] bg-neutral-950 text-sm font-black uppercase tracking-wide text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Fechar lista
+        </button>
+      ) : null}
+      {confirmed && !finalized ? (
+        <button
+          onClick={onReopenList}
+          disabled={isSaving}
+          className="h-11 rounded-[16px] border border-zinc-200 bg-white text-xs font-black uppercase text-neutral-950 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Reabrir / editar rodada
+        </button>
+      ) : null}
       <button
         onClick={onDraw}
-        className="flex h-12 items-center justify-center gap-2 rounded-[18px] bg-red-600 text-sm font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98]"
+        disabled={!listClosed || finalized}
+        className="flex h-12 items-center justify-center gap-2 rounded-[18px] bg-red-600 text-sm font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {hasDraw ? <RefreshCw size={18} /> : <Shuffle size={18} />}
         {hasDraw ? "Sortear novamente" : "Sortear times"}
@@ -244,14 +344,14 @@ function OrganizerControls({
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={onToggleAdjust}
-          disabled={!hasDraw || confirmed}
+          disabled={!hasDraw || !listClosed || finalized}
           className="h-11 rounded-[16px] border border-zinc-200 bg-white text-xs font-black uppercase text-neutral-950 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {adjustMode ? "Concluir ajuste" : "Ajustar times"}
         </button>
         <button
           onClick={onConfirm}
-          disabled={!hasDraw || isSaving}
+          disabled={!hasDraw || !listClosed || isSaving || finalized}
           className="h-11 rounded-[16px] bg-neutral-950 text-xs font-black uppercase text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSaving ? "Salvando..." : "Confirmar times"}
@@ -295,6 +395,34 @@ function TeamCard({
         ))}
       </div>
     </Card>
+  );
+}
+
+function RoundStatusBadge({ status }: { status: RoundStatus }) {
+  const labels: Record<RoundStatus, string> = {
+    aberto: "Rodada aberta",
+    lista_fechada: "Lista fechada",
+    times_confirmados: "Times confirmados",
+    finalizado: "Racha finalizado",
+  };
+
+  const descriptions: Record<RoundStatus, string> = {
+    aberto: "Organizadores podem editar participantes. Sorteio oficial ainda bloqueado.",
+    lista_fechada: "Lista valida e fechada. Sorteio, novo sorteio e ajustes liberados.",
+    times_confirmados: "Times salvos e liberados para visualizacao dos jogadores.",
+    finalizado: "Rodada encerrada. Times preservados no historico.",
+  };
+
+  return (
+    <div className="rounded-[18px] bg-white p-3 shadow-sm ring-1 ring-black/5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-black">{labels[status]}</p>
+        <span className="rounded-full bg-red-50 px-3 py-1 text-[11px] font-black uppercase text-red-700">
+          {status.replace("_", " ")}
+        </span>
+      </div>
+      <p className="mt-1 text-xs font-bold text-zinc-600">{descriptions[status]}</p>
+    </div>
   );
 }
 

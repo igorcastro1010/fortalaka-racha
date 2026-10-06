@@ -4,9 +4,28 @@ create table if not exists public.rachas (
   data date,
   horario time,
   endereco text,
+  estado text not null default 'aberto',
   created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  updated_at timestamptz default now(),
+  constraint rachas_estado_check check (estado in ('aberto', 'lista_fechada', 'times_confirmados', 'finalizado'))
 );
+
+alter table public.rachas
+add column if not exists estado text not null default 'aberto';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'rachas_estado_check'
+      and conrelid = 'public.rachas'::regclass
+  ) then
+    alter table public.rachas
+      add constraint rachas_estado_check check (estado in ('aberto', 'lista_fechada', 'times_confirmados', 'finalizado'));
+  end if;
+end
+$$;
 
 create table if not exists public.racha_participantes (
   id uuid primary key default gen_random_uuid(),
