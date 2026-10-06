@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type { Participant } from "@/lib/teams/draw";
+type Participant = {
+  id: string;
+  name: string;
+  tipo: "goleiro_fixo" | "linha" | "suplente";
+  status: "presente" | "ausente" | "removido";
+};
 
 export function ParticipantEditor({ initial, busy, onSave, onCancel }: {
   initial: Participant[]; busy: boolean; onSave: (participants: Participant[]) => void; onCancel: () => void;
