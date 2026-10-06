@@ -6,7 +6,7 @@ import { fieldPlayers, goalkeepers } from "@/data/mock";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
 import { drawTeams, getTeamCount, hasCompleteTeams, swapPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
-import { confirmTeams, getCurrentRoundTeamsState, updateRoundStatus, type RoundParticipant, type RoundStatus, type RoundTeamsState } from "@/lib/teams/repository";
+import { confirmTeams, getCurrentRoundTeamsState, saveDraftTeams, updateRoundStatus, type RoundParticipant, type RoundStatus, type RoundTeamsState } from "@/lib/teams/repository";
 
 type TeamsScreenProps = {
   profile: Profile;
@@ -28,16 +28,26 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
     async function loadTeams() {
       setIsLoading(true);
-      const supabase = createClient();
-      const state = await getCurrentRoundTeamsState(supabase);
+      setError("");
 
-      if (!isMounted) {
-        return;
+      try {
+        const state = await fetchRoundTeamsState();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setRoundState(state);
+        setDraw(state?.teams.length ? { teams: state.teams } : null);
+      } catch {
+        if (isMounted) {
+          setError("Não foi possível carregar os times desta rodada.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
-
-      setRoundState(state);
-      setDraw(state?.teams.length ? { teams: state.teams } : null);
-      setIsLoading(false);
     }
 
     void loadTeams();
@@ -62,12 +72,24 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   const teamsToFormCount = getTeamCount(confirmedPlayersCount);
   const hasPlayersToDraw = confirmedPlayersCount > 0;
 
-  function handleDrawTeams() {
+  async function reloadPersistedTeams(fallbackDraw?: TeamDraw) {
+    const updatedState = await fetchRoundTeamsState();
+    setRoundState(updatedState);
+    setDraw(updatedState?.teams.length ? { teams: updatedState.teams } : fallbackDraw ?? null);
+    return updatedState;
+  }
+
+  async function handleDrawTeams() {
     setError("");
     setMessage("");
 
     if (!listClosed) {
       setError("Feche a lista da rodada antes de sortear os times.");
+      return;
+    }
+
+    if (!roundState?.roundId) {
+      setError("Cadastre a rodada no Supabase antes de sortear os times.");
       return;
     }
 
@@ -80,13 +102,24 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       return;
     }
 
-    setDraw(drawTeams(fieldPlayersToUse));
-    setAdjustMode(false);
-    setSelectedPlayerId(null);
-    setMessage("Times sorteados. Revise antes de confirmar.");
+    setIsSaving(true);
+
+    try {
+      const nextDraw = drawTeams(fieldPlayersToUse);
+      const supabase = createClient();
+      await saveDraftTeams(supabase, roundState.roundId, nextDraw.teams);
+      await reloadPersistedTeams(nextDraw);
+      setAdjustMode(false);
+      setSelectedPlayerId(null);
+      setMessage("Times sorteados e salvos como rascunho.");
+    } catch (drawError) {
+      setError(drawError instanceof Error ? drawError.message : "Não foi possível salvar o sorteio. Tente novamente.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  function handlePlayerClick(player: TeamPlayer) {
+  async function handlePlayerClick(player: TeamPlayer) {
     if (!organizer || !adjustMode || !draw || !listClosed) {
       return;
     }
@@ -96,8 +129,32 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       return;
     }
 
-    setDraw(swapPlayers(draw, selectedPlayerId, player.id));
+    if (!roundState?.roundId) {
+      setError("Cadastre a rodada no Supabase antes de ajustar os times.");
+      return;
+    }
+
+    const nextDraw = swapPlayers(draw, selectedPlayerId, player.id);
     setSelectedPlayerId(null);
+
+    if (nextDraw === draw) {
+      return;
+    }
+
+    setIsSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const supabase = createClient();
+      await saveDraftTeams(supabase, roundState.roundId, nextDraw.teams);
+      await reloadPersistedTeams(nextDraw);
+      setMessage("Ajuste salvo.");
+    } catch {
+      setError("Não foi possível salvar o ajuste dos times. Tente novamente.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function handleConfirmTeams() {
@@ -123,10 +180,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
     try {
       const supabase = createClient();
-      await confirmTeams(supabase, roundState.roundId, draw.teams);
-      const updatedState = await getCurrentRoundTeamsState(supabase);
-      setRoundState(updatedState);
-      setDraw(updatedState?.teams.length ? { teams: updatedState.teams } : draw);
+      await confirmTeams(supabase, roundState.roundId);
+      await reloadPersistedTeams(draw);
       setAdjustMode(false);
       setSelectedPlayerId(null);
       setMessage("Times confirmados com sucesso.");
@@ -175,9 +230,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     try {
       const supabase = createClient();
       await updateRoundStatus(supabase, roundState.roundId, status);
-      const updatedState = await getCurrentRoundTeamsState(supabase);
-      setRoundState(updatedState);
-      setDraw(updatedState?.teams.length ? { teams: updatedState.teams } : draw);
+      await reloadPersistedTeams(draw ?? undefined);
       setMessage(successMessage);
     } catch {
       setError("Nao foi possivel atualizar o estado da rodada.");
@@ -494,6 +547,11 @@ function getTeamsToFormLabel(teamCount: number) {
   }
 
   return teamCount === 1 ? "1 time será formado" : `${teamCount} times serão formados`;
+}
+
+async function fetchRoundTeamsState() {
+  const supabase = createClient();
+  return getCurrentRoundTeamsState(supabase);
 }
 
 function getInitials(name: string) {

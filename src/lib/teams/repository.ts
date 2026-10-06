@@ -55,18 +55,26 @@ export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promi
     .limit(1)
     .maybeSingle<RachaRow>();
 
-  if (roundError || !round) {
+  if (roundError) {
+    throw roundError;
+  }
+
+  if (!round) {
     return null;
   }
 
-  const { data: participants } = await supabase
+  const { data: participants, error: participantsError } = await supabase
     .from("racha_participantes")
     .select("id, jogador_id, nome, tipo, status")
     .eq("racha_id", round.id)
     .order("created_at", { ascending: true })
     .returns<ParticipantRow[]>();
 
-  const { data: teams } = await supabase
+  if (participantsError) {
+    throw participantsError;
+  }
+
+  const { data: teams, error: teamsError } = await supabase
     .from("times")
     .select(
       "id, nome, numero, confirmado, time_jogadores(jogador_id, participante_id, profiles(name), racha_participantes(nome))",
@@ -74,6 +82,10 @@ export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promi
     .eq("racha_id", round.id)
     .order("numero", { ascending: true })
     .returns<TeamRow[]>();
+
+  if (teamsError) {
+    throw teamsError;
+  }
 
   const normalizedParticipants = (participants ?? []).map(normalizeParticipant);
   const normalizedTeams = (teams ?? []).map((team) => ({
@@ -98,12 +110,12 @@ export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promi
   };
 }
 
-export async function confirmTeams(supabase: SupabaseClient, roundId: string, teams: DrawTeam[]) {
+export async function saveDraftTeams(supabase: SupabaseClient, roundId: string, teams: DrawTeam[]) {
   const allPlayers = teams.flatMap((team) => team.players);
   const missingPlayer = allPlayers.find((player) => !player.jogadorId);
 
   if (missingPlayer) {
-    throw new Error("Cadastre os jogadores da rodada no Supabase antes de confirmar os times.");
+    throw new Error("Cadastre os jogadores da rodada no Supabase antes de salvar o sorteio.");
   }
 
   const { error: deleteError } = await supabase.from("times").delete().eq("racha_id", roundId);
@@ -112,33 +124,65 @@ export async function confirmTeams(supabase: SupabaseClient, roundId: string, te
     throw deleteError;
   }
 
-  for (const team of teams) {
-    const { data: createdTeam, error: teamError } = await supabase
-      .from("times")
-      .insert({
-        racha_id: roundId,
-        nome: team.name,
-        numero: team.number,
-        confirmado: true,
-      })
-      .select("id")
-      .single<{ id: string }>();
+  try {
+    for (const team of teams) {
+      const { data: createdTeam, error: teamError } = await supabase
+        .from("times")
+        .insert({
+          racha_id: roundId,
+          nome: team.name,
+          numero: team.number,
+          confirmado: false,
+        })
+        .select("id")
+        .single<{ id: string }>();
 
-    if (teamError || !createdTeam) {
-      throw teamError ?? new Error("Nao foi possivel criar o time.");
+      if (teamError || !createdTeam) {
+        throw teamError ?? new Error("Nao foi possivel criar o time.");
+      }
+
+      const rows = team.players.map((player) => ({
+        time_id: createdTeam.id,
+        jogador_id: player.jogadorId,
+        participante_id: player.id,
+      }));
+
+      const { error: playersError } = rows.length
+        ? await supabase.from("time_jogadores").insert(rows)
+        : { error: null };
+
+      if (playersError) {
+        throw playersError;
+      }
     }
+  } catch (error) {
+    await supabase.from("times").delete().eq("racha_id", roundId);
+    throw error;
+  }
+}
 
-    const rows = team.players.map((player) => ({
-      time_id: createdTeam.id,
-      jogador_id: player.jogadorId,
-      participante_id: player.id,
-    }));
+export async function confirmTeams(supabase: SupabaseClient, roundId: string) {
+  const { data: existingTeams, error: existingTeamsError } = await supabase
+    .from("times")
+    .select("id")
+    .eq("racha_id", roundId)
+    .returns<Array<{ id: string }>>();
 
-    const { error: playersError } = await supabase.from("time_jogadores").insert(rows);
+  if (existingTeamsError) {
+    throw existingTeamsError;
+  }
 
-    if (playersError) {
-      throw playersError;
-    }
+  if (!existingTeams?.length) {
+    throw new Error("Sorteie os times antes de confirmar.");
+  }
+
+  const { error: teamsError } = await supabase
+    .from("times")
+    .update({ confirmado: true })
+    .eq("racha_id", roundId);
+
+  if (teamsError) {
+    throw teamsError;
   }
 
   const { error: roundError } = await supabase
