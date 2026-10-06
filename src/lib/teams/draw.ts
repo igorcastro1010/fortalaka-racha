@@ -2,6 +2,7 @@ export type TeamPlayer = {
   id: string;
   name: string;
   jogadorId?: string | null;
+  avatarUrl?: string | null;
 };
 
 export type DrawTeam = {

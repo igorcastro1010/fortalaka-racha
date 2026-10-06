@@ -4,6 +4,7 @@ export type Profile = {
   id: string;
   name: string;
   email: string | null;
+  avatar_url?: string | null;
   role: UserRole;
   active: boolean;
   created_at?: string;

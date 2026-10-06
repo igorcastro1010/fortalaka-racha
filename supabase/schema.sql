@@ -2,11 +2,15 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   name text not null,
   email text,
+  avatar_url text,
   role text not null default 'jogador',
   active boolean not null default true,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.profiles
+add column if not exists avatar_url text;
 
 do $$
 begin
@@ -107,7 +111,7 @@ revoke all on table public.profiles from anon;
 revoke all on table public.profiles from authenticated;
 
 grant select on table public.profiles to authenticated;
-grant update (name, email) on table public.profiles to authenticated;
+grant update (name, email, avatar_url) on table public.profiles to authenticated;
 
 drop policy if exists "Users can view own profile" on public.profiles;
 drop policy if exists "Organizers can view all profiles" on public.profiles;

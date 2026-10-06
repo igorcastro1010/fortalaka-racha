@@ -32,6 +32,7 @@ type ParticipantRow = {
   nome: string;
   tipo: RoundParticipant["type"];
   status: RoundParticipant["status"];
+  profiles?: { avatar_url: string | null } | null;
 };
 
 type TeamRow = {
@@ -42,7 +43,7 @@ type TeamRow = {
   time_jogadores: Array<{
     jogador_id: string;
     participante_id: string | null;
-    profiles?: { name: string | null } | null;
+    profiles?: { name: string | null; avatar_url: string | null } | null;
     racha_participantes?: { nome: string | null } | null;
   }>;
 };
@@ -65,7 +66,7 @@ export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promi
 
   const { data: participants, error: participantsError } = await supabase
     .from("racha_participantes")
-    .select("id, jogador_id, nome, tipo, status")
+    .select("id, jogador_id, nome, tipo, status, profiles(avatar_url)")
     .eq("racha_id", round.id)
     .order("created_at", { ascending: true })
     .returns<ParticipantRow[]>();
@@ -77,7 +78,7 @@ export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promi
   const { data: teams, error: teamsError } = await supabase
     .from("times")
     .select(
-      "id, nome, numero, confirmado, time_jogadores(jogador_id, participante_id, profiles(name), racha_participantes(nome))",
+      "id, nome, numero, confirmado, time_jogadores(jogador_id, participante_id, profiles(name, avatar_url), racha_participantes(nome))",
     )
     .eq("racha_id", round.id)
     .order("numero", { ascending: true })
@@ -96,6 +97,7 @@ export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promi
       id: player.participante_id ?? player.jogador_id,
       jogadorId: player.jogador_id,
       name: player.racha_participantes?.nome ?? player.profiles?.name ?? "Jogador",
+      avatarUrl: player.profiles?.avatar_url ?? null,
     })),
   }));
 
@@ -208,6 +210,7 @@ function normalizeParticipant(row: ParticipantRow): RoundParticipant {
     id: row.id,
     jogadorId: row.jogador_id,
     name: row.nome,
+    avatarUrl: row.profiles?.avatar_url ?? null,
     type: row.tipo,
     status: row.status,
   };

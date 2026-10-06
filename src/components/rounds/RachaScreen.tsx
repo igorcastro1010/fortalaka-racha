@@ -2,6 +2,7 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { nextMatch } from "@/data/mock";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import {
@@ -374,9 +375,7 @@ function ParticipantSection({
         {participants.map((participant) => (
           <div key={participant.id} className="py-2">
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-red-600 text-xs font-black text-white">
-                {getInitials(participant.name)}
-              </span>
+              <PlayerAvatar name={participant.name} avatarUrl={participant.avatarUrl} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-black">{participant.name}</p>
                 <p className="text-xs font-bold text-zinc-600">{getParticipantStatusLabel(participant.status)}</p>
@@ -469,13 +468,4 @@ function getParticipantStatusLabel(status: RoundParticipant["status"]) {
 function toIsoDate(date: string) {
   const [day, month, year] = date.split("/");
   return `${year}-${month}-${day}`;
-}
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
 }

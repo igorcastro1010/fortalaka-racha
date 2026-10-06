@@ -2,6 +2,7 @@
 
 import { RefreshCw, Shuffle, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { fieldPlayers, goalkeepers } from "@/data/mock";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
@@ -499,9 +500,7 @@ function PlayerPill({
         selected ? "bg-red-50 ring-2 ring-red-500" : "bg-zinc-50 ring-1 ring-zinc-100"
       } ${clickable ? "active:scale-[0.99]" : "cursor-default"}`}
     >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[13px] bg-red-600 text-xs font-black text-white">
-        {getInitials(player.name)}
-      </span>
+      <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} size="sm" />
       <span className="min-w-0 flex-1 truncate text-sm font-black text-neutral-950">{player.name}</span>
     </button>
   );
@@ -552,13 +551,4 @@ function getTeamsToFormLabel(teamCount: number) {
 async function fetchRoundTeamsState() {
   const supabase = createClient();
   return getCurrentRoundTeamsState(supabase);
-}
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
 }

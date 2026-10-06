@@ -12,6 +12,7 @@ export type PlayerProfileOption = {
   id: string;
   name: string;
   email: string | null;
+  avatarUrl: string | null;
 };
 
 type RoundRow = {
@@ -26,12 +27,14 @@ type ParticipantRow = {
   nome: string;
   tipo: RoundParticipant["type"];
   status: RoundParticipant["status"];
+  profiles?: { avatar_url: string | null } | null;
 };
 
 type ProfileRow = {
   id: string;
   name: string;
   email: string | null;
+  avatar_url: string | null;
 };
 
 export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<RoundDetails | null> {
@@ -48,7 +51,7 @@ export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<
 
   const { data: participants } = await supabase
     .from("racha_participantes")
-    .select("id, jogador_id, nome, tipo, status")
+    .select("id, jogador_id, nome, tipo, status, profiles(avatar_url)")
     .eq("racha_id", round.id)
     .order("created_at", { ascending: true })
     .returns<ParticipantRow[]>();
@@ -61,6 +64,7 @@ export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<
       id: participant.id,
       jogadorId: participant.jogador_id,
       name: participant.nome,
+      avatarUrl: participant.profiles?.avatar_url ?? null,
       type: participant.tipo,
       status: participant.status,
     })),
@@ -70,7 +74,7 @@ export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<
 export async function getAvailableProfiles(supabase: SupabaseClient) {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, name, email")
+    .select("id, name, email, avatar_url")
     .eq("active", true)
     .order("name", { ascending: true })
     .returns<ProfileRow[]>();
@@ -83,6 +87,7 @@ export async function getAvailableProfiles(supabase: SupabaseClient) {
     id: profile.id,
     name: profile.name,
     email: profile.email,
+    avatarUrl: profile.avatar_url,
   }));
 }
 
