@@ -34,7 +34,7 @@ type ProfileRow = {
   id: string;
   name: string;
   email: string | null;
-  avatar_url: string | null;
+  avatar_url?: string | null;
 };
 
 export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<RoundDetails | null> {
@@ -49,12 +49,28 @@ export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<
     return null;
   }
 
-  const { data: participants } = await supabase
+  let { data: participants, error: participantsError } = await supabase
     .from("racha_participantes")
     .select("id, jogador_id, nome, tipo, status, profiles(avatar_url)")
     .eq("racha_id", round.id)
     .order("created_at", { ascending: true })
     .returns<ParticipantRow[]>();
+
+  if (participantsError && isAvatarColumnError(participantsError)) {
+    const fallback = await supabase
+      .from("racha_participantes")
+      .select("id, jogador_id, nome, tipo, status")
+      .eq("racha_id", round.id)
+      .order("created_at", { ascending: true })
+      .returns<ParticipantRow[]>();
+
+    participants = fallback.data;
+    participantsError = fallback.error;
+  }
+
+  if (participantsError) {
+    throw participantsError;
+  }
 
   return {
     roundId: round.id,
@@ -72,12 +88,24 @@ export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<
 }
 
 export async function getAvailableProfiles(supabase: SupabaseClient) {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("profiles")
     .select("id, name, email, avatar_url")
     .eq("active", true)
     .order("name", { ascending: true })
     .returns<ProfileRow[]>();
+
+  if (error && isAvatarColumnError(error)) {
+    const fallback = await supabase
+      .from("profiles")
+      .select("id, name, email")
+      .eq("active", true)
+      .order("name", { ascending: true })
+      .returns<ProfileRow[]>();
+
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     throw error;
@@ -87,8 +115,13 @@ export async function getAvailableProfiles(supabase: SupabaseClient) {
     id: profile.id,
     name: profile.name,
     email: profile.email,
-    avatarUrl: profile.avatar_url,
+    avatarUrl: profile.avatar_url ?? null,
   }));
+}
+
+function isAvatarColumnError(error: { message?: string; code?: string }) {
+  const message = error.message?.toLowerCase() ?? "";
+  return message.includes("avatar_url") || error.code === "42703";
 }
 
 export async function createRound(supabase: SupabaseClient, input: {

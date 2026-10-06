@@ -64,18 +64,30 @@ export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promi
     return null;
   }
 
-  const { data: participants, error: participantsError } = await supabase
+  let { data: participants, error: participantsError } = await supabase
     .from("racha_participantes")
     .select("id, jogador_id, nome, tipo, status, profiles(avatar_url)")
     .eq("racha_id", round.id)
     .order("created_at", { ascending: true })
     .returns<ParticipantRow[]>();
 
+  if (participantsError && isAvatarColumnError(participantsError)) {
+    const fallback = await supabase
+      .from("racha_participantes")
+      .select("id, jogador_id, nome, tipo, status")
+      .eq("racha_id", round.id)
+      .order("created_at", { ascending: true })
+      .returns<ParticipantRow[]>();
+
+    participants = fallback.data;
+    participantsError = fallback.error;
+  }
+
   if (participantsError) {
     throw participantsError;
   }
 
-  const { data: teams, error: teamsError } = await supabase
+  let { data: teams, error: teamsError } = await supabase
     .from("times")
     .select(
       "id, nome, numero, confirmado, time_jogadores(jogador_id, participante_id, profiles(name, avatar_url), racha_participantes(nome))",
@@ -83,6 +95,20 @@ export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promi
     .eq("racha_id", round.id)
     .order("numero", { ascending: true })
     .returns<TeamRow[]>();
+
+  if (teamsError && isAvatarColumnError(teamsError)) {
+    const fallback = await supabase
+      .from("times")
+      .select(
+        "id, nome, numero, confirmado, time_jogadores(jogador_id, participante_id, profiles(name), racha_participantes(nome))",
+      )
+      .eq("racha_id", round.id)
+      .order("numero", { ascending: true })
+      .returns<TeamRow[]>();
+
+    teams = fallback.data;
+    teamsError = fallback.error;
+  }
 
   if (teamsError) {
     throw teamsError;
@@ -214,4 +240,9 @@ function normalizeParticipant(row: ParticipantRow): RoundParticipant {
     type: row.tipo,
     status: row.status,
   };
+}
+
+function isAvatarColumnError(error: { message?: string; code?: string }) {
+  const message = error.message?.toLowerCase() ?? "";
+  return message.includes("avatar_url") || error.code === "42703";
 }
