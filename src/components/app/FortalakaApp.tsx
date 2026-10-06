@@ -83,7 +83,7 @@ function HomeScreen({ profile, onOpenRacha }: { profile: Profile; onOpenRacha: (
   const firstName = getFirstName(displayName);
 
   return (
-    <section className="-mx-4 space-y-5 px-5">
+    <section className="space-y-5">
       <header className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <LogoMark size="header" />
@@ -94,34 +94,34 @@ function HomeScreen({ profile, onOpenRacha }: { profile: Profile; onOpenRacha: (
             </h1>
           </div>
         </div>
-        <span className="shrink-0 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-black text-neutral-800 shadow-sm">
+        <span className="shrink-0 rounded-full bg-zinc-200/60 px-2.5 py-1.5 text-[10px] font-semibold text-zinc-600">
           {getRoleLabel(profile.role)}
         </span>
       </header>
 
-      <div className="space-y-1">
-        <p className="text-sm font-semibold text-zinc-700">Boa noite, {firstName}</p>
-        <h2 className="text-[32px] font-black leading-[1.02] tracking-normal text-neutral-950">
+      <div className="space-y-2 pb-1">
+        <p className="text-[13px] font-medium text-zinc-600">Boa noite, {firstName}</p>
+        <h2 className="text-[32px] font-black leading-[1.08] tracking-tight text-neutral-950">
           Pronto pra quinta?
         </h2>
       </div>
 
-      <Card className="space-y-4 rounded-[24px] p-5">
+      <Card className="space-y-4 rounded-[24px] border-t-[3px] border-red-600 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.06)]">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-red-600">Proximo Racha</p>
-          <span className="shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[11px] font-black uppercase text-zinc-700">
+          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-red-600">Próximo Racha</p>
+          <span className="shrink-0 rounded-full bg-neutral-950 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
             Quinta
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           <InfoBlock icon={CalendarDays} label="Data" value={nextMatch.date} />
-          <InfoBlock icon={Clock3} label="Horario" value={nextMatch.time} />
+          <InfoBlock icon={Clock3} label="Horário" value={nextMatch.time} />
         </div>
 
-        <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-zinc-700">
-          <MapPin size={18} className="shrink-0 text-red-600" />
-          <span className="truncate">{nextMatch.address}</span>
+        <div className="flex min-w-0 items-start gap-2.5 rounded-[14px] bg-zinc-50 px-3 py-3 text-[13px] font-semibold leading-relaxed text-zinc-800">
+          <MapPin size={18} className="mt-0.5 shrink-0 text-red-600" />
+          <span className="min-w-0 break-words">{nextMatch.address}</span>
         </div>
 
         <div className="h-px bg-zinc-100" />
@@ -134,34 +134,34 @@ function HomeScreen({ profile, onOpenRacha }: { profile: Profile; onOpenRacha: (
 
         <button
           onClick={onOpenRacha}
-          className="mt-1 h-14 w-full rounded-[18px] bg-red-600 text-base font-black uppercase text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98]"
+          className="mt-1 h-14 w-full rounded-[16px] bg-red-600 text-sm font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98]"
         >
           Ver racha
         </button>
       </Card>
 
-      <Card className="flex items-center gap-3 rounded-[18px] bg-neutral-950 p-4 text-white ring-0">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] bg-red-600 text-white">
-          <CalendarDays size={20} />
+      <div className="flex items-center gap-3 rounded-[18px] bg-neutral-950 p-4 text-white shadow-sm">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-white/10 text-red-400">
+          <ClipboardList size={20} />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-black">Faltam 5 dias para o proximo racha</p>
-          <p className="mt-0.5 text-xs font-bold text-zinc-300">Quinta-feira, as {nextMatch.time}</p>
+          <p className="text-sm font-black">{goalkeepers.length + fieldPlayers.length + substitutes.length} jogadores na lista</p>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-300">Confira os participantes e a organização da rodada em Ver Racha.</p>
         </div>
-      </Card>
+      </div>
     </section>
   );
 }
 
 function InfoBlock({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-[18px] border border-zinc-100 bg-zinc-50 p-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] bg-white text-red-600 ring-1 ring-zinc-200">
-        <Icon size={19} />
+    <div className="flex min-w-0 items-center gap-2 rounded-[16px] border border-zinc-100 bg-zinc-50 px-2.5 py-3">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-white text-red-600 ring-1 ring-zinc-200">
+        <Icon size={16} />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-600">{label}</p>
-        <p className="truncate text-base font-black text-neutral-950">{value}</p>
+        <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-zinc-600">{label}</p>
+        <p className="mt-0.5 whitespace-nowrap text-[13px] font-black tabular-nums text-neutral-950">{value}</p>
       </div>
     </div>
   );
@@ -170,11 +170,11 @@ function InfoBlock({ icon: Icon, label, value }: { icon: LucideIcon; label: stri
 function HomeCount({ icon: Icon, value, label }: { icon: LucideIcon; value: number; label: string }) {
   return (
     <div className="rounded-[16px] bg-zinc-50 p-2.5 text-center ring-1 ring-zinc-100">
-      <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-[12px] bg-white text-red-600 ring-1 ring-zinc-200">
+      <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-[9px] bg-white text-red-600 ring-1 ring-zinc-200">
         <Icon size={17} />
       </div>
-      <p className="mt-1.5 text-xl font-black leading-none text-neutral-950">{value}</p>
-      <p className="mt-1 truncate text-[11px] font-bold text-zinc-700">{label}</p>
+      <p className="mt-2 text-[26px] font-black leading-none tabular-nums text-neutral-950">{value}</p>
+      <p className="mt-1.5 text-[10px] font-semibold text-zinc-600">{label}</p>
     </div>
   );
 }
