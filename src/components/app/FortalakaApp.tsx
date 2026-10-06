@@ -221,14 +221,14 @@ function ProfileScreen({ profile }: { profile: Profile }) {
   }
 
   return (
-    <section className="space-y-3.5">
+    <section className="space-y-4">
       <PlayerPerformance profile={profile} />
       <ProfilePhoto profile={profile} />
 
       <button
         onClick={handleSignOut}
         disabled={isSigningOut}
-        className="h-12 w-full rounded-[18px] border border-zinc-300 bg-white text-sm font-black uppercase tracking-wide text-neutral-950 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+        className="h-12 w-full rounded-[16px] border border-red-200 bg-white text-xs font-bold uppercase tracking-wide text-red-600 transition hover:bg-red-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
       >
         {isSigningOut ? "Saindo..." : "Sair da conta"}
       </button>

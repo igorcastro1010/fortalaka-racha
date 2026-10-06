@@ -58,20 +58,18 @@ export function PlayerPerformance({ profile }: { profile: Profile }) {
   const format = (value: number | null) => value === null ? "—" : value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 
   return <section className="overflow-hidden rounded-[24px] bg-[#343c49] text-white shadow-xl shadow-black/15" aria-label="Desempenho do jogador">
-    <div className="border-b border-white/10 px-5 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-300">Seu perfil • Fortalaka</div>
-    <div className="flex items-center gap-4 px-5 pt-5">
+    <div className="flex items-start gap-3 px-4 pt-5 sm:px-5">
       <PlayerAvatar name={profile.name} avatarUrl={avatar} />
-      <div className="min-w-0 flex-1"><p className="text-[10px] font-bold uppercase tracking-widest text-lime-300">{getRoleLabel(profile.role)}</p><h2 className="truncate text-2xl font-black">{profile.name}</h2></div>
-      <div className="text-right"><p className="text-5xl font-black tracking-tighter text-white" aria-label={`Nota geral: ${overall ?? "sem avaliações"}`}>{loading ? "…" : overall ?? "—"}</p><p className="mt-1 text-[9px] font-bold uppercase tracking-widest text-zinc-300">Geral / 100</p></div>
+      <div className="min-w-0 flex-1"><h2 className="break-words text-[23px] font-black leading-tight tracking-tight">{profile.name}</h2><p className="mt-1.5 whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.12em] text-zinc-300">{getRoleLabel(profile.role)}</p></div>
+      <div className="shrink-0 text-right"><p className="text-[56px] font-black leading-none tracking-tighter text-white" aria-label={`Nota geral: ${overall ?? "sem avaliações"}`}>{loading ? "…" : overall ?? "--"}</p><p className="mt-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-zinc-300">GERAL /100</p></div>
     </div>
     <div className="mx-5 mt-4 h-1.5 overflow-hidden rounded-full bg-black/30"><div className="h-full rounded-full bg-lime-400 transition-[width] duration-700" style={{ width: `${overall ?? 0}%` }} /></div>
-    <svg viewBox="0 0 240 206" className="mx-auto mt-2 w-full max-w-[320px]" role="img" aria-label={summary?.quantidade ? attributes.map(({key,label}) => `${label}: ${format(summary[key])} de 10`).join(", ") : "Gráfico sem avaliações"}>
+    <svg viewBox="-10 -4 260 206" className="mx-auto my-2 block w-[calc(100%-24px)] max-w-[300px]" role="img" aria-label={summary?.quantidade ? attributes.map(({key,label}) => `${label}: ${format(summary[key])} de 10`).join(", ") : "Gráfico sem avaliações"}>
       {[16, 32, 48, 64].map(r => <polygon key={r} points={radarGrid(r)} fill="none" stroke="white" strokeOpacity="0.12" />)}
       {attributes.map(({ key }, index) => { const [x,y] = radarVertex(index,64); return <line key={key} x1="120" y1="100" x2={x} y2={y} stroke="white" strokeOpacity="0.1" />; })}
       {summary && overall !== null && <polygon points={radarPoints(summary)} fill="#bef264" fillOpacity="0.18" stroke="#bef264" strokeWidth="2.5" strokeLinejoin="round" className="transition-all duration-700" />}
-      <g fill="#e4e4e7" fontSize="11" fontWeight="700" textAnchor="middle">{attributes.map(({key,label},index) => { const [x,y]=radarVertex(index,88); return <text key={key} x={x} y={y+4}>{label}</text>; })}</g>
+      <g fill="#e4e4e7" fontSize="10" fontWeight="600" textAnchor="middle">{attributes.map(({key,label},index) => { const [x,y]=radarVertex(index,88); return <text key={key} x={x} y={y+4}>{label}</text>; })}</g>
     </svg>
-    <div className="grid grid-cols-5 gap-1 border-t border-white/10 px-3 py-4">{attributes.map(({key,label}) => <div key={key} className="text-center"><p className="text-xl font-black text-lime-300">{summary ? format(summary[key]) : "—"}</p><p className="mt-1 text-[10px] font-bold text-zinc-300">{label}</p></div>)}</div>
-    <div className="bg-black/15 px-5 py-3 text-xs text-zinc-300" aria-live="polite">{loading ? "Carregando médias..." : error ? <p role="alert">{error}</p> : summary?.quantidade ? `${summary.quantidade} avaliações recebidas • médias de 0 a 10` : "Ainda sem avaliações. Suas médias aparecerão aqui."}</div>
+    <div className="border-t border-white/10 bg-black/10 px-5 py-4 text-center text-xs leading-relaxed text-zinc-200" aria-live="polite">{loading ? "Carregando médias..." : error ? <p role="alert">{error}</p> : summary?.quantidade ? `${summary.quantidade} avaliações recebidas • médias de 0 a 10` : "Ainda sem avaliações. Suas médias aparecerão aqui."}</div>
   </section>;
 }
