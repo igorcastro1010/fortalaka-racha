@@ -1,52 +1,29 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { availabilityError, drawTeams, eligiblePlayers, swapPlayers, validateTeams } from '../src/lib/teams/draw.ts';
+import { drawTeams, getTeamCount, hasCompleteTeams, swapPlayers } from '../src/lib/teams/draw.ts';
 
-const lines = Array.from({ length: 20 }, (_, i) => ({ id: `p${i}`, name: `Jogador ${i}`, tipo: 'linha', status: 'presente' }));
-const roster = [...lines,
-  { id: 'g1', name: 'Goleiro 1', tipo: 'goleiro_fixo', status: 'presente' },
-  { id: 'g2', name: 'Goleiro 2', tipo: 'goleiro_fixo', status: 'presente' },
-  { id: 's1', name: 'Suplente', tipo: 'suplente', status: 'presente' },
-  { id: 'a1', name: 'Ausente', tipo: 'linha', status: 'ausente' },
-  { id: 'r1', name: 'Removido', tipo: 'linha', status: 'removido' },
-];
-
-test('considera somente os 20 jogadores de linha presentes', () => {
-  assert.deepEqual(eligiblePlayers(roster), lines);
-  const teams = drawTeams(roster);
-  assert.deepEqual(teams.map(t => t.jogadores.length), [5, 5, 5, 5]);
-  assert.equal(validateTeams(teams, roster), '');
-  assert.deepEqual(new Set(teams.flatMap(t => t.jogadores)), new Set(lines.map(p => p.id)));
+for (const [count, sizes] of [[4,[4]],[8,[4,4]],[10,[5,5]],[13,[5,4,4]],[20,[5,5,5,5]],[23,[5,5,5,4,4]]]) {
+  test(`${count} jogadores: equilíbrio, máximo 5, IDs únicos e fotos preservadas`, () => {
+    const players=Array.from({length:count},(_,i)=>({id:`p${i}`,name:`Jogador ${i}`,avatarUrl:i===0?'https://example.invalid/foto.png':null}));
+    const before=structuredClone(players); const draw=drawTeams(players);
+    assert.equal(draw.teams.length,getTeamCount(count));
+    assert.deepEqual(draw.teams.map(t=>t.players.length),sizes);
+    assert.equal(hasCompleteTeams(draw),true);
+    assert.deepEqual(new Set(draw.teams.flatMap(t=>t.players.map(p=>p.id))),new Set(players.map(p=>p.id)));
+    assert.deepEqual(players,before);
+    assert.equal(draw.teams.flatMap(t=>t.players).find(p=>p.id==='p0').avatarUrl,players[0].avatarUrl);
+  });
+}
+test('troca 1 por 1 preserva foto, IDs e entrada',()=>{
+  const draw=drawTeams(Array.from({length:8},(_,i)=>({id:`p${i}`,name:`Jogador ${i}`,avatarUrl:`https://example.invalid/${i}.png`})));const before=structuredClone(draw);
+  const a=draw.teams[0].players[0],b=draw.teams[1].players[0];const swapped=swapPlayers(draw,a.id,b.id);
+  assert.deepEqual(draw,before);assert.deepEqual(swapped.teams[0].players[0],b);assert.deepEqual(swapped.teams[1].players[0],a);
+  assert.equal(hasCompleteTeams(swapped),true);
 });
-test('bloqueia 19 e 21 jogadores, sem completar ou descartar pessoas automaticamente', () => {
-  assert.throws(() => drawTeams(lines.slice(1)), { message: availabilityError(19) });
-  assert.throws(() => drawTeams([...lines, { ...lines[0], id: 'extra' }]), { message: availabilityError(21) });
-});
-test('troca 1 por 1 entre times e não altera a entrada', () => {
-  const teams = drawTeams(roster, () => 0.5);
-  const before = structuredClone(teams);
-  const first = teams[0].jogadores[0], second = teams[1].jogadores[0];
-  const swapped = swapPlayers(teams, first, second);
-  assert.deepEqual(teams, before);
-  assert.equal(swapped[0].jogadores[0], second);
-  assert.equal(swapped[1].jogadores[0], first);
-  assert.equal(validateTeams(swapped, roster), '');
-  assert.throws(() => swapPlayers(teams, first, teams[0].jogadores[1]));
-  assert.throws(() => swapPlayers(teams, first, 'g1'));
-});
-test('confirmação rejeita duplicatas, goleiro, outro participante e time com tamanho incorreto', () => {
-  const teams = drawTeams(roster);
-  for (const badId of ['g1', 's1', 'a1', 'r1', 'outro', teams[1].jogadores[0]]) {
-    const bad = structuredClone(teams); bad[0].jogadores[0] = badId;
-    assert.notEqual(validateTeams(bad, roster), '');
-  }
-  const bad = structuredClone(teams); bad[0].jogadores.pop();
-  assert.notEqual(validateTeams(bad, roster), '');
-  assert.notEqual(validateTeams(teams.slice(1), roster), '');
-});
-test('sorteio novamente produz distribuição nova e não modifica participantes', () => {
-  const before = structuredClone(roster);
-  assert.notDeepEqual(drawTeams(roster, () => 0), drawTeams(roster, () => 0.99));
-  assert.deepEqual(roster, before);
-  assert.throws(() => drawTeams([...lines.slice(1), lines[1]]));
+test('rejeita sorteio vazio, duplicatas e composição inválida',()=>{
+  assert.throws(()=>drawTeams([]));assert.throws(()=>drawTeams([{id:'a',name:'A'},{id:'a',name:'A'}]));
+  assert.equal(hasCompleteTeams({teams:[]}),false);
+  assert.equal(hasCompleteTeams({teams:[{id:'t1',number:1,name:'Time',players:Array.from({length:6},(_,i)=>({id:String(i),name:String(i)}))}]}),false);
+  const draw=drawTeams(Array.from({length:8},(_,i)=>({id:String(i),name:String(i)})));draw.teams[0].players[0]=draw.teams[1].players[0];
+  assert.equal(hasCompleteTeams(draw),false);
 });

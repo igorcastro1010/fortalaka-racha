@@ -1,50 +1,42 @@
-# Sorteio de times — instalação e teste
+# Instalação e validação do sorteio e das fotos
 
-## Instalar no Supabase
+## Supabase — pendente nesta entrega
 
-1. O projeto deve ter `supabase/schema.sql` instalado (estrutura de usuários e permissões já usada pelo login).
-2. No SQL Editor do projeto Supabase correspondente ao `.env.local`, execute todo o arquivo `supabase/sorteio-times.sql`.
-3. O script roda em uma transação e pode ser executado novamente. Não insere participantes nem usuários de teste e não modifica o cadastro de usuários.
-4. Selecione **Times** no aplicativo. Antes de instalar o SQL, a tela exibe uma mensagem explicando que a estrutura ainda não está disponível.
+No SQL Editor do projeto configurado em `.env.local`:
 
-Esta entrega prepara o SQL; não o aplica automaticamente ao banco remoto e não faz deploy.
+1. A estrutura de autenticação de `supabase/schema.sql` deve existir.
+2. A estrutura de rodada de `supabase/sorteio-times.sql` deve existir. Execute esse arquivo se ainda não foi instalado.
+3. Execute **todo** `supabase/validacao-sorteio-avatars.sql` por último. Ele cria RPCs transacionais, versão da rodada, validação, proteção da lista e configuração de avatars. Pode ser executado novamente.
 
-## Uso
+O novo SQL foi validado em PostgreSQL isolado, sem ser aplicado ao Supabase remoto. Não cria contas nem participantes de teste no banco real. Reexecutar o SQL antigo depois do novo restaura grants antigos: nesse caso, execute novamente o novo arquivo por último.
 
-Entre com uma conta ativa de organizador. Na aba **Times**, crie uma rodada com nome e data. Em **EDITAR PARTICIPANTES**, adicione nomes, um por linha, escolhendo a categoria de cada grupo: os dois goleiros fixos, os 20 jogadores de linha e eventuais suplentes. Marque ausentes e removidos no campo de presença. Salve a lista.
+O script configura o bucket público `avatars`, MIME types PNG/JPEG/WebP e limite de 2 MiB. A URL da foto é pública; somente o dono escreve na pasta `auth.uid()/`. A foto fica exclusivamente em `profiles.avatar_url`.
 
-A seção **GOLEIROS FIXOS** fica acima dos times. A disponibilidade considera somente `tipo = linha` e `status = presente`. O sorteio oficial exige exatamente 20 participantes elegíveis e gera quatro times de cinco.
+Confira policies antigas do Storage: policies permissivas são combinadas por OR. O script substitui somente `fortalaka_avatars_*`, preservando policies de outros recursos. Remova ou restrinja qualquer policy antiga que permita gravar, alterar ou apagar fotos de terceiros em `avatars`.
 
-O rascunho do sorteio permanece somente na tela do organizador até **CONFIRMAR TIMES**; sair da aba ou recarregar o navegador descarta esse rascunho. Para trocar jogadores, escolha **AJUSTAR TIMES**, selecione um jogador e depois outro de um time diferente. Uma troca mantém os dois times com cinco pessoas.
+```sql
+select policyname, roles, cmd, qual, with_check
+from pg_policies
+where schemaname = 'storage' and tablename = 'objects';
 
-Ao confirmar, os quatro times e os 20 vínculos são salvos de forma atômica no Supabase. Jogadores comuns podem consultar a distribuição confirmada. Use **ATUALIZAR RODADA** para buscar mudanças feitas por outro organizador.
+select id, public, file_size_limit, allowed_mime_types
+from storage.buckets where id = 'avatars';
+```
 
-Sortear novamente uma rodada confirmada pede confirmação. Os times anteriores continuam visíveis para jogadores comuns até o organizador confirmar a nova distribuição. Também é possível ajustar a distribuição confirmada sem sortear novamente: **AJUSTAR TIMES** cria uma cópia para revisão, e **CONFIRMAR TIMES** publica a substituição.
+As policies existentes de `profiles` devem continuar limitando UPDATE ao próprio usuário, sem permitir alterar role ou active. As tabelas de times são alteradas pelas novas RPCs. A revisão remota das policies existentes e o upload contra o serviço real de Storage continuam pendentes.
 
-Salvar mudanças na lista de participantes cancela os times confirmados daquela rodada, mediante aviso na interface. Isso evita manter nos times alguém que passou a ser ausente, removido, suplente ou goleiro. Será necessário sortear e confirmar de novo.
+## Teste manual no navegador
 
-## Modelo e segurança
-
-- `rodadas`: nome, data, confirmação, organizador responsável e versão para controle de concorrência.
-- `rodada_participantes`: identidade da participação naquela rodada, nome, categoria e presença. `jogador_id` permite associação futura a um perfil permanente; participantes não precisam de conta para serem cadastrados na lista.
-- `times`: rodada, número de 1 a 4, nome e campo de cor preparado para uso futuro.
-- `time_jogadores`: vínculo do time com a participação na mesma rodada. A chave única impede um participante em dois times da mesma rodada.
-- Escrita direta nas quatro tabelas é bloqueada para `anon` e `authenticated`; as RPCs autorizadas fazem a gestão e validação no banco. Leituras exigem usuário ativo; times não confirmados são protegidos por RLS.
-- A confirmação verifica novamente elegibilidade, quatro times, cinco pessoas em cada, IDs exclusivos e pertencimento à rodada. Uma versão desatualizada é rejeitada sem sobrescrever o resultado atual.
-
-As telas existentes de Início, Racha, Ranking e Perfil continuam com seus dados de demonstração. A lista persistida desta funcionalidade é cadastrada e consultada na aba **Times**; os dados demonstrativos não são usados no sorteio. Não foram implementados avaliações, estatísticas, ranking real ou lógica de goleiros nas partidas.
-
-## Teste manual após instalar o SQL
-
-1. Com 19 jogadores de linha presentes, confira a mensagem **São necessários 20 jogadores de linha para formar 4 times de 5.** e o bloqueio do sorteio.
-2. Com 21, confira **Existem mais de 20 jogadores disponíveis. Ajuste a lista antes de sortear.**
-3. Com 20 linhas, dois goleiros e suplentes, sorteie: devem aparecer quatro cards de cinco, sem goleiros, suplentes, ausentes ou removidos.
-4. Troque duas pessoas de times diferentes e confira que cada card continua com cinco.
-5. Antes da confirmação, entre como jogador comum: nenhum rascunho nem botão de gestão deve aparecer.
-6. Confirme como organizador e recarregue. Confira persistência dos mesmos times e visualização como jogador.
-7. Sorteie novamente e cancele o aviso; a distribuição atual deve permanecer. Aceite o aviso e confirme a nova distribuição para publicar.
-8. Abra a mesma rodada em duas sessões de organizador. Confirme numa delas e tente confirmar na outra: a versão antiga deve ser rejeitada. Atualize a rodada.
-9. Altere um participante para ausente ou removido e salve: os times anteriores devem ser invalidados; o sorteio deve exigir novamente 20 aptos.
+1. Entre como organizador ativo. Em Racha, abra a lista, adicione linhas confirmados, dois goleiros e um suplente. Feche a lista.
+2. Em Times, confira a contagem apenas de linhas e sorteie. Saia para Racha e volte: deve continuar igual.
+3. Atualize a página; depois feche e abra o navegador. Entre novamente se necessário. Confira os mesmos times.
+4. Sorteie novamente, saia e volte: a nova distribuição permanece, sem duplicatas.
+5. Use Ajustar times e selecione duas pessoas de times diferentes. Saia e volte: a troca permanece.
+6. Confirme e recarregue. Os mesmos times e jogadores permanecem. Entre como jogador: times confirmados aparecem sem controles. Rascunhos ficam ocultos.
+7. Repita com 4, 8, 10, 13, 20 e 23 linhas. Máximo cinco por time; diferença entre tamanhos até uma pessoa.
+8. Em Perfil, envie PNG/JPEG/WebP de até 2 MiB. Recarregue e confira a foto na lista e nos times. Confira iniciais sem foto e numa URL que retorna erro.
+9. Confira loading e falha de rede: não mostrar falso estado vazio nem sucesso ao falhar. Use Tentar novamente.
+10. Em duas sessões de organizador, salve numa e tente salvar a versão antiga na outra: a versão desatualizada deve ser rejeitada.
 
 ## Verificações locais
 
@@ -52,11 +44,15 @@ As telas existentes de Início, Racha, Ranking e Perfil continuam com seus dados
 npm run build
 npm run lint
 node --test tests/sorteio.test.mjs
-```
-
-Os testes SQL rodam em PostgreSQL isolado via PGlite, sem acesso ao banco real:
-
-```powershell
 npm install --prefix "$env:TEMP\fortalaka-sql-check" --no-audit --no-fund @electric-sql/pglite
 node tests/sorteio-sql.test.mjs "$env:TEMP\fortalaka-sql-check\node_modules"
 ```
+
+Os testes SQL usam os scripts reais em PostgreSQL isolado, com stubs de auth/storage. Para testar componentes reais no navegador sem acessar dados do Supabase remoto:
+
+```powershell
+npm install --prefix "$env:TEMP\fortalaka-ui-check" --no-audit --no-fund esbuild
+node tests/preview-sorteio.mjs "$env:TEMP\fortalaka-ui-check\node_modules" "$env:TEMP\fortalaka-sql-check\node_modules"
+```
+
+Abra `http://127.0.0.1:3011/` para organizador e `http://127.0.0.1:3011/?role=jogador` para jogador. Identidades falsas e apenas locais. Navegação e recargas preservam o banco enquanto o processo estiver rodando; reiniciar a prévia descarta os dados de teste. A prévia não verifica o serviço remoto de Supabase Storage.

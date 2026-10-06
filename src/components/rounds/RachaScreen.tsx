@@ -61,7 +61,9 @@ export function RachaScreen({ profile }: { profile: Profile }) {
       setIsLoading(false);
     }
 
-    void loadInitialRound();
+    void loadInitialRound().catch(() => {
+      if (isMounted) { setError("Não foi possível carregar os participantes desta rodada."); setIsLoading(false); }
+    });
 
     return () => {
       isMounted = false;

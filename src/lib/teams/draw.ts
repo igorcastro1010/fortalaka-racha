@@ -26,6 +26,9 @@ export function drawTeams(players: TeamPlayer[]): TeamDraw {
   if (!players.length) {
     throw new Error("Nenhum jogador de linha disponível para sorteio.");
   }
+  if (new Set(players.map((p) => p.id)).size !== players.length) {
+    throw new Error("Existem jogadores repetidos na lista do sorteio.");
+  }
 
   const shuffled = shuffle(players);
   const teamCount = getTeamCount(shuffled.length);
@@ -79,6 +82,10 @@ export function hasCompleteTeams(draw: TeamDraw) {
   if (!draw.teams.length || draw.teams.some((team) => !team.players.length || team.players.length > MAX_PLAYERS_PER_TEAM)) {
     return false;
   }
+  const players = draw.teams.flatMap((team) => team.players);
+  if (new Set(players.map((p) => p.id)).size !== players.length ||
+      new Set(draw.teams.map((t) => t.number)).size !== draw.teams.length ||
+      draw.teams.length !== getTeamCount(players.length)) return false;
 
   const teamSizes = draw.teams.map((team) => team.players.length);
   const smallestTeam = Math.min(...teamSizes);

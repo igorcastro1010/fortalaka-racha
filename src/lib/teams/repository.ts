@@ -17,232 +17,37 @@ export type RoundTeamsState = {
   fieldPlayers: RoundParticipant[];
   teams: DrawTeam[];
   confirmed: boolean;
+  version: number;
 };
 
-type RachaRow = {
-  id: string;
-  nome: string | null;
-  data: string | null;
-  estado: RoundStatus;
-};
-
-type ParticipantRow = {
-  id: string;
-  jogador_id: string | null;
-  nome: string;
-  tipo: RoundParticipant["type"];
-  status: RoundParticipant["status"];
-  profiles?: { avatar_url: string | null } | null;
-};
-
-type TeamRow = {
-  id: string;
-  nome: string;
-  numero: number;
-  confirmado: boolean;
-  time_jogadores: Array<{
-    jogador_id: string;
-    participante_id: string | null;
-    profiles?: { name: string | null; avatar_url: string | null } | null;
-    racha_participantes?: { nome: string | null } | null;
-  }>;
-};
+function checkError(error: { message: string; code?: string } | null) {
+  if (!error) return;
+  if (error.code === "PGRST202" || error.message.includes("versao")) {
+    throw new Error("Instale o SQL de validação do sorteio no Supabase antes de continuar.");
+  }
+  throw new Error(error.message);
+}
 
 export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promise<RoundTeamsState | null> {
-  const { data: round, error: roundError } = await supabase
-    .from("rachas")
-    .select("id, nome, data, estado")
-    .order("data", { ascending: false })
-    .limit(1)
-    .maybeSingle<RachaRow>();
-
-  if (roundError) {
-    throw roundError;
-  }
-
-  if (!round) {
-    return null;
-  }
-
-  let { data: participants, error: participantsError } = await supabase
-    .from("racha_participantes")
-    .select("id, jogador_id, nome, tipo, status, profiles(avatar_url)")
-    .eq("racha_id", round.id)
-    .order("created_at", { ascending: true })
-    .returns<ParticipantRow[]>();
-
-  if (participantsError && isAvatarColumnError(participantsError)) {
-    const fallback = await supabase
-      .from("racha_participantes")
-      .select("id, jogador_id, nome, tipo, status")
-      .eq("racha_id", round.id)
-      .order("created_at", { ascending: true })
-      .returns<ParticipantRow[]>();
-
-    participants = fallback.data;
-    participantsError = fallback.error;
-  }
-
-  if (participantsError) {
-    throw participantsError;
-  }
-
-  let { data: teams, error: teamsError } = await supabase
-    .from("times")
-    .select(
-      "id, nome, numero, confirmado, time_jogadores(jogador_id, participante_id, profiles(name, avatar_url), racha_participantes(nome))",
-    )
-    .eq("racha_id", round.id)
-    .order("numero", { ascending: true })
-    .returns<TeamRow[]>();
-
-  if (teamsError && isAvatarColumnError(teamsError)) {
-    const fallback = await supabase
-      .from("times")
-      .select(
-        "id, nome, numero, confirmado, time_jogadores(jogador_id, participante_id, profiles(name), racha_participantes(nome))",
-      )
-      .eq("racha_id", round.id)
-      .order("numero", { ascending: true })
-      .returns<TeamRow[]>();
-
-    teams = fallback.data;
-    teamsError = fallback.error;
-  }
-
-  if (teamsError) {
-    throw teamsError;
-  }
-
-  const normalizedParticipants = (participants ?? []).map(normalizeParticipant);
-  const normalizedTeams = (teams ?? []).map((team) => ({
-    id: team.id,
-    name: team.nome,
-    number: team.numero,
-    players: team.time_jogadores.map((player) => ({
-      id: player.participante_id ?? player.jogador_id,
-      jogadorId: player.jogador_id,
-      name: player.racha_participantes?.nome ?? player.profiles?.name ?? "Jogador",
-      avatarUrl: player.profiles?.avatar_url ?? null,
-    })),
-  }));
-
-  return {
-    roundId: round.id,
-    roundName: round.nome ?? "Racha atual",
-    status: round.estado,
-    goalkeepers: normalizedParticipants.filter((participant) => participant.type === "goleiro" && participant.status === "confirmado"),
-    fieldPlayers: normalizedParticipants.filter((participant) => participant.type === "linha" && participant.status === "confirmado"),
-    teams: normalizedTeams,
-    confirmed: Boolean(teams?.some((team) => team.confirmado)),
-  };
+  const { data, error } = await supabase.rpc("ler_times_rodada", {});
+  checkError(error);
+  return data as RoundTeamsState | null;
 }
 
-export async function saveDraftTeams(supabase: SupabaseClient, roundId: string, teams: DrawTeam[]) {
-  const allPlayers = teams.flatMap((team) => team.players);
-  const missingPlayer = allPlayers.find((player) => !player.jogadorId);
-
-  if (missingPlayer) {
-    throw new Error("Cadastre os jogadores da rodada no Supabase antes de salvar o sorteio.");
-  }
-
-  const { error: deleteError } = await supabase.from("times").delete().eq("racha_id", roundId);
-
-  if (deleteError) {
-    throw deleteError;
-  }
-
-  try {
-    for (const team of teams) {
-      const { data: createdTeam, error: teamError } = await supabase
-        .from("times")
-        .insert({
-          racha_id: roundId,
-          nome: team.name,
-          numero: team.number,
-          confirmado: false,
-        })
-        .select("id")
-        .single<{ id: string }>();
-
-      if (teamError || !createdTeam) {
-        throw teamError ?? new Error("Nao foi possivel criar o time.");
-      }
-
-      const rows = team.players.map((player) => ({
-        time_id: createdTeam.id,
-        jogador_id: player.jogadorId,
-        participante_id: player.id,
-      }));
-
-      const { error: playersError } = rows.length
-        ? await supabase.from("time_jogadores").insert(rows)
-        : { error: null };
-
-      if (playersError) {
-        throw playersError;
-      }
-    }
-  } catch (error) {
-    await supabase.from("times").delete().eq("racha_id", roundId);
-    throw error;
-  }
+export async function saveDraftTeams(supabase: SupabaseClient, roundId: string, teams: DrawTeam[], version: number) {
+  const { error } = await supabase.rpc("salvar_rascunho_times", {
+    p_racha: roundId, p_versao: version,
+    p_times: teams.map((t) => ({ numero: t.number, nome: t.name, jogadores: t.players.map((p) => p.id) })),
+  });
+  checkError(error);
 }
 
-export async function confirmTeams(supabase: SupabaseClient, roundId: string) {
-  const { data: existingTeams, error: existingTeamsError } = await supabase
-    .from("times")
-    .select("id")
-    .eq("racha_id", roundId)
-    .returns<Array<{ id: string }>>();
-
-  if (existingTeamsError) {
-    throw existingTeamsError;
-  }
-
-  if (!existingTeams?.length) {
-    throw new Error("Sorteie os times antes de confirmar.");
-  }
-
-  const { error: teamsError } = await supabase
-    .from("times")
-    .update({ confirmado: true })
-    .eq("racha_id", roundId);
-
-  if (teamsError) {
-    throw teamsError;
-  }
-
-  const { error: roundError } = await supabase
-    .from("rachas")
-    .update({ estado: "times_confirmados" })
-    .eq("id", roundId);
-
-  if (roundError) {
-    throw roundError;
-  }
+export async function confirmTeams(supabase: SupabaseClient, roundId: string, version: number) {
+  const { error } = await supabase.rpc("confirmar_rascunho_times", { p_racha: roundId, p_versao: version });
+  checkError(error);
 }
 
 export async function updateRoundStatus(supabase: SupabaseClient, roundId: string, status: RoundStatus) {
-  const { error } = await supabase.from("rachas").update({ estado: status }).eq("id", roundId);
-
-  if (error) {
-    throw error;
-  }
-}
-
-function normalizeParticipant(row: ParticipantRow): RoundParticipant {
-  return {
-    id: row.id,
-    jogadorId: row.jogador_id,
-    name: row.nome,
-    avatarUrl: row.profiles?.avatar_url ?? null,
-    type: row.tipo,
-    status: row.status,
-  };
-}
-
-function isAvatarColumnError(error: { message?: string; code?: string }) {
-  const message = error.message?.toLowerCase() ?? "";
-  return message.includes("avatar_url") || error.code === "42703";
+  const { error } = await supabase.rpc("alterar_estado_rodada", { p_racha: roundId, p_estado: status });
+  checkError(error);
 }

@@ -19,6 +19,7 @@ import { useState } from "react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { RachaScreen } from "@/components/rounds/RachaScreen";
 import { TeamsScreen } from "@/components/teams/TeamsScreen";
+import { ProfilePhoto } from "@/components/players/ProfilePhoto";
 import {
   fieldPlayers,
   goalkeepers,
@@ -223,6 +224,7 @@ function ProfileScreen({ profile }: { profile: Profile }) {
 
   return (
     <section className="space-y-3.5">
+      <ProfilePhoto profile={profile} />
       <Card className="bg-neutral-950 p-4 text-white ring-0">
         <div className="flex items-center gap-4">
           <LogoMark size="profile" />

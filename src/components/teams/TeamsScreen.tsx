@@ -1,20 +1,19 @@
 "use client";
 
 import { RefreshCw, Shuffle, Users } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
-import { fieldPlayers, goalkeepers } from "@/data/mock";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
 import { drawTeams, getTeamCount, hasCompleteTeams, swapPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
-import { confirmTeams, getCurrentRoundTeamsState, saveDraftTeams, updateRoundStatus, type RoundParticipant, type RoundStatus, type RoundTeamsState } from "@/lib/teams/repository";
+import { confirmTeams, getCurrentRoundTeamsState, saveDraftTeams, updateRoundStatus, type RoundStatus, type RoundTeamsState } from "@/lib/teams/repository";
 
 type TeamsScreenProps = {
   profile: Profile;
 };
 
 export function TeamsScreen({ profile }: TeamsScreenProps) {
-  const organizer = isOrganizer(profile);
+  const organizer = isOrganizer(profile) && profile.active;
   const [roundState, setRoundState] = useState<RoundTeamsState | null>(null);
   const [draw, setDraw] = useState<TeamDraw | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -58,33 +57,31 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     };
   }, []);
 
-  const goalkeepersToShow = roundState ? roundState.goalkeepers : createMockGoalkeepers();
-  const fieldPlayersToUse = roundState ? roundState.fieldPlayers : createMockFieldPlayers();
+  const goalkeepersToShow = roundState?.goalkeepers ?? [];
+  const fieldPlayersToUse = roundState?.fieldPlayers ?? [];
   const roundStatus = roundState?.status ?? "aberto";
   const confirmed = roundStatus === "times_confirmados" || roundStatus === "finalizado" || Boolean(roundState?.confirmed);
   const listClosed = roundStatus === "lista_fechada";
   const finalized = roundStatus === "finalizado";
   const canShowTeams = organizer || confirmed;
 
-  const confirmedPlayersCount = useMemo(
-    () => fieldPlayersToUse.filter((player) => player).length,
-    [fieldPlayersToUse],
-  );
+  const confirmedPlayersCount = fieldPlayersToUse.length;
   const teamsToFormCount = getTeamCount(confirmedPlayersCount);
   const hasPlayersToDraw = confirmedPlayersCount > 0;
 
-  async function reloadPersistedTeams(fallbackDraw?: TeamDraw) {
+  async function reloadPersistedTeams() {
     const updatedState = await fetchRoundTeamsState();
     setRoundState(updatedState);
-    setDraw(updatedState?.teams.length ? { teams: updatedState.teams } : fallbackDraw ?? null);
+    setDraw(updatedState?.teams.length ? { teams: updatedState.teams } : null);
     return updatedState;
   }
 
   async function handleDrawTeams() {
+    if (!organizer || isSaving || isLoading || finalized) return;
     setError("");
     setMessage("");
 
-    if (!listClosed) {
+    if (!listClosed && !confirmed) {
       setError("Feche a lista da rodada antes de sortear os times.");
       return;
     }
@@ -108,8 +105,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     try {
       const nextDraw = drawTeams(fieldPlayersToUse);
       const supabase = createClient();
-      await saveDraftTeams(supabase, roundState.roundId, nextDraw.teams);
-      await reloadPersistedTeams(nextDraw);
+      await saveDraftTeams(supabase, roundState.roundId, nextDraw.teams, roundState.version);
+      await reloadPersistedTeams();
       setAdjustMode(false);
       setSelectedPlayerId(null);
       setMessage("Times sorteados e salvos como rascunho.");
@@ -121,7 +118,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   }
 
   async function handlePlayerClick(player: TeamPlayer) {
-    if (!organizer || !adjustMode || !draw || !listClosed) {
+    if (!organizer || isSaving || !adjustMode || !draw || !listClosed) {
       return;
     }
 
@@ -148,8 +145,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
     try {
       const supabase = createClient();
-      await saveDraftTeams(supabase, roundState.roundId, nextDraw.teams);
-      await reloadPersistedTeams(nextDraw);
+      await saveDraftTeams(supabase, roundState.roundId, nextDraw.teams, roundState.version);
+      await reloadPersistedTeams();
       setMessage("Ajuste salvo.");
     } catch {
       setError("Não foi possível salvar o ajuste dos times. Tente novamente.");
@@ -159,6 +156,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   }
 
   async function handleConfirmTeams() {
+    if (!organizer || isSaving || isLoading || finalized) return;
     setError("");
     setMessage("");
 
@@ -181,8 +179,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
     try {
       const supabase = createClient();
-      await confirmTeams(supabase, roundState.roundId);
-      await reloadPersistedTeams(draw);
+      await confirmTeams(supabase, roundState.roundId, roundState.version);
+      await reloadPersistedTeams();
       setAdjustMode(false);
       setSelectedPlayerId(null);
       setMessage("Times confirmados com sucesso.");
@@ -231,7 +229,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     try {
       const supabase = createClient();
       await updateRoundStatus(supabase, roundState.roundId, status);
-      await reloadPersistedTeams(draw ?? undefined);
+      await reloadPersistedTeams();
       setMessage(successMessage);
     } catch {
       setError("Nao foi possivel atualizar o estado da rodada.");
@@ -249,6 +247,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
         </p>
       </div>
 
+      {roundState ? <>
       <RoundStatusBadge status={roundStatus} />
 
       <Card className="space-y-3">
@@ -274,13 +273,15 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
             <Users size={22} />
           </div>
           <div>
+            <p className="text-xs font-bold text-zinc-600">Jogadores disponíveis para sorteio</p>
             <p className="text-lg font-black">{confirmedPlayersCount} jogadores de linha</p>
             <p className="text-xs font-bold text-zinc-600">{getTeamsToFormLabel(teamsToFormCount)}</p>
           </div>
         </div>
       </Card>
+      </> : null}
 
-      {organizer ? (
+      {organizer && !isLoading && !error && roundState ? (
         <OrganizerControls
           hasDraw={Boolean(draw)}
           confirmed={confirmed}
@@ -296,18 +297,22 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
             setSelectedPlayerId(null);
           }}
           onConfirm={handleConfirmTeams}
-          canDraw={hasPlayersToDraw}
+          canDraw={hasPlayersToDraw && !isLoading && !error}
         />
       ) : null}
 
-      {error ? <Feedback tone="error" text={error} /> : null}
+      {error ? <><Feedback tone="error" text={error} /><button className="w-full rounded-xl border border-zinc-300 bg-white p-3 font-bold" disabled={isLoading || isSaving} onClick={async () => {
+        setIsLoading(true); setError("");
+        try { await reloadPersistedTeams(); } catch { setError("Não foi possível carregar os times desta rodada."); }
+        finally { setIsLoading(false); }
+      }}>Tentar novamente</button></> : null}
       {message ? <Feedback tone="success" text={message} /> : null}
       {listClosed && !hasPlayersToDraw ? <Feedback tone="neutral" text="Nenhum jogador de linha disponível para sorteio." /> : null}
       {adjustMode ? <Feedback tone="neutral" text="Toque em um jogador e depois em outro jogador de outro time para trocar." /> : null}
 
       {isLoading ? <Feedback tone="neutral" text="Carregando times..." /> : null}
 
-      {!canShowTeams ? (
+      {!canShowTeams && !isLoading && !error ? (
         <Card>
           <p className="text-base font-black">Times ainda nao confirmados.</p>
           <p className="mt-1 text-sm font-bold text-zinc-600">Quando os organizadores confirmarem, os jogadores poderao visualizar aqui.</p>
@@ -321,14 +326,14 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
               key={team.id}
               team={team}
               selectedPlayerId={selectedPlayerId}
-              adjustMode={adjustMode && organizer && listClosed}
+              adjustMode={adjustMode && organizer && listClosed && !isSaving}
               onPlayerClick={handlePlayerClick}
             />
           ))}
         </div>
       ) : null}
 
-      {canShowTeams && !draw && !isLoading ? (
+      {canShowTeams && !draw && !isLoading && !error ? (
         <Card>
           <p className="text-base font-black">Nenhum sorteio feito ainda.</p>
           <p className="mt-1 text-sm font-bold text-zinc-600">
@@ -389,7 +394,7 @@ function OrganizerControls({
       ) : null}
       <button
         onClick={onDraw}
-        disabled={!listClosed || finalized || !canDraw}
+        disabled={(!listClosed && !confirmed) || finalized || !canDraw || isSaving}
         className="flex h-12 items-center justify-center gap-2 rounded-[18px] bg-red-600 text-sm font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {hasDraw ? <RefreshCw size={18} /> : <Shuffle size={18} />}
@@ -398,7 +403,7 @@ function OrganizerControls({
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={onToggleAdjust}
-          disabled={!hasDraw || !listClosed || finalized}
+          disabled={!hasDraw || !listClosed || finalized || isSaving}
           className="h-11 rounded-[16px] border border-zinc-200 bg-white text-xs font-black uppercase text-neutral-950 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {adjustMode ? "Concluir ajuste" : "Ajustar times"}
@@ -518,26 +523,6 @@ function Feedback({ text, tone }: { text: string; tone: "error" | "success" | "n
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`rounded-[22px] bg-white p-4 shadow-[0_8px_22px_rgba(0,0,0,0.035)] ring-1 ring-black/5 ${className}`}>{children}</div>;
-}
-
-function createMockGoalkeepers(): RoundParticipant[] {
-  return goalkeepers.slice(0, 2).map((name) => ({
-    id: `mock-goleiro-${name}`,
-    jogadorId: null,
-    name,
-    type: "goleiro",
-    status: "confirmado",
-  }));
-}
-
-function createMockFieldPlayers(): RoundParticipant[] {
-  return fieldPlayers.map((name) => ({
-    id: `mock-linha-${name}`,
-    jogadorId: null,
-    name,
-    type: "linha",
-    status: "confirmado",
-  }));
 }
 
 function getTeamsToFormLabel(teamCount: number) {

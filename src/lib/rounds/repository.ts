@@ -27,7 +27,6 @@ type ParticipantRow = {
   nome: string;
   tipo: RoundParticipant["type"];
   status: RoundParticipant["status"];
-  profiles?: { avatar_url: string | null } | null;
 };
 
 type ProfileRow = {
@@ -41,36 +40,29 @@ export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<
   const { data: round, error: roundError } = await supabase
     .from("rachas")
     .select("id, nome, estado")
-    .order("data", { ascending: false })
+    .order("data", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(1)
     .maybeSingle<RoundRow>();
 
-  if (roundError || !round) {
-    return null;
-  }
+  if (roundError) throw roundError;
+  if (!round) return null;
 
-  let { data: participants, error: participantsError } = await supabase
+  const { data: participants, error: participantsError } = await supabase
     .from("racha_participantes")
-    .select("id, jogador_id, nome, tipo, status, profiles(avatar_url)")
+    .select("id, jogador_id, nome, tipo, status")
     .eq("racha_id", round.id)
     .order("created_at", { ascending: true })
     .returns<ParticipantRow[]>();
 
-  if (participantsError && isAvatarColumnError(participantsError)) {
-    const fallback = await supabase
-      .from("racha_participantes")
-      .select("id, jogador_id, nome, tipo, status")
-      .eq("racha_id", round.id)
-      .order("created_at", { ascending: true })
-      .returns<ParticipantRow[]>();
-
-    participants = fallback.data;
-    participantsError = fallback.error;
-  }
-
   if (participantsError) {
     throw participantsError;
   }
+
+  const { data: avatars, error: avatarError } = await supabase.rpc("avatars_da_rodada", { p_racha: round.id });
+  if (avatarError) throw avatarError;
+  const avatarById = new Map<string, string | null>((avatars ?? []).map((p: { jogador_id: string; avatar_url: string | null }) => [p.jogador_id, p.avatar_url]));
 
   return {
     roundId: round.id,
@@ -80,7 +72,7 @@ export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<
       id: participant.id,
       jogadorId: participant.jogador_id,
       name: participant.nome,
-      avatarUrl: participant.profiles?.avatar_url ?? null,
+      avatarUrl: avatarById.get(participant.jogador_id ?? "") ?? null,
       type: participant.tipo,
       status: participant.status,
     })),
