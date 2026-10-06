@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { MoreVertical, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { nextMatch } from "@/data/mock";
@@ -223,7 +223,7 @@ export function RachaScreen({ profile }: { profile: Profile }) {
       <div>
         <h2 className="text-[29px] font-black leading-tight tracking-normal">Racha</h2>
         <p className="mt-0.5 text-sm font-bold text-zinc-600">
-          {round ? `${round.roundName} - ${getStatusLabel(round.status)}` : "Crie a rodada para gerenciar a lista"}
+          {round ? getStatusLabel(round.status) : "Crie a rodada para gerenciar a lista"}
         </p>
       </div>
 
@@ -257,8 +257,9 @@ export function RachaScreen({ profile }: { profile: Profile }) {
           </Card>
 
           {organizer && round.status === "aberto" ? (
-            <Card className="space-y-3">
-              <h3 className="text-lg font-black">Adicionar jogador</h3>
+            <details className="rounded-[18px] border border-zinc-200 bg-white p-4">
+              <summary className="flex min-h-6 cursor-pointer list-none items-center justify-center gap-2 text-sm font-bold text-neutral-950 [&::-webkit-details-marker]:hidden"><Plus size={18} /> Adicionar jogador</summary>
+              <div className="mt-4 space-y-3">
               <select
                 value={selectedProfileId}
                 onChange={(event) => setSelectedProfileId(event.target.value)}
@@ -299,7 +300,8 @@ export function RachaScreen({ profile }: { profile: Profile }) {
                 <Plus size={18} />
                 Adicionar
               </button>
-            </Card>
+              </div>
+            </details>
           ) : null}
 
           {organizer ? (
@@ -378,22 +380,17 @@ function ParticipantSection({
           <div key={participant.id} className="py-2">
             <div className="flex items-center gap-3">
               <PlayerAvatar name={participant.name} avatarUrl={participant.avatarUrl} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-black">{participant.name}</p>
-                <p className="text-xs font-bold text-zinc-600">{getParticipantStatusLabel(participant.status)}</p>
+              <div className={`min-w-0 flex-1 ${editable ? "pr-11" : ""}`}>
+              <p className="break-words text-sm font-black">{participant.name}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-zinc-600"><span>{getParticipantStatusLabel(participant.status)}</span><span>{participant.type === "goleiro" ? "Goleiro" : participant.type === "suplente" ? "Suplente" : "Linha"}</span></div>
               </div>
-              {editable ? (
-                <button
-                  onClick={() => onRemove(participant)}
-                  className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-zinc-100 text-zinc-700 transition hover:bg-red-50 hover:text-red-700"
-                >
-                  <Trash2 size={17} />
-                </button>
-              ) : null}
             </div>
             {editable ? (
-              <div className="mt-2 grid grid-cols-2 gap-2 pl-12">
+              <details className="relative -mt-11">
+                <summary aria-label={`Editar ${participant.name}`} className="ml-auto flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden"><MoreVertical size={19} /></summary>
+                <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl bg-zinc-50 p-3">
                 <select
+                  aria-label={`Categoria de ${participant.name}`}
                   value={participant.type}
                   onChange={(event) => onUpdate(participant, "type", event.target.value)}
                   className="h-9 rounded-[13px] border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"
@@ -403,6 +400,7 @@ function ParticipantSection({
                   <option value="suplente">Suplente</option>
                 </select>
                 <select
+                  aria-label={`Presença de ${participant.name}`}
                   value={participant.status}
                   onChange={(event) => onUpdate(participant, "status", event.target.value)}
                   className="h-9 rounded-[13px] border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"
@@ -411,12 +409,14 @@ function ParticipantSection({
                   <option value="ausente">Ausente</option>
                   <option value="removido">Removido</option>
                 </select>
+                <button onClick={() => onRemove(participant)} className="col-span-2 flex min-h-10 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white text-xs font-bold text-red-600"><Trash2 size={15} /> Remover da rodada</button>
               </div>
+              </details>
             ) : null}
           </div>
         ))}
         {!participants.length ? (
-          <p className="py-3 text-sm font-bold text-zinc-600">Nenhum participante nessa secao.</p>
+          <p className="py-2 text-sm text-zinc-500">Nenhum participante</p>
         ) : null}
       </div>
     </Card>
@@ -448,10 +448,10 @@ function Feedback({ text, tone }: { text: string; tone: "error" | "success" | "n
 
 function getStatusLabel(status: string) {
   const labels: Record<string, string> = {
-    aberto: "lista aberta",
-    lista_fechada: "lista fechada",
-    times_confirmados: "times confirmados",
-    finalizado: "finalizado",
+    aberto: "Lista aberta",
+    lista_fechada: "Lista fechada",
+    times_confirmados: "Times confirmados",
+    finalizado: "Finalizado",
   };
 
   return labels[status] ?? status;
