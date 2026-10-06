@@ -3,8 +3,8 @@ import type { DrawTeam, TeamPlayer } from "@/lib/teams/draw";
 
 export type RoundParticipant = TeamPlayer & {
   jogadorId: string | null;
-  type: "goleiro" | "linha";
-  status: "confirmado" | "suplente" | "ausente" | "removido";
+  type: "goleiro" | "linha" | "suplente";
+  status: "confirmado" | "ausente" | "removido";
 };
 
 export type RoundStatus = "aberto" | "lista_fechada" | "times_confirmados" | "finalizado";

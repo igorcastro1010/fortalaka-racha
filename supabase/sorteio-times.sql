@@ -36,9 +36,31 @@ create table if not exists public.racha_participantes (
   status text not null default 'confirmado',
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
-  constraint racha_participantes_tipo_check check (tipo in ('goleiro', 'linha')),
-  constraint racha_participantes_status_check check (status in ('confirmado', 'suplente', 'ausente', 'removido'))
+  constraint racha_participantes_tipo_check check (tipo in ('goleiro', 'linha', 'suplente')),
+  constraint racha_participantes_status_check check (status in ('confirmado', 'ausente', 'removido'))
 );
+
+update public.racha_participantes
+set tipo = 'suplente',
+    status = 'confirmado'
+where status = 'suplente'
+  and tipo in ('goleiro', 'linha');
+
+alter table public.racha_participantes
+drop constraint if exists racha_participantes_tipo_check;
+
+alter table public.racha_participantes
+add constraint racha_participantes_tipo_check check (tipo in ('goleiro', 'linha', 'suplente'));
+
+alter table public.racha_participantes
+drop constraint if exists racha_participantes_status_check;
+
+alter table public.racha_participantes
+add constraint racha_participantes_status_check check (status in ('confirmado', 'ausente', 'removido'));
+
+create unique index if not exists racha_participantes_racha_jogador_unique
+on public.racha_participantes (racha_id, jogador_id)
+where jogador_id is not null;
 
 create table if not exists public.times (
   id uuid primary key default gen_random_uuid(),
