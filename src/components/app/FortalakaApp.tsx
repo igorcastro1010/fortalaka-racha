@@ -21,6 +21,7 @@ import { RachaScreen } from "@/components/rounds/RachaScreen";
 import { TeamsScreen } from "@/components/teams/TeamsScreen";
 import { PlayerPerformance } from "@/components/players/PlayerPerformance";
 import { ProfilePhoto } from "@/components/players/ProfilePhoto";
+import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import {
   fieldPlayers,
   goalkeepers,
@@ -182,28 +183,27 @@ function HomeCount({ icon: Icon, value, label }: { icon: LucideIcon; value: numb
 function RankingScreen() {
   return (
     <section className="space-y-3">
-      <ScreenTitle title="Ranking" subtitle="Desempenho geral dos jogadores" />
+      <ScreenTitle title="Ranking" subtitle="Classificação geral" />
       {ranking.map((player, index) => (
-        <Card key={player.name} className="flex items-center gap-3 p-3.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[16px] bg-neutral-950 text-sm font-black text-white">
-            {index + 1}
-          </span>
-          <Avatar initials={player.avatar} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="truncate text-base font-black">{player.name}</h3>
-              <div className="rounded-full bg-red-50 px-2.5 py-1 text-sm font-black text-red-700">
-                {player.rating}
-              </div>
+        <article key={player.name} aria-label={`${index + 1}º lugar: ${player.name}`} className={`rounded-[20px] border bg-white p-3.5 shadow-sm ${index === 0 ? "border-red-200 border-l-[3px] border-l-red-600" : index === 1 ? "border-zinc-200 border-l-[3px] border-l-zinc-700" : index === 2 ? "border-zinc-200 border-l-[3px] border-l-zinc-400" : "border-zinc-200/70"}`}>
+          <div className="flex items-center gap-2.5">
+            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black tabular-nums ${index === 0 ? "bg-red-600 text-white" : index < 3 ? "bg-neutral-950 text-white" : "bg-zinc-100 text-zinc-700"}`} aria-label={`Posição ${index + 1}`}>
+              {index + 1}
+            </span>
+            <PlayerAvatar name={player.name} avatarUrl={"avatar_url" in player && typeof player.avatar_url === "string" ? player.avatar_url : "avatarUrl" in player && typeof player.avatarUrl === "string" ? player.avatarUrl : null} size="sm" />
+            <h3 className="min-w-0 flex-1 break-words text-base font-black leading-tight tracking-tight">{player.name}</h3>
+            <div className="shrink-0 rounded-[14px] bg-red-50 px-2.5 py-1.5 text-center" aria-label={`Nota média ${player.rating}`}>
+              <p className="text-xl font-black leading-none tabular-nums text-red-700">{player.rating}</p>
+              <p className="mt-1 text-[8px] font-semibold uppercase tracking-wider text-red-700">Nota</p>
             </div>
-            <div className="mt-2 grid grid-cols-4 gap-1 text-center">
+          </div>
+            <div className="mt-3 grid grid-cols-4 divide-x divide-zinc-100 border-t border-zinc-100 pt-2.5 text-center">
               <MiniStat label="Jogos" value={player.games} />
               <MiniStat label="Gols" value={player.goals} />
               <MiniStat label="Ast" value={player.assists} />
               <MiniStat label="Vit" value={player.wins} />
             </div>
-          </div>
-        </Card>
+        </article>
       ))}
     </section>
   );
@@ -275,23 +275,11 @@ function ScreenTitle({ title, subtitle }: { title: string; subtitle: string }) {
   );
 }
 
-function Avatar({ initials, compact = false }: { initials: string; compact?: boolean }) {
-  return (
-    <div
-      className={`flex shrink-0 items-center justify-center bg-red-600 font-black text-white shadow-sm shadow-red-600/20 ${
-        compact ? "h-8 w-8 rounded-[13px] text-xs" : "h-10 w-10 rounded-[16px] text-sm"
-      }`}
-    >
-      {initials}
-    </div>
-  );
-}
-
 function MiniStat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-[14px] bg-zinc-50 px-1 py-2 ring-1 ring-zinc-200">
-      <p className="text-xs font-black">{value}</p>
-      <p className="mt-0.5 text-[10px] font-bold uppercase text-zinc-600">{label}</p>
+    <div className="px-1">
+      <p className="text-sm font-bold leading-none tabular-nums text-zinc-800">{value}</p>
+      <p className="mt-1 text-[9px] font-semibold uppercase tracking-wide text-zinc-600">{label}</p>
     </div>
   );
 }
