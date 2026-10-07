@@ -19,7 +19,7 @@ create table storage.objects(id uuid primary key default gen_random_uuid(),bucke
 alter table storage.objects enable row level security;
 create function storage.foldername(text) returns text[] language sql immutable as $$select string_to_array($1,'/')$$;
 grant usage on schema storage to authenticated,anon;grant select,insert,update,delete on storage.objects to authenticated;`);
-for(const path of ['supabase/schema.sql','supabase/sorteio-times.sql','supabase/validacao-sorteio-avatars.sql'])await db.exec(readFileSync(path,'utf8'));
+for(const path of ['supabase/schema.sql','supabase/sorteio-times.sql','supabase/validacao-sorteio-avatars.sql','supabase/partidas-estatisticas.sql'])await db.exec(readFileSync(path,'utf8'));
 const organizer=randomUUID(),viewer=randomUUID();const ids=Array.from({length:14},()=>randomUUID());
 for(const [i,id] of [organizer,viewer,...ids].entries())await db.query('insert into auth.users values($1,$2,$3)',[id,'test@example.invalid',JSON.stringify({name:i<2?'Conta teste':`Pessoa ${i-2}`})]);
 await db.query("update public.profiles set role='organizador' where id=$1",[organizer]);
@@ -44,10 +44,11 @@ writeFileSync(join(output,'main.tsx'),`
 import { useState } from 'react';import { createRoot } from 'react-dom/client';
 import { TeamsScreen } from ${JSON.stringify(resolve('src/components/teams/TeamsScreen.tsx'))};
 import { RachaScreen } from ${JSON.stringify(resolve('src/components/rounds/RachaScreen.tsx'))};
+import { RankingScreen, PlayerStatisticsCard } from ${JSON.stringify(resolve('src/components/players/StatisticsViews.tsx'))};
 import { ProfilePhoto } from ${JSON.stringify(resolve('src/components/players/ProfilePhoto.tsx'))};
 const role=new URLSearchParams(location.search).get('role')==='jogador'?'jogador':'organizador';
 const profile={id:role==='jogador'?${JSON.stringify(viewer)}:${JSON.stringify(organizer)},name:'Conta teste',email:null,active:true,role};
-function App(){const [tab,setTab]=useState('racha');return <main className="mx-auto min-h-screen max-w-[430px] bg-zinc-100 p-4"><nav className="mb-4 flex gap-4">{['racha','times','perfil'].map(t=><button key={t} onClick={()=>setTab(t)}>{t}</button>)}</nav>{tab==='racha'?<RachaScreen profile={profile}/>:tab==='times'?<TeamsScreen profile={profile}/>:<ProfilePhoto profile={profile}/>}</main>}
+function App(){const [tab,setTab]=useState('racha');return <main className="mx-auto min-h-screen max-w-[430px] bg-zinc-100 p-4"><nav className="mb-4 flex gap-4">{['racha','times','ranking','perfil'].map(t=><button key={t} onClick={()=>setTab(t)}>{t}</button>)}</nav>{tab==='racha'?<RachaScreen profile={profile}/>:tab==='times'?<TeamsScreen profile={profile}/>:tab==='ranking'?<RankingScreen/>:<><PlayerStatisticsCard playerId={profile.id}/><ProfilePhoto profile={profile}/></>}</main>}
 createRoot(document.getElementById('root')!).render(<App/>);
 `);
 await build({entryPoints:[join(output,'main.tsx')],outfile:join(output,'app.js'),bundle:true,jsx:'automatic',define:{'process.env':'{}'},tsconfig:resolve('tsconfig.json'),nodePaths:[resolve('node_modules')],plugins:[{name:'isolated-client',setup(b){b.onResolve({filter:/^@\/lib\/supabase\/client$/},()=>({path:client}));}}]});
@@ -62,10 +63,10 @@ async function api(input){
   const uid=input.role==='jogador'?viewer:organizer;await db.query("select set_config('request.jwt.claim.sub',$1,true)",[uid]);let data;
   if(input.kind==='user')data={id:uid};
   else if(input.kind==='rpc'){
-   const specs={ler_times_rodada:[],avatars_da_rodada:['p_racha'],alterar_estado_rodada:['p_racha','p_estado'],salvar_rascunho_times:['p_racha','p_versao','p_times'],confirmar_rascunho_times:['p_racha','p_versao']};
-   const keys=specs[input.name];if(!keys)throw Error('RPC inválida');const values=keys.map(k=>k==='p_times'?JSON.stringify(input.args[k]):input.args[k]);
+   const specs={ler_estatisticas_jogadores:['p_jogador'],ler_partidas_rodada:['p_racha'],criar_partida:['p_racha','p_time_a','p_time_b'],salvar_partida:['p_partida','p_versao','p_placar_a','p_placar_b','p_status','p_jogadores'],ler_times_rodada:[],avatars_da_rodada:['p_racha'],alterar_estado_rodada:['p_racha','p_estado'],salvar_rascunho_times:['p_racha','p_versao','p_times'],confirmar_rascunho_times:['p_racha','p_versao']};
+   const keys=specs[input.name];if(!keys)throw Error('RPC inválida');const values=keys.map(k=>['p_times','p_jogadores'].includes(k)?JSON.stringify(input.args[k]):input.args[k]);
    const rows=(await db.query('select * from public.'+input.name+'('+values.map((_,i)=>'$'+(i+1)).join(',')+')',values)).rows;
-   data=input.name==='avatars_da_rodada'?rows:rows[0]?.[input.name];
+   data=['avatars_da_rodada','ler_estatisticas_jogadores'].includes(input.name)?rows:rows[0]?.[input.name];
   }else if(input.kind==='table'){
    const fields={profiles:['id','name','email','avatar_url','role','active'],rachas:['id','nome','data','estado','horario','endereco','versao','created_at'],racha_participantes:['id','racha_id','jogador_id','nome','tipo','status','created_at']};
    if(!fields[input.table])throw Error('Tabela inválida');const params=[];const clauses=(input.filters??[]).map(([k,v])=>{if(!fields[input.table].includes(k))throw Error('Campo inválido');params.push(v);return k+'=$'+params.length;});const where=clauses.length?' where '+clauses.join(' and '):'';
