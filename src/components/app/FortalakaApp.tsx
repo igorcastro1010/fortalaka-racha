@@ -34,6 +34,8 @@ import { getRoleLabel, type Profile } from "@/lib/auth/roles";
 import { getEvaluationState, type EvaluationState } from "@/lib/ratings/repository";
 import { createClient } from "@/lib/supabase/client";
 
+import { getCurrentRoundDetails } from "@/lib/rounds/repository";
+
 type Tab = "home" | "racha" | "teams" | "ranking" | "profile" | "evaluate";
 
 const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
@@ -83,6 +85,14 @@ function AppHeader() {
 }
 
 function HomeScreen({ profile, onOpenRacha, onOpenEvaluate }: { profile: Profile; onOpenRacha: () => void; onOpenEvaluate: () => void }) {
+  const [finalized, setFinalized] = useState(false);
+  useEffect(() => {
+    let active = true;
+    getCurrentRoundDetails(createClient()).then(round => {
+      if (active) setFinalized(round?.status === "finalizado");
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
   const displayName = getDisplayName(profile);
   const firstName = getFirstName(displayName);
 
@@ -112,6 +122,7 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate }: { profile: Profile
 
       <HomeEvaluationCard onOpenEvaluate={onOpenEvaluate} />
 
+      {finalized && <p className="rounded-xl bg-emerald-50 p-3 text-sm font-black text-emerald-800">RODADA FINALIZADA</p>}
       <Card className="space-y-4 rounded-[24px] border-t-[3px] border-red-600 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.06)]">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[11px] font-black uppercase tracking-[0.14em] text-red-600">Próximo Racha</p>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getEvaluationProgress, setRoundEvaluationsOpen, type EvaluationProgress } from "@/lib/ratings/repository";
 
-export function EvaluationAdminPanel({ roundId, organizer }: { roundId: string; organizer: boolean }) {
+export function EvaluationAdminPanel({ roundId, organizer, roundStatus }: { roundId: string; organizer: boolean; roundStatus: string }) {
   const [progress, setProgress] = useState<EvaluationProgress | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -17,9 +17,10 @@ export function EvaluationAdminPanel({ roundId, organizer }: { roundId: string; 
       if (active) setError(e instanceof Error ? e.message : "Nao foi possivel carregar o progresso das avaliacoes.");
     });
     return () => { active = false; };
-  }, [roundId]);
+  }, [roundId, roundStatus]);
 
   async function toggle(open: boolean) {
+    if (!organizer || busy || (open && roundStatus !== "finalizado")) return;
     if (!open && !window.confirm("Fechar avaliacoes? Jogadores nao poderao editar as notas depois disso.")) return;
     if (open && !window.confirm("Abrir avaliacoes para jogadores que participaram das partidas finalizadas?")) return;
     setBusy(true);
@@ -47,8 +48,9 @@ export function EvaluationAdminPanel({ roundId, organizer }: { roundId: string; 
     {progress ? <p className="rounded-xl bg-zinc-50 p-3 text-sm font-bold text-zinc-800">{progress.respondentes} de {progress.total} jogadores responderam</p> : <p className="text-sm text-zinc-600">Carregando progresso...</p>}
     {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p>}
     {message && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
+    {roundStatus !== "finalizado" && <p className="text-sm text-zinc-600">Finalize pelo menos uma partida e encerre a rodada antes de abrir avaliações.</p>}
     {organizer && <div className="grid grid-cols-2 gap-2">
-      <button disabled={busy || progress?.abertas} onClick={() => toggle(true)} className="min-h-11 rounded-xl bg-red-600 px-3 text-xs font-black uppercase text-white disabled:opacity-50">Abrir</button>
+      <button disabled={busy || !progress || progress.abertas || roundStatus !== "finalizado"} onClick={() => toggle(true)} className="min-h-11 rounded-xl bg-red-600 px-3 text-xs font-black uppercase text-white disabled:opacity-50">ABRIR AVALIAÇÕES</button>
       <button disabled={busy || !progress?.abertas} onClick={() => toggle(false)} className="min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-black uppercase disabled:opacity-50">Fechar</button>
     </div>}
   </section>;

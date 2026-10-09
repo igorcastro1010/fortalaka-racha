@@ -114,7 +114,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus }: { roundId: str
     {error && <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700"><p>{error}</p><button className={`${button} mt-2`} disabled={busy} onClick={async () => { try { setState(await getRoundMatches(roundId)); setError(""); } catch (e) { setError(e instanceof Error ? e.message : "Nao foi possivel carregar."); } }}>Atualizar partidas</button></div>}
     {message && <p role="status" className="rounded-xl bg-zinc-50 p-3 text-sm text-zinc-800">{message}</p>}
 
-    {organizer && !loading && state.times.length >= 2 && <details className="rounded-xl border border-zinc-200 p-3">
+    {organizer && roundStatus !== "finalizado" && !loading && state.times.length >= 2 && <details className="rounded-xl border border-zinc-200 p-3">
       <summary className="cursor-pointer text-sm font-bold">+ Nova partida</summary>
       <div className="mt-3 grid gap-2">
         {[{ label: "Time A", value: teamA, change: setTeamA }, { label: "Time B", value: teamB, change: setTeamB }].map(item => <label key={item.label} className="text-xs font-bold">{item.label}

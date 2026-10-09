@@ -1,10 +1,11 @@
 "use client";
 
 import { MoreVertical, Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { EvaluationAdminPanel } from "@/components/ratings/EvaluationAdminPanel";
 import { MatchesPanel } from "./MatchesPanel";
+import { getRoundMatches } from "@/lib/matches/repository";
 import { nextMatch } from "@/data/mock";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import {
@@ -31,6 +32,13 @@ export function RachaScreen({ profile }: { profile: Profile }) {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [confirmFinish, setConfirmFinish] = useState(false);
+
+  const finishDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (confirmFinish) finishDialog.current?.showModal();
+    else finishDialog.current?.close();
+  }, [confirmFinish]);
 
   async function loadRound() {
     const supabase = createClient();
@@ -220,6 +228,30 @@ export function RachaScreen({ profile }: { profile: Profile }) {
     }
   }
 
+
+  async function requestFinish() {
+    if (!organizer || !profile.active || !round || round.status === "finalizado" || isSaving) return;
+    setIsSaving(true); setError(""); setMessage("");
+    try {
+      const matches = await getRoundMatches(round.roundId);
+      if (!matches.partidas.some(match => match.status === "finalizada")) {
+        setError("Finalize pelo menos uma partida antes de encerrar a rodada.");
+      } else { setConfirmFinish(true); }
+    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível verificar as partidas."); }
+    finally { setIsSaving(false); }
+  }
+  async function finishRound() {
+    if (!organizer || !profile.active || !round || round.status === "finalizado" || isSaving) return;
+    setIsSaving(true); setError(""); setMessage("");
+    try {
+      const { error } = await createClient().rpc("finalizar_rodada", { p_racha: round.roundId });
+      if (error) throw new Error(error.code === "PGRST202" ? "Aplique a migração finalizar-rodada.sql no Supabase antes de finalizar a rodada." : error.message);
+      setConfirmFinish(false);
+      await loadRound();
+      setMessage("Rodada finalizada. As avaliações poderão ser abertas.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível finalizar a rodada."); }
+    finally { setIsSaving(false); }
+  }
   return (
     <section className="space-y-3.5">
       <div>
@@ -329,8 +361,17 @@ export function RachaScreen({ profile }: { profile: Profile }) {
             </div>
           ) : null}
 
+          {organizer && profile.active && round.status !== "finalizado" ? <button onClick={requestFinish} disabled={isSaving} className="h-12 w-full rounded-[18px] bg-neutral-950 text-sm font-black text-white disabled:opacity-60">FINALIZAR RODADA</button> : null}
+          <dialog ref={finishDialog} onCancel={event => { event.preventDefault(); if (!isSaving) setConfirmFinish(false); }} aria-labelledby="finish-title" aria-describedby="finish-description" className="fixed inset-0 m-auto w-[calc(100%-32px)] max-w-sm rounded-2xl bg-white p-5 shadow-2xl backdrop:bg-black/50">
+            <h3 id="finish-title" className="text-xl font-black">Finalizar esta rodada?</h3>
+            <p id="finish-description" className="mt-3 text-sm text-zinc-600">Depois de finalizada, ela entra no histórico e as avaliações poderão ser abertas.</p>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button autoFocus disabled={isSaving} onClick={() => setConfirmFinish(false)} className="min-h-11 rounded-xl border border-zinc-200 font-bold disabled:opacity-60">CANCELAR</button>
+              <button disabled={isSaving} onClick={finishRound} className="min-h-11 rounded-xl bg-red-600 font-bold text-white disabled:opacity-60">FINALIZAR</button>
+            </div>
+          </dialog>
           <MatchesPanel roundId={round.roundId} roundStatus={round.status} organizer={organizer && profile.active} />
-          <EvaluationAdminPanel roundId={round.roundId} organizer={organizer && profile.active} />
+          <EvaluationAdminPanel roundStatus={round.status} roundId={round.roundId} organizer={organizer && profile.active} />
 
           <ParticipantSection
             title="Goleiros"
@@ -456,7 +497,7 @@ function getStatusLabel(status: string) {
     aberto: "Lista aberta",
     lista_fechada: "Lista fechada",
     times_confirmados: "Times confirmados",
-    finalizado: "Finalizado",
+    finalizado: "RODADA FINALIZADA",
   };
 
   return labels[status] ?? status;
