@@ -9,7 +9,6 @@ import {
   Shield,
   Star,
   Trophy,
-  User,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -22,57 +21,54 @@ import { RachaScreen } from "@/components/rounds/RachaScreen";
 import { TeamsScreen } from "@/components/teams/TeamsScreen";
 import { PlayerPerformance } from "@/components/players/PlayerPerformance";
 import { ProfilePhoto } from "@/components/players/ProfilePhoto";
-import { RankingScreen, PlayerStatisticsCard } from "@/components/players/StatisticsViews";
-import { EvaluationScreen } from "@/components/ratings/EvaluationScreen";
-import {
-  fieldPlayers,
-  goalkeepers,
-  nextMatch,
-  substitutes,
-} from "@/data/mock";
+import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { PlayerStatisticsCard } from "@/components/players/StatisticsViews";
+import { EvaluationArea } from "@/components/ratings/EvaluationArea";
+import { ResultsScreen } from "@/components/results/ResultsScreen";
+import { useCurrentRound } from "@/components/rounds/useCurrentRound";
+import { RoundLoadStatus, RoundSummary } from "@/components/rounds/RoundSummary";
+import { getRoundMatches } from "@/lib/matches/repository";
+import { nextMatch } from "@/data/mock";
 import { getRoleLabel, type Profile } from "@/lib/auth/roles";
 import { getEvaluationState, type EvaluationState } from "@/lib/ratings/repository";
 import { createClient } from "@/lib/supabase/client";
 
-import { getCurrentRoundDetails } from "@/lib/rounds/repository";
-
-type Tab = "home" | "racha" | "teams" | "ranking" | "profile" | "evaluate";
+type Tab = "home" | "racha" | "teams" | "evaluate" | "results" | "profile";
 
 const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
-  { id: "home", label: "Inicio", icon: Home },
+  { id: "home", label: "Início", icon: Home },
   { id: "racha", label: "Racha", icon: ClipboardList },
   { id: "teams", label: "Times", icon: Users },
-  { id: "ranking", label: "Ranking", icon: Trophy },
-  { id: "profile", label: "Perfil", icon: User },
+  { id: "evaluate", label: "Avaliação", icon: Star },
+  { id: "results", label: "Resultados", icon: Trophy },
 ];
 
 export function FortalakaApp({ profile }: { profile: Profile }) {
   const [activeTab, setActiveTab] = useState<Tab>("home");
-  const [evaluationRoundId, setEvaluationRoundId] = useState<string | undefined>();
-  function openEvaluation(roundId?: string) {
-    setEvaluationRoundId(roundId);
-    setActiveTab("evaluate");
+  function navigate(tab: Tab) {
+    setActiveTab(tab);
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-950">
       <div className="mx-auto min-h-screen w-full max-w-[430px] bg-[#f3f3f4] shadow-2xl shadow-black/35">
         <div className="min-h-screen px-4 pb-[calc(104px+env(safe-area-inset-bottom))] pt-[calc(16px+env(safe-area-inset-top))]">
-          {activeTab !== "home" && <AppHeader />}
-          {activeTab === "home" && <HomeScreen profile={profile} onOpenRacha={() => setActiveTab("racha")} onOpenEvaluate={() => openEvaluation()} />}
-          {activeTab === "racha" && <RachaScreen profile={profile} onOpenEvaluate={openEvaluation} />}
+          {activeTab !== "home" && <AppHeader profile={profile} onOpenProfile={() => navigate("profile")} />}
+          {activeTab === "home" && <HomeScreen profile={profile} onOpenProfile={() => navigate("profile")} onOpenRacha={() => navigate("racha")} onOpenEvaluate={() => navigate("evaluate")} onOpenResults={() => navigate("results")} />}
+          {activeTab === "racha" && <RachaScreen profile={profile} onOpenResults={() => navigate("results")} />}
           {activeTab === "teams" && <TeamsScreen profile={profile} />}
-          {activeTab === "ranking" && <RankingScreen />}
+          {activeTab === "results" && <ResultsScreen profile={profile} />}
           {activeTab === "profile" && <ProfileScreen profile={profile} />}
-          {activeTab === "evaluate" && <EvaluationScreen key={evaluationRoundId ?? "current"} roundId={evaluationRoundId} />}
+          {activeTab === "evaluate" && <EvaluationArea profile={profile} />}
         </div>
-        <BottomNav activeTab={activeTab} onChange={setActiveTab} />
+        <BottomNav activeTab={activeTab} onChange={navigate} />
       </div>
     </main>
   );
 }
 
-function AppHeader() {
+function AppHeader({ profile, onOpenProfile }: { profile: Profile; onOpenProfile: () => void }) {
   return (
     <header className="mb-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -82,22 +78,33 @@ function AppHeader() {
           <h1 className="text-[25px] font-black uppercase leading-none tracking-normal">Fortalaka</h1>
         </div>
       </div>
-      <div className="rounded-full bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-neutral-800 shadow-sm ring-1 ring-black/5">
-        Oficial
-      </div>
+      <ProfileButton profile={profile} onClick={onOpenProfile} />
     </header>
   );
 }
 
-function HomeScreen({ profile, onOpenRacha, onOpenEvaluate }: { profile: Profile; onOpenRacha: () => void; onOpenEvaluate: () => void }) {
-  const [finalized, setFinalized] = useState(false);
+function ProfileButton({ profile, onClick }: { profile: Profile; onClick: () => void }) {
+  return <button onClick={onClick} aria-label="Abrir meu perfil" className="shrink-0 rounded-full p-1 ring-1 ring-black/5 focus-visible:outline-2 focus-visible:outline-red-600"><PlayerAvatar name={profile.name} avatarUrl={profile.avatar_url} /></button>;
+}
+
+function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpenProfile }: { profile: Profile; onOpenRacha: () => void; onOpenEvaluate: () => void; onOpenResults: () => void; onOpenProfile: () => void }) {
+  const { round, loading, error, retry } = useCurrentRound();
+  const [matches, setMatches] = useState<{ roundId: string; count: number } | null>(null);
+  const roundId = round?.roundId;
   useEffect(() => {
+    if (!roundId) return;
     let active = true;
-    getCurrentRoundDetails(createClient()).then(round => {
-      if (active) setFinalized(round?.status === "finalizado");
+    getRoundMatches(roundId).then(data => {
+      if (active) setMatches({ roundId, count: data.partidas.length });
     }).catch(() => {});
     return () => { active = false; };
-  }, []);
+  }, [roundId]);
+  const participants = round?.participants ?? [];
+  const counts = {
+    goalkeepers: participants.filter(player => player.type === "goleiro" && player.status === "confirmado").length,
+    fieldPlayers: participants.filter(player => player.type === "linha" && player.status === "confirmado").length,
+    substitutes: participants.filter(player => player.type === "suplente").length,
+  };
   const displayName = getDisplayName(profile);
   const firstName = getFirstName(displayName);
 
@@ -113,13 +120,11 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate }: { profile: Profile
             </h1>
           </div>
         </div>
-        <span className="shrink-0 rounded-full bg-zinc-200/60 px-2.5 py-1.5 text-[10px] font-semibold text-zinc-600">
-          {getRoleLabel(profile.role)}
-        </span>
+        <ProfileButton profile={profile} onClick={onOpenProfile} />
       </header>
 
       <div className="space-y-2 pb-1">
-        <p className="text-[13px] font-medium text-zinc-600">Boa noite, {firstName}</p>
+        <p className="text-[13px] font-medium text-zinc-600">Olá, {firstName} · {getRoleLabel(profile.role)}</p>
         <h2 className="text-[32px] font-black leading-[1.08] tracking-tight text-neutral-950">
           Pronto pra quinta?
         </h2>
@@ -127,7 +132,8 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate }: { profile: Profile
 
       <HomeEvaluationCard onOpenEvaluate={onOpenEvaluate} />
 
-      {finalized && <p className="rounded-xl bg-emerald-50 p-3 text-sm font-black text-emerald-800">RODADA FINALIZADA</p>}
+      <RoundLoadStatus loading={loading} error={error} empty={!round} retry={retry} />
+      {!loading && !error && round && <RoundSummary round={round} />}
       <Card className="space-y-4 rounded-[24px] border-t-[3px] border-red-600 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.06)]">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[11px] font-black uppercase tracking-[0.14em] text-red-600">Próximo Racha</p>
@@ -149,9 +155,9 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate }: { profile: Profile
         <div className="h-px bg-zinc-100" />
 
         <div className="grid grid-cols-3 gap-2">
-          <HomeCount icon={Shield} value={goalkeepers.length} label="Goleiros" />
-          <HomeCount icon={Users} value={fieldPlayers.length} label="Linha" />
-          <HomeCount icon={UserPlus} value={substitutes.length} label="Suplentes" />
+          <HomeCount icon={Shield} value={counts.goalkeepers} label="Goleiros" />
+          <HomeCount icon={Users} value={counts.fieldPlayers} label="Linha" />
+          <HomeCount icon={UserPlus} value={counts.substitutes} label="Suplentes" />
         </div>
 
         <button
@@ -167,10 +173,11 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate }: { profile: Profile
           <ClipboardList size={20} />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-black">{goalkeepers.length + fieldPlayers.length + substitutes.length} jogadores na lista</p>
+          <p className="text-sm font-black">{participants.length} jogadores na lista</p>
           <p className="mt-1 text-xs leading-relaxed text-zinc-300">Confira os participantes e a organização da rodada em Ver Racha.</p>
         </div>
       </div>
+      {matches?.roundId === roundId && matches && matches.count > 0 && <button onClick={onOpenResults} className="min-h-12 w-full rounded-[16px] bg-white px-4 text-sm font-black ring-1 ring-black/5">VER RESULTADOS · {matches.count} partidas</button>}
     </section>
   );
 }
@@ -257,7 +264,7 @@ function ProfileScreen({ profile }: { profile: Profile }) {
 
 function BottomNav({ activeTab, onChange }: { activeTab: Tab; onChange: (tab: Tab) => void }) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-[430px] border-t border-zinc-200 bg-white/[0.96] px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-10px_24px_rgba(0,0,0,0.06)] backdrop-blur">
+    <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-[430px] border-t border-zinc-200 bg-white/[0.96] px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-10px_24px_rgba(0,0,0,0.06)] backdrop-blur">
       <div className="grid grid-cols-5 gap-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -266,8 +273,9 @@ function BottomNav({ activeTab, onChange }: { activeTab: Tab; onChange: (tab: Ta
           return (
             <button
               key={tab.id}
+              aria-current={isActive ? "page" : undefined}
               onClick={() => onChange(tab.id)}
-              className={`flex h-[66px] flex-col items-center justify-center gap-1 rounded-[20px] text-xs font-black transition hover:bg-zinc-100 active:scale-95 ${
+              className={`flex min-w-0 h-[66px] flex-col items-center justify-center gap-1 rounded-[16px] text-[10px] font-black transition hover:bg-zinc-100 active:scale-95 ${
                 isActive ? "bg-red-50 text-red-700 ring-1 ring-red-100" : "text-zinc-700"
               }`}
             >

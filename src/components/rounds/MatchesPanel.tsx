@@ -10,7 +10,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
   roundId: string;
   organizer: boolean;
   roundStatus: string;
-  onFinalizedCountChange: (roundId: string, count: number | null) => void;
+  onFinalizedCountChange?: (roundId: string, count: number | null) => void;
 }) {
   const [state, setState] = useState<MatchesState>({ times: [], partidas: [] });
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
   }, [roundId, roundStatus]);
 
   useEffect(() => {
-    onFinalizedCountChange(roundId, loading || busy || error ? null : state.partidas.filter(match => match.status === "finalizada").length);
+    onFinalizedCountChange?.(roundId, loading || busy || error ? null : state.partidas.filter(match => match.status === "finalizada").length);
   }, [roundId, state.partidas, loading, busy, error, onFinalizedCountChange]);
 
   const selectedTeamNames = useMemo(() => ({
@@ -119,12 +119,14 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
       <p className="mt-1 text-xs text-zinc-600">Historico e estatisticas desta rodada</p>
     </div>
 
+    {!loading && !error && <p className="rounded-xl bg-zinc-50 p-3 text-sm font-bold text-zinc-700">{state.partidas.length} partidas · {state.partidas.filter(match => match.status === "finalizada").length} finalizadas</p>}
+
     {loading && <p role="status" className="text-sm text-zinc-600">Carregando partidas...</p>}
     {error && <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700"><p>{error}</p><button className={`${button} mt-2`} disabled={busy} onClick={async () => { try { setState(await getRoundMatches(roundId)); setError(""); } catch (e) { setError(e instanceof Error ? e.message : "Nao foi possivel carregar."); } }}>Atualizar partidas</button></div>}
     {message && <p role="status" className="rounded-xl bg-zinc-50 p-3 text-sm text-zinc-800">{message}</p>}
 
     {organizer && roundStatus !== "finalizado" && !loading && state.times.length >= 2 && <details className="rounded-xl border border-zinc-200 p-3">
-      <summary className="cursor-pointer text-sm font-bold">+ Nova partida</summary>
+      <summary className="min-h-11 cursor-pointer content-center rounded-xl bg-neutral-950 px-3 text-center text-xs font-black text-white">NOVA PARTIDA</summary>
       <div className="mt-3 grid gap-2">
         {[{ label: "Time A", value: teamA, change: setTeamA }, { label: "Time B", value: teamB, change: setTeamB }].map(item => <label key={item.label} className="text-xs font-bold">{item.label}
           <select value={item.value} onChange={event => item.change(event.target.value)} disabled={busy} className="mt-1 h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-2">

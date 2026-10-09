@@ -3,8 +3,6 @@
 import { MoreVertical, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
-import { EvaluationAdminPanel } from "@/components/ratings/EvaluationAdminPanel";
-import { MatchesPanel } from "./MatchesPanel";
 import { getRoundMatches } from "@/lib/matches/repository";
 import { nextMatch } from "@/data/mock";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
@@ -21,7 +19,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { updateRoundStatus, type RoundParticipant } from "@/lib/teams/repository";
 
-export function RachaScreen({ profile, onOpenEvaluate }: { profile: Profile; onOpenEvaluate: (roundId: string) => void }) {
+export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOpenResults?: () => void }) {
   const organizer = isOrganizer(profile);
   const [round, setRound] = useState<RoundDetails | null>(null);
   const [profiles, setProfiles] = useState<PlayerProfileOption[]>([]);
@@ -39,6 +37,18 @@ export function RachaScreen({ profile, onOpenEvaluate }: { profile: Profile; onO
     setMatchSummary({ roundId, count });
   }, []);
   const finalizedMatchCount = matchSummary?.roundId === round?.roundId ? matchSummary?.count ?? null : null;
+  const roundId = round?.roundId;
+  const roundStatus = round?.status;
+  useEffect(() => {
+    if (!roundId || !organizer) return;
+    let active = true;
+    getRoundMatches(roundId).then(data => {
+      if (active) onFinalizedCountChange(roundId, data.partidas.filter(match => match.status === "finalizada").length);
+    }).catch(() => {
+      if (active) setError("Não foi possível verificar as partidas. Consulte a aba Resultados.");
+    });
+    return () => { active = false; };
+  }, [roundId, roundStatus, organizer, onFinalizedCountChange]);
 
   const finishDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -375,7 +385,6 @@ export function RachaScreen({ profile, onOpenEvaluate }: { profile: Profile; onO
               <button disabled={isSaving} onClick={finishRound} className="min-h-11 rounded-xl bg-red-600 font-bold text-white disabled:opacity-60">FINALIZAR</button>
             </div>
           </dialog>
-          <MatchesPanel key={`matches-${round.roundId}`} roundId={round.roundId} roundStatus={round.status} organizer={organizer && profile.active} onFinalizedCountChange={onFinalizedCountChange} />
           {organizer ? (
             <Card>
               <button
@@ -389,9 +398,9 @@ export function RachaScreen({ profile, onOpenEvaluate }: { profile: Profile; onO
               <p id="finish-round-status" aria-live="polite" className="mt-3 text-sm font-bold text-zinc-600">
                 {round.status === "finalizado" ? "RODADA FINALIZADA" : finalizedMatchCount === null ? "Verificando partidas da rodada..." : finalizedMatchCount === 0 ? "Finalize pelo menos uma partida antes de encerrar a rodada." : round.status !== "times_confirmados" ? "Confirme os times antes de finalizar a rodada." : `${finalizedMatchCount} partidas finalizadas`}
               </p>
+              {round.status !== "finalizado" && onOpenResults && <button onClick={onOpenResults} className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 text-xs font-black">IR PARA RESULTADOS</button>}
             </Card>
           ) : null}
-          <EvaluationAdminPanel key={`evaluations-${round.roundId}`} onOpenEvaluate={onOpenEvaluate} roundStatus={round.status} roundId={round.roundId} organizer={organizer && profile.active} />
 
           <ParticipantSection
             title="Goleiros"
