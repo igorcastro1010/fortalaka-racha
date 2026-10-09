@@ -10,8 +10,10 @@ create table if not exists public.partidas (
  status text not null default 'aberta' check(status in ('aberta','finalizada','cancelada')),
  versao integer not null default 0,
  created_at timestamptz not null default now(),updated_at timestamptz not null default now(),
+ finalizada_at timestamptz null,
  check(time_a_id<>time_b_id)
 );
+alter table public.partidas add column if not exists finalizada_at timestamptz null;
 create table if not exists public.partida_jogadores (
  id uuid primary key default gen_random_uuid(),
  partida_id uuid not null references public.partidas(id) on delete cascade,
@@ -132,7 +134,9 @@ begin
   if (item->>'gols')::integer>0 then insert into public.eventos_partida(partida_id,jogador_id,tipo,quantidade) values(p_partida,(item->>'jogador_id')::uuid,'gol',(item->>'gols')::integer); end if;
   if (item->>'assistencias')::integer>0 then insert into public.eventos_partida(partida_id,jogador_id,tipo,quantidade) values(p_partida,(item->>'jogador_id')::uuid,'assistencia',(item->>'assistencias')::integer); end if;
  end loop;
- update public.partidas set placar_a=p_placar_a,placar_b=p_placar_b,status=p_status where id=p_partida;
+ update public.partidas set placar_a=p_placar_a,placar_b=p_placar_b,status=p_status,
+  finalizada_at=case when p_status='finalizada' then coalesce(m.finalizada_at,now()) else null end
+ where id=p_partida;
  select coalesce(sum(e.quantidade) filter(where j.time_id=m.time_a_id),0),coalesce(sum(e.quantidade) filter(where j.time_id=m.time_b_id),0)
  into ja,jb from public.eventos_partida e join public.partida_jogadores j using(partida_id,jogador_id) where e.partida_id=p_partida and e.tipo='gol';
  return jsonb_build_object('aviso',case when (ja+jb)>0 and (ja<>p_placar_a or jb<>p_placar_b) then 'O placar difere dos gols registrados. Confira os lançamentos.' else null end);
@@ -170,6 +174,7 @@ begin
  if not exists(select 1 from public.profiles where id=auth.uid() and active) then raise exception 'Entre para consultar as partidas.'; end if;
  return jsonb_build_object('times',coalesce((select jsonb_agg(jsonb_build_object('id',t.id,'nome',t.nome) order by t.numero) from public.times t where t.racha_id=p_racha and t.confirmado),'[]'::jsonb),
  'partidas',coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'versao',p.versao,'timeAId',p.time_a_id,'timeBId',p.time_b_id,'timeA',a.nome,'timeB',b.nome,'placarA',p.placar_a,'placarB',p.placar_b,'status',p.status,
+ 'createdAt',p.created_at,'finalizadaAt',p.finalizada_at,
  'jogadores',coalesce((select jsonb_agg(jsonb_build_object('jogador_id',j.jogador_id,'nome',pr.name,'avatar_url',pr.avatar_url,'time_id',j.time_id,'participou',j.participou,
  'gols',coalesce((select sum(e.quantidade) from public.eventos_partida e where e.partida_id=p.id and e.jogador_id=j.jogador_id and e.tipo='gol'),0),
  'assistencias',coalesce((select sum(e.quantidade) from public.eventos_partida e where e.partida_id=p.id and e.jogador_id=j.jogador_id and e.tipo='assistencia'),0)) order by j.time_id,pr.name)

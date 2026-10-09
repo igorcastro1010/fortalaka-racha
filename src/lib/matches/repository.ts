@@ -2,7 +2,20 @@ import { createClient } from "@/lib/supabase/client";
 
 export type PlayerStatistics = { jogador_id: string; nome: string; avatar_url: string | null; jogos: number; gols: number; assistencias: number; vitorias: number };
 export type MatchPlayer = { jogador_id: string; nome: string; avatar_url: string | null; time_id: string; participou: boolean; gols: number; assistencias: number };
-export type Match = { id: string; versao: number; timeAId: string; timeBId: string; timeA: string; timeB: string; placarA: number; placarB: number; status: "aberta" | "finalizada" | "cancelada"; jogadores: MatchPlayer[] };
+export type Match = {
+  id: string;
+  versao: number;
+  timeAId: string;
+  timeBId: string;
+  timeA: string;
+  timeB: string;
+  placarA: number;
+  placarB: number;
+  status: "aberta" | "finalizada" | "cancelada";
+  createdAt: string | null;
+  finalizadaAt: string | null;
+  jogadores: MatchPlayer[];
+};
 export type MatchesState = { times: { id: string; nome: string }[]; partidas: Match[] };
 
 function check(error: { message: string; code?: string } | null) {

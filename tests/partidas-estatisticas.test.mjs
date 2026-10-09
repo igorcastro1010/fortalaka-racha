@@ -39,6 +39,7 @@ await check('3×2: Igor +1 jogo +2 gols +1 assistência +1 vitória; adversário
  Object.assign(m.jogadores.find(p=>p.jogador_id===ids[0]),{gols:2,assistencias:1});
  m.jogadores.find(p=>p.jogador_id===ids[1]).gols=1;m.jogadores.find(p=>p.jogador_id===ids[2]).assistencias=1;
  const result=await save(m);assert.match(result.aviso,/placar difere/);
+ assert.ok((await db.query('select finalizada_at is not null as done from public.partidas where id=$1',[id])).rows[0].done);
  const s=await stats(ids[0]);assert.deepEqual([s.jogos,s.gols,s.assistencias,s.vitorias],[1,2,1,1]);
  const opponent=await stats(ids[4]);assert.equal(opponent.jogos,1);assert.equal(opponent.vitorias,0);
 });
@@ -57,6 +58,7 @@ await check('corrigir finalizada recalcula gols, jogos e vitória; versão antig
  await invalid(()=>save(m),/outra sessão/);m=await read(id);m.placarA=0;m.placarB=1;m.jogadores.find(p=>p.jogador_id===ids[0]).gols=0;await save(m);
  const s=await stats(ids[0]);assert.deepEqual([s.jogos,s.gols,s.vitorias],[1,0,0]);
  m=await read(id);await save(m,'cancelada');assert.equal((await stats(ids[0])).jogos,0);
+ assert.equal((await db.query('select finalizada_at from public.partidas where id=$1',[id])).rows[0].finalizada_at,null);
 });
 await check('RLS e RPC: jogador lê, mas não cria, salva nem altera eventos/placar',async()=>{
  const m=await read(await newMatch());await user(viewer);assert.equal((await read(m.id)).id,m.id);assert.equal((await stats(ids[0])).jogos,0);
