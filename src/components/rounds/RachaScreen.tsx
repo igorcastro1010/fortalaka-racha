@@ -21,7 +21,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { updateRoundStatus, type RoundParticipant } from "@/lib/teams/repository";
 
-export function RachaScreen({ profile }: { profile: Profile }) {
+export function RachaScreen({ profile, onOpenEvaluate }: { profile: Profile; onOpenEvaluate: (roundId: string) => void }) {
   const organizer = isOrganizer(profile);
   const [round, setRound] = useState<RoundDetails | null>(null);
   const [profiles, setProfiles] = useState<PlayerProfileOption[]>([]);
@@ -391,7 +391,7 @@ export function RachaScreen({ profile }: { profile: Profile }) {
               </p>
             </Card>
           ) : null}
-          <EvaluationAdminPanel roundStatus={round.status} roundId={round.roundId} organizer={organizer && profile.active} />
+          <EvaluationAdminPanel key={round.roundId} onOpenEvaluate={onOpenEvaluate} roundStatus={round.status} roundId={round.roundId} organizer={organizer && profile.active} />
 
           <ParticipantSection
             title="Goleiros"

@@ -48,18 +48,23 @@ const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
 
 export function FortalakaApp({ profile }: { profile: Profile }) {
   const [activeTab, setActiveTab] = useState<Tab>("home");
+  const [evaluationRoundId, setEvaluationRoundId] = useState<string | undefined>();
+  function openEvaluation(roundId?: string) {
+    setEvaluationRoundId(roundId);
+    setActiveTab("evaluate");
+  }
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-950">
       <div className="mx-auto min-h-screen w-full max-w-[430px] bg-[#f3f3f4] shadow-2xl shadow-black/35">
         <div className="min-h-screen px-4 pb-[calc(104px+env(safe-area-inset-bottom))] pt-[calc(16px+env(safe-area-inset-top))]">
           {activeTab !== "home" && <AppHeader />}
-          {activeTab === "home" && <HomeScreen profile={profile} onOpenRacha={() => setActiveTab("racha")} onOpenEvaluate={() => setActiveTab("evaluate")} />}
-          {activeTab === "racha" && <RachaScreen profile={profile} />}
+          {activeTab === "home" && <HomeScreen profile={profile} onOpenRacha={() => setActiveTab("racha")} onOpenEvaluate={() => openEvaluation()} />}
+          {activeTab === "racha" && <RachaScreen profile={profile} onOpenEvaluate={openEvaluation} />}
           {activeTab === "teams" && <TeamsScreen profile={profile} />}
           {activeTab === "ranking" && <RankingScreen />}
           {activeTab === "profile" && <ProfileScreen profile={profile} />}
-          {activeTab === "evaluate" && <EvaluationScreen />}
+          {activeTab === "evaluate" && <EvaluationScreen key={evaluationRoundId ?? "current"} roundId={evaluationRoundId} />}
         </div>
         <BottomNav activeTab={activeTab} onChange={setActiveTab} />
       </div>
@@ -190,7 +195,7 @@ function HomeEvaluationCard({ onOpenEvaluate }: { onOpenEvaluate: () => void }) 
       <Star size={21} />
     </div>
     <div className="min-w-0 flex-1">
-      <p className="text-sm font-black">Avaliacao aberta</p>
+      <p className="text-sm font-black">AVALIAR MEU TIME</p>
       <p className="mt-1 text-xs leading-relaxed text-zinc-300">{state.canEvaluate ? "Avalie seus companheiros de time." : "Confira a rodada de avaliacoes."}</p>
     </div>
   </button>;

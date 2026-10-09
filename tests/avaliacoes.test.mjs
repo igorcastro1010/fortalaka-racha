@@ -16,7 +16,7 @@ create table storage.objects(id uuid primary key default gen_random_uuid(),bucke
 alter table storage.objects enable row level security;
 create function storage.foldername(text) returns text[] language sql immutable as $$select string_to_array($1,'/')$$;
 grant usage on schema storage to authenticated,anon;grant select,insert,update,delete on storage.objects to authenticated;`);
-for(const p of ['supabase/schema.sql','supabase/sorteio-times.sql','supabase/validacao-sorteio-avatars.sql','supabase/partidas-estatisticas.sql','supabase/avaliacoes.sql','supabase/avaliacoes.sql'])await db.exec(readFileSync(p,'utf8'));
+for(const p of ['supabase/schema.sql','supabase/sorteio-times.sql','supabase/validacao-sorteio-avatars.sql','supabase/partidas-estatisticas.sql','supabase/avaliacoes.sql','supabase/finalizar-rodada.sql','supabase/entrada-avaliacoes.sql','supabase/entrada-avaliacoes.sql'])await db.exec(readFileSync(p,'utf8'));
 
 const organizer=randomUUID(), ids=Array.from({length:8},()=>randomUUID()), round=randomUUID(), teamA=randomUUID(), teamB=randomUUID();
 const names=['Igor','Jack','PH','Lobo','Dede','Levi','Bruno','Arthur'];
@@ -31,7 +31,7 @@ await db.query("update public.rachas set estado='times_confirmados' where id=$1"
 
 async function user(id){await db.exec('reset role;set role authenticated');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);}
 async function invalid(fn,pattern){await db.exec('savepoint invalid');await assert.rejects(fn,pattern);await db.exec('rollback to invalid');}
-async function readEval(){return (await db.query('select public.ler_avaliacoes_rodada() as result')).rows[0].result;}
+async function readEval(){return (await db.query('select public.ler_avaliacoes_atual($1) as result',[round])).rows[0].result;}
 async function save(target,scores=[4,5,4,3,4]){
   return db.query('select public.salvar_avaliacao($1,$2,$3,$4,$5,$6,$7)',[round,target,...scores]);
 }
@@ -42,6 +42,7 @@ let match=(await db.query('select public.ler_partidas_rodada($1) as result',[rou
 match.placarA=3;match.placarB=2;
 await db.query('select public.salvar_partida($1,$2,$3,$4,$5,$6)',[matchId,match.versao,match.placarA,match.placarB,'finalizada',JSON.stringify(match.jogadores)]);
 
+await db.query('select public.finalizar_rodada($1)',[round]);
 await db.exec('begin');
 await user(ids[0]);
 await invalid(()=>save(ids[1]),/abertas|companheiros|avaliacoes/i);
@@ -53,6 +54,10 @@ assert.deepEqual([progress.total,progress.respondentes,progress.abertas],[8,0,tr
 await user(ids[0]);
 let state=await readEval();
 assert.equal(state.canEvaluate,true);
+assert.equal(state.roundId,round);
+await invalid(()=>db.query('select public.alterar_avaliacoes_rodada($1,false)',[round]),/Somente organizadores/);
+await invalid(()=>save(ids[1],[0,3,3,3,3]),/check constraint/);
+await invalid(()=>save(ids[1],[6,3,3,3,3]),/check constraint/);
 assert.deepEqual(state.players.map(p=>p.nome),['Jack','Lobo','PH']);
 await invalid(()=>save(ids[0]),/companheiros|auto|avaliar/i);
 await invalid(()=>save(ids[4]),/companheiros|time/i);
@@ -81,6 +86,23 @@ await db.query('select public.alterar_avaliacoes_rodada($1,false)',[round]);
 await user(ids[0]);
 await invalid(()=>save(ids[2]),/fechadas|abertas/i);
 
+state=await readEval();
+assert.equal(state.open,false);
+assert.equal(state.canEvaluate,false);
+assert.equal(state.players.find(p=>p.jogador_id===ids[1]).avaliado,true);
+await invalid(()=>save(ids[1],[3,3,3,3,3]),/fechadas|abertas/i);
+
+// Uma rodada antiga aberta não deve substituir a rodada escolhida pelo jogador.
+await user(organizer);
+await db.query('select public.alterar_avaliacoes_rodada($1,true)',[round]);
+await db.exec('reset role');
+const newRound=randomUUID();
+await db.query("insert into public.rachas(id,nome,data,estado) values($1,'Rodada atual','2026-10-16','aberto')",[newRound]);
+await user(ids[0]);
+const current=(await db.query('select public.ler_avaliacoes_atual(null) as result')).rows[0].result;
+assert.equal(current.roundId,newRound);assert.equal(current.open,false);assert.deepEqual(current.players,[]);
+assert.equal((await readEval()).roundId,round);
+assert.equal((await db.query('select public.ler_avaliacoes_atual($1) as result',[randomUUID()])).rows[0].result,null);
 await db.exec('commit');
 await db.close();
 console.log('PASS avaliacoes pos-jogo: elegibilidade, duplicidade, medias e fechamento');

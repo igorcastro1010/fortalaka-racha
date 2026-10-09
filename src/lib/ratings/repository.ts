@@ -40,8 +40,8 @@ function check(error: { message: string; code?: string } | null) {
   if (error) throw new Error(error.code === "PGRST202" ? "Execute o SQL de avaliacoes no Supabase." : error.message);
 }
 
-export async function getEvaluationState(): Promise<EvaluationState | null> {
-  const { data, error } = await createClient().rpc("ler_avaliacoes_rodada");
+export async function getEvaluationState(roundId?: string): Promise<EvaluationState | null> {
+  const { data, error } = await createClient().rpc("ler_avaliacoes_atual", { p_racha: roundId ?? null });
   check(error);
   return data as EvaluationState | null;
 }
