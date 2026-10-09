@@ -7,7 +7,7 @@ export type RoundParticipant = TeamPlayer & {
   status: "confirmado" | "ausente" | "removido";
 };
 
-export type RoundStatus = "aberto" | "lista_fechada" | "times_confirmados" | "finalizado";
+export type RoundStatus = "aberto" | "lista_fechada" | "times_confirmados" | "em_andamento" | "finalizado";
 
 export type RoundTeamsState = {
   roundId: string;
@@ -37,7 +37,7 @@ export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promi
 export async function saveDraftTeams(supabase: SupabaseClient, roundId: string, teams: DrawTeam[], version: number) {
   const { error } = await supabase.rpc("salvar_rascunho_times", {
     p_racha: roundId, p_versao: version,
-    p_times: teams.map((t) => ({ numero: t.number, nome: t.name, jogadores: t.players.map((p) => p.id) })),
+    p_times: teams.map((t) => ({ numero: t.number, nome: t.name, jogadores: t.players.map((p) => p.id), goleiro: t.goalkeeper?.id ?? null })),
   });
   checkError(error);
 }

@@ -4,6 +4,7 @@ const labels = {
   aberto: "Rodada aberta",
   lista_fechada: "Lista fechada",
   times_confirmados: "Times confirmados",
+  em_andamento: "Racha em andamento",
   finalizado: "RODADA FINALIZADA",
 };
 
@@ -12,6 +13,8 @@ export function RoundSummary({ round }: { round: RoundDetails }) {
     <p className="text-[10px] font-black uppercase tracking-wide text-red-600">Rodada atual</p>
     <h3 className="mt-1 break-words text-lg font-black">{round.roundName}</h3>
     <p className="mt-2 text-xs font-bold text-zinc-600">{labels[round.status]}</p>
+    <p className="mt-2 text-sm text-zinc-600">{round.date ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${round.date}T12:00:00Z`)) : "Data não informada"} · {round.time?.slice(0, 5) ?? "Horário não informado"}</p>
+    {round.address && <p className="mt-1 break-words text-sm text-zinc-600">{round.address}</p>}
   </div>;
 }
 

@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { createMatch, getRoundMatches, saveMatch, type Match, type MatchPlayer, type MatchesState } from "@/lib/matches/repository";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createMatch, createNextMatch, getRoundMatches, saveMatch, type Match, type MatchPlayer, type MatchesState } from "@/lib/matches/repository";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 
 const button = "min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-bold disabled:opacity-50";
 
-export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCountChange }: {
+export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCountChange, onRoundStarted }: {
   roundId: string;
   organizer: boolean;
   roundStatus: string;
+  onRoundStarted?: (roundId: string) => void;
   onFinalizedCountChange?: (roundId: string, count: number | null) => void;
 }) {
   const [state, setState] = useState<MatchesState>({ times: [], partidas: [] });
@@ -20,6 +21,15 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
   const [teamA, setTeamA] = useState("");
   const [teamB, setTeamB] = useState("");
   const [draft, setDraft] = useState<Match | null>(null);
+  const [goalLimitTeam, setGoalLimitTeam] = useState<string | null>(null);
+  const goalDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (goalLimitTeam) goalDialog.current?.showModal();
+    else goalDialog.current?.close();
+  }, [goalLimitTeam]);
+  const currentMatch = state.partidas.find(match => match.id === state.fila?.currentMatchId) ?? state.partidas.find(match => match.status === "aberta");
+  const teamName = (id: string) => state.times.find(team => team.id === id)?.nome ?? "Time";
+  const waiting = state.fila?.order.filter(id => !currentMatch || (id !== currentMatch.timeAId && id !== currentMatch.timeBId)) ?? [];
 
   useEffect(() => {
     let active = true;
@@ -42,8 +52,17 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
     b: state.times.find(team => team.id === teamB)?.nome ?? "Time B",
   }), [state.times, teamA, teamB]);
 
-  async function create() {
-    if (teamA === teamB) {
+  async function refreshMatches() {
+    if (busy || draft) return;
+    setBusy(true); setError("");
+    try { setState(await getRoundMatches(roundId)); }
+    catch (e) { setError(e instanceof Error ? e.message : "Não foi possível atualizar as partidas."); }
+    finally { setBusy(false); }
+  }
+
+  async function create(next = false) {
+    if (!organizer || busy || roundStatus === "finalizado") return;
+    if (!next && teamA === teamB) {
       setError("Escolha dois times diferentes.");
       return;
     }
@@ -51,9 +70,10 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
     setError("");
     setMessage("");
     try {
-      const id = await createMatch(roundId, teamA, teamB);
+      const id = next && state.fila ? await createNextMatch(roundId, state.fila.version) : await createMatch(roundId, teamA, teamB);
       const data = await getRoundMatches(roundId);
       setState(data);
+      if (data.roundStatus === "em_andamento") onRoundStarted?.(roundId);
       setDraft(data.partidas.find(match => match.id === id) ?? null);
       setTeamA("");
       setTeamB("");
@@ -65,19 +85,14 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
     }
   }
 
-  async function save(status: Match["status"]) {
-    if (!draft) return;
+  async function save(status: Match["status"], confirmed = false) {
+    if (!draft || !organizer || busy) return;
     if (![draft.placarA, draft.placarB].every(n => Number.isSafeInteger(n) && n >= 0)) {
       setError("Informe placares inteiros maiores ou iguais a zero.");
       return;
     }
 
-    const warning = goalWarning(draft);
-    if (warning && !window.confirm(`${warning}\n\nContinuar mesmo assim?`)) {
-      return;
-    }
-
-    if (status === "finalizada" && draft.status !== "finalizada" && !window.confirm("Finalizar esta partida?\n\nDepois de finalizada, as estatisticas entrarao no ranking.")) {
+    if (!confirmed && status === "finalizada" && draft.status !== "finalizada" && !window.confirm("Finalizar esta partida?\n\nDepois de finalizada, as estatisticas entrarao no ranking.")) {
       return;
     }
 
@@ -88,6 +103,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
       const result = await saveMatch(draft, status);
       setState(await getRoundMatches(roundId));
       setDraft(null);
+      setGoalLimitTeam(null);
       setMessage(result.aviso ? `Partida salva. ${result.aviso}` : status === "finalizada" ? "Partida finalizada. Estatisticas atualizadas." : "Partida salva.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Nao foi possivel salvar a partida.");
@@ -110,10 +126,11 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
   }
 
   function changeScore(key: "placarA" | "placarB", delta: number) {
+    if (draft && draft.status === "aberta" && delta > 0 && draft[key] === 1) setGoalLimitTeam(key === "placarA" ? draft.timeA : draft.timeB);
     setDraft(current => current ? { ...current, [key]: Math.max(0, current[key] + delta) } : null);
   }
 
-  return <section className="space-y-3 rounded-[22px] bg-white p-4 ring-1 ring-black/5">
+  return <section className="flex flex-col gap-3 rounded-[22px] bg-white p-4 ring-1 ring-black/5">
     <div>
       <h3 className="text-xl font-black">Partidas</h3>
       <p className="mt-1 text-xs text-zinc-600">Historico e estatisticas desta rodada</p>
@@ -124,9 +141,26 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
     {loading && <p role="status" className="text-sm text-zinc-600">Carregando partidas...</p>}
     {error && <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700"><p>{error}</p><button className={`${button} mt-2`} disabled={busy} onClick={async () => { try { setState(await getRoundMatches(roundId)); setError(""); } catch (e) { setError(e instanceof Error ? e.message : "Nao foi possivel carregar."); } }}>Atualizar partidas</button></div>}
     {message && <p role="status" className="rounded-xl bg-zinc-50 p-3 text-sm text-zinc-800">{message}</p>}
+    {state.fila && !loading && !error && <div className="space-y-3 rounded-[18px] bg-neutral-950 p-4 text-white">
+      <p className="text-[10px] font-black uppercase tracking-wide text-red-400">{currentMatch ? "EM CAMPO" : roundStatus === "finalizado" ? "FILA PRESERVADA" : "PRÓXIMA PARTIDA"}</p>
+      {currentMatch ? <>
+        <p className="break-words text-center text-sm font-black">{currentMatch.timeA} x {currentMatch.timeB}</p>
+        <p className="text-center text-4xl font-black tabular-nums">{draft?.id === currentMatch.id ? draft.placarA : currentMatch.placarA} x {draft?.id === currentMatch.id ? draft.placarB : currentMatch.placarB}</p>
+        {organizer && draft?.id !== currentMatch.id && <button disabled={busy} onClick={() => editMatch(currentMatch)} className="min-h-12 w-full rounded-xl bg-red-600 text-xs font-black disabled:opacity-50">LANÇAR PLACAR E EVENTOS</button>}
+      </> : <p className="break-words text-center text-lg font-black">{state.fila.order.slice(0, 2).map(teamName).join(" x ") || "Confirme os times"}</p>}
+      <div className="border-t border-white/15 pt-3"><p className="text-[10px] font-black uppercase text-zinc-400">{currentMatch ? "Próximo time · fila" : "Ordem dos times"}</p><ol className="mt-2 space-y-1">{waiting.map((id, index) => <li key={id} className="break-words text-sm font-bold">{index + 1}. {teamName(id)}</li>)}</ol></div>
+      {!currentMatch && roundStatus !== "finalizado" && organizer && <button disabled={busy || state.fila.order.length < 2} onClick={() => create(true)} className="min-h-12 w-full rounded-xl bg-red-600 px-2 text-xs font-black disabled:opacity-50">{state.partidas.length ? "INICIAR PRÓXIMA PARTIDA" : "INICIAR PRIMEIRA PARTIDA"}</button>}
+    </div>}
+    <dialog ref={goalDialog} aria-labelledby="goal-limit-title" onCancel={event => { event.preventDefault(); if (!busy) setGoalLimitTeam(null); }} className="fixed inset-0 m-auto w-[calc(100%-32px)] max-w-sm rounded-2xl bg-white p-5 shadow-2xl backdrop:bg-black/50">
+      <h3 id="goal-limit-title" className="text-xl font-black">{goalLimitTeam} atingiu 2 gols.</h3><p className="mt-3 text-sm text-zinc-600">Finalizar partida?</p>
+      <div className="mt-4 grid grid-cols-2 gap-2"><button disabled={busy} onClick={() => setGoalLimitTeam(null)} className={button}>CONTINUAR</button><button disabled={busy} onClick={() => save("finalizada", true)} className="min-h-12 rounded-xl bg-red-600 text-xs font-black text-white disabled:opacity-50">FINALIZAR</button></div>
+      {error && <p role="alert" className="mt-3 text-sm font-bold text-red-700">{error}</p>}
+    </dialog>
 
-    {organizer && roundStatus !== "finalizado" && !loading && state.times.length >= 2 && <details className="rounded-xl border border-zinc-200 p-3">
-      <summary className="min-h-11 cursor-pointer content-center rounded-xl bg-neutral-950 px-3 text-center text-xs font-black text-white">NOVA PARTIDA</summary>
+    {!draft && <button disabled={busy || loading} onClick={refreshMatches} className={`${button} order-4`}>ATUALIZAR PARTIDAS E FILA</button>}
+
+    {organizer && roundStatus !== "finalizado" && !currentMatch && !loading && state.times.length >= 2 && <details className="order-3 rounded-xl border border-zinc-200 p-3">
+      <summary className="min-h-11 cursor-pointer content-center text-center text-xs font-black">ESCOLHER CONFRONTO MANUALMENTE</summary>
       <div className="mt-3 grid gap-2">
         {[{ label: "Time A", value: teamA, change: setTeamA }, { label: "Time B", value: teamB, change: setTeamB }].map(item => <label key={item.label} className="text-xs font-bold">{item.label}
           <select value={item.value} onChange={event => item.change(event.target.value)} disabled={busy} className="mt-1 h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-2">
@@ -135,13 +169,13 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
           </select>
         </label>)}
         <p className="text-center text-xs font-bold text-zinc-600">{selectedTeamNames.a} x {selectedTeamNames.b}</p>
-        <button className="min-h-11 rounded-xl bg-red-600 px-3 text-xs font-bold text-white disabled:opacity-50" disabled={busy || !teamA || !teamB || teamA === teamB} onClick={create}>Criar partida</button>
+        <button className="min-h-11 rounded-xl bg-red-600 px-3 text-xs font-bold text-white disabled:opacity-50" disabled={busy || !teamA || !teamB || teamA === teamB} onClick={() => create()}>Criar partida</button>
       </div>
     </details>}
 
     {!loading && !error && !state.partidas.length && <p className="text-sm text-zinc-600">Nenhuma partida registrada.{organizer && state.times.length < 2 ? " Confirme pelo menos dois times para criar uma partida." : ""}</p>}
 
-    {state.partidas.map((match, index) => <article key={match.id} className="rounded-xl border border-zinc-200 p-3">
+    {state.partidas.map((match, index) => <article key={match.id} className="order-2 rounded-xl border border-zinc-200 p-3">
       <p className="text-[10px] font-black uppercase tracking-wide text-zinc-500">Partida {index + 1}</p>
       <div className="mt-1 flex items-center justify-between gap-2 text-center">
         <p className="min-w-0 flex-1 break-words text-sm font-black">{match.timeA}</p>
@@ -158,7 +192,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
       {organizer && <button disabled={busy} onClick={() => editMatch(match)} className={`${button} mt-2 w-full`}>{match.status === "finalizada" ? "Editar resultado" : "Editar partida"}</button>}
     </article>)}
 
-    {organizer && draft && <div className="space-y-4 rounded-xl border-2 border-red-200 bg-zinc-50 p-3">
+    {organizer && draft && <div className="order-1 space-y-4 rounded-xl border-2 border-red-200 bg-zinc-50 p-3">
       <div>
         <p className="text-[10px] font-black uppercase tracking-wide text-red-700">Lancamento</p>
         <h4 className="text-base font-black">{draft.timeA} x {draft.timeB}</h4>

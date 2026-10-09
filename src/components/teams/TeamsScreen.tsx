@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
-import { drawTeams, getTeamCount, hasCompleteTeams, swapPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
-import { confirmTeams, getCurrentRoundTeamsState, saveDraftTeams, updateRoundStatus, type RoundStatus, type RoundTeamsState } from "@/lib/teams/repository";
+import { assignGoalkeepers, changeGoalkeeper, drawTeams, getTeamCount, hasCompleteTeams, swapPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
+import { confirmTeams, getCurrentRoundTeamsState, saveDraftTeams, type RoundStatus, type RoundTeamsState } from "@/lib/teams/repository";
 
 type TeamsScreenProps = {
   profile: Profile;
@@ -60,9 +60,9 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   const goalkeepersToShow = roundState?.goalkeepers ?? [];
   const fieldPlayersToUse = roundState?.fieldPlayers ?? [];
   const roundStatus = roundState?.status ?? "aberto";
-  const confirmed = roundStatus === "times_confirmados" || roundStatus === "finalizado" || Boolean(roundState?.confirmed);
+  const confirmed = ["times_confirmados", "em_andamento", "finalizado"].includes(roundStatus) || Boolean(roundState?.confirmed);
   const listClosed = roundStatus === "lista_fechada";
-  const finalized = roundStatus === "finalizado";
+  const finalized = roundStatus === "finalizado" || roundStatus === "em_andamento";
   const canShowTeams = organizer || confirmed;
 
   const confirmedPlayersCount = fieldPlayersToUse.length;
@@ -103,7 +103,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     setIsSaving(true);
 
     try {
-      const nextDraw = drawTeams(fieldPlayersToUse);
+      const nextDraw = assignGoalkeepers(drawTeams(fieldPlayersToUse), goalkeepersToShow);
       const supabase = createClient();
       await saveDraftTeams(supabase, roundState.roundId, nextDraw.teams, roundState.version);
       await reloadPersistedTeams();
@@ -191,51 +191,16 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     }
   }
 
-  async function handleCloseList() {
-    setError("");
-    setMessage("");
-
-    if (!roundState?.roundId) {
-      setError("Cadastre a rodada no Supabase antes de fechar a lista.");
-      return;
-    }
-
-    await changeRoundStatus("lista_fechada", "Lista fechada. A edicao normal esta bloqueada ate um organizador reabrir.");
-  }
-
-  async function handleReopenList() {
-    if (!roundState?.roundId) {
-      return;
-    }
-
-    if (!window.confirm("Reabrir a lista permite editar participantes e pode exigir novo sorteio. Deseja continuar?")) {
-      return;
-    }
-
-    await changeRoundStatus("aberto", "Lista reaberta para ajustes.");
-    setAdjustMode(false);
-    setSelectedPlayerId(null);
-  }
-
-  async function changeRoundStatus(status: RoundStatus, successMessage: string) {
-    if (!roundState?.roundId) {
-      return;
-    }
-
-    setIsSaving(true);
-    setError("");
-    setMessage("");
-
+  async function handleGoalkeeper(teamId: string, keeperId: string) {
+    if (!organizer || isSaving || !listClosed || !draw || !roundState) return;
+    setIsSaving(true); setError("");
     try {
-      const supabase = createClient();
-      await updateRoundStatus(supabase, roundState.roundId, status);
+      const next = changeGoalkeeper(draw, teamId, goalkeepersToShow.find(player => player.id === keeperId) ?? null);
+      await saveDraftTeams(createClient(), roundState.roundId, next.teams, roundState.version);
       await reloadPersistedTeams();
-      setMessage(successMessage);
-    } catch {
-      setError("Nao foi possivel atualizar o estado da rodada.");
-    } finally {
-      setIsSaving(false);
-    }
+      setMessage("Goleiro atualizado.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível ajustar o goleiro."); }
+    finally { setIsSaving(false); }
   }
 
   return (
@@ -286,8 +251,6 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
           adjustMode={adjustMode}
           isSaving={isSaving}
           onDraw={handleDrawTeams}
-          onCloseList={handleCloseList}
-          onReopenList={handleReopenList}
           onToggleAdjust={() => {
             setAdjustMode((current) => !current);
             setSelectedPlayerId(null);
@@ -304,6 +267,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       }}>Tentar novamente</button></> : null}
       {message ? <Feedback tone="success" text={message} /> : null}
       {listClosed && !hasPlayersToDraw ? <Feedback tone="neutral" text="Nenhum jogador de linha disponível para sorteio." /> : null}
+      {draw && goalkeepersToShow.length !== draw.teams.length && <Feedback tone="neutral" text="A quantidade de goleiros não corresponde aos times. Ajuste os goleiros abaixo; isso não bloqueia o sorteio da linha." />}
       {adjustMode ? <Feedback tone="neutral" text="Toque em um jogador e depois em outro jogador de outro time para trocar." /> : null}
 
       {isLoading ? <Feedback tone="neutral" text="Carregando times..." /> : null}
@@ -324,6 +288,9 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
               selectedPlayerId={selectedPlayerId}
               adjustMode={adjustMode && organizer && listClosed && !isSaving}
               onPlayerClick={handlePlayerClick}
+              goalkeepers={goalkeepersToShow}
+              canAdjustGoalkeeper={organizer && listClosed && !isSaving}
+              onGoalkeeper={handleGoalkeeper}
             />
           ))}
         </div>
@@ -349,8 +316,6 @@ function OrganizerControls({
   adjustMode,
   isSaving,
   onDraw,
-  onCloseList,
-  onReopenList,
   onToggleAdjust,
   onConfirm,
   canDraw,
@@ -362,32 +327,13 @@ function OrganizerControls({
   adjustMode: boolean;
   isSaving: boolean;
   onDraw: () => void;
-  onCloseList: () => void;
-  onReopenList: () => void;
   onToggleAdjust: () => void;
   onConfirm: () => void;
   canDraw: boolean;
 }) {
   return (
     <div className="order-20 grid gap-2">
-      {!listClosed && !confirmed && !finalized ? (
-        <button
-          onClick={onCloseList}
-          disabled={isSaving}
-          className="order-3 h-11 rounded-[14px] border border-zinc-200 bg-white text-xs font-bold uppercase tracking-wide text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Fechar lista
-        </button>
-      ) : null}
-      {confirmed && !finalized ? (
-        <button
-          onClick={onReopenList}
-          disabled={isSaving}
-          className="order-3 h-11 rounded-[14px] border border-zinc-200 bg-white text-xs font-bold uppercase text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Reabrir / editar rodada
-        </button>
-      ) : null}
+      {!listClosed && !confirmed && !finalized && <p className="text-sm text-zinc-600">Feche a lista na aba Racha para sortear os times.</p>}
       <button
         onClick={onDraw}
         disabled={(!listClosed && !confirmed) || finalized || !canDraw || isSaving}
@@ -421,11 +367,17 @@ function TeamCard({
   selectedPlayerId,
   adjustMode,
   onPlayerClick,
+  goalkeepers,
+  canAdjustGoalkeeper,
+  onGoalkeeper,
 }: {
   team: DrawTeam;
   selectedPlayerId: string | null;
   adjustMode: boolean;
   onPlayerClick: (player: TeamPlayer) => void;
+  goalkeepers: TeamPlayer[];
+  canAdjustGoalkeeper: boolean;
+  onGoalkeeper: (teamId: string, keeperId: string) => void;
 }) {
   return (
     <Card className="space-y-2 border-t-2 border-red-600">
@@ -437,6 +389,11 @@ function TeamCard({
         <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700">
           {team.name}
         </span>
+      </div>
+      <div className="rounded-xl bg-zinc-50 p-2">
+        <p className="mb-1 text-[10px] font-black uppercase text-red-700">Goleiro fixo</p>
+        {team.goalkeeper ? <PlayerPill player={team.goalkeeper} /> : <p className="text-xs text-zinc-500">Sem goleiro associado</p>}
+        {canAdjustGoalkeeper && <label className="mt-2 block text-xs font-bold">Ajustar goleiro de {team.name}<select value={team.goalkeeper?.id ?? ""} onChange={event => onGoalkeeper(team.id, event.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-2"><option value="">Sem goleiro</option>{goalkeepers.map(player => <option key={player.id} value={player.id}>{player.name}</option>)}</select></label>}
       </div>
       <div className="divide-y divide-zinc-100">
         {team.players.map((player) => (
@@ -458,6 +415,7 @@ function RoundStatusBadge({ status }: { status: RoundStatus }) {
     aberto: "Rodada aberta",
     lista_fechada: "Lista fechada",
     times_confirmados: "Times confirmados",
+    em_andamento: "Racha em andamento",
     finalizado: "Racha finalizado",
   };
 

@@ -28,7 +28,7 @@ try {
   writeFileSync(client, `
     async function request(body){const r=await fetch('http://127.0.0.1:3011/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,role:new URLSearchParams(location.search).get('role')||'organizador'})});return r.json();}
     export function createClient(){return {rpc:(name,args)=>request({kind:'rpc',name,args}),
-      from(table){const body={kind:'table',table,op:'select',filters:[],single:false};const q={select(){return q},eq(k,v){body.filters.push([k,v]);return q},order(){return q},limit(){return q},returns(){return q},maybeSingle(){body.single=true;return q},single(){body.single=true;return q},then(a,b){return request(body).then(a,b)}};return q},
+      from(table){const body={kind:'table',table,op:'select',filters:[],single:false};const q={select(){return q},eq(k,v){body.filters.push([k,v]);return q},order(k,o){body.orders??=[];body.orders.push([k,o]);return q},limit(n){body.limit=n;return q},returns(){return q},maybeSingle(){body.single=true;return q},single(){body.single=true;return q},insert(value){body.op="insert";body.value=value;return q},update(value){body.op="update";body.value=value;return q},then(a,b){return request(body).then(a,b)}};return q},
       auth:{getUser:async()=>({data:{user:(await request({kind:'user'})).data}})}
     };}
   `);
@@ -38,6 +38,8 @@ try {
   writeFileSync(entry, `export {act,createElement} from 'react';export {createRoot} from 'react-dom/client';export {FortalakaApp} from ${JSON.stringify(resolve('src/components/app/FortalakaApp.tsx'))};`);
   const bundle = join(output, 'app.cjs');
   await build({ entryPoints: [entry], outfile: bundle, bundle: true, platform: 'node', jsx: 'automatic', tsconfig: resolve('tsconfig.json'), nodePaths: [resolve('node_modules')], plugins: [{name:'local-only',setup(b){b.onResolve({filter:/^@\/lib\/supabase\/client$/},()=>({path:client}));b.onResolve({filter:/^next\/navigation$/},()=>({path:router}));}}] });
+  window = new JSDOM('<div></div>',{url:'http://127.0.0.1:3011/'}).window;
+  globalThis.window=window;globalThis.document=window.document;
   const { act, createElement, createRoot, FortalakaApp } = createRequire(import.meta.url)(bundle);
   testAct=act;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -73,11 +75,19 @@ try {
     await waitFor(()=>document.body.textContent.includes('Rodada isolada'));
     assert.deepEqual([...document.querySelectorAll('nav[aria-label="Navegação principal"] button')].map(e=>e.textContent),['Início','Racha','Times','Avaliação','Resultados']);
   }
+  await mount('jogador');
+  await click('SAIR DA LISTA');
+  await waitFor(()=>button('ENTRAR NA LISTA'));
+  await click('ENTRAR NA LISTA');await click('goleiro');
+  await waitFor(()=>button('SAIR DA LISTA'));
+  await click('SAIR DA LISTA');await waitFor(()=>button('ENTRAR NA LISTA'));
+  await click('ENTRAR NA LISTA');await click('linha');
+  await waitFor(()=>button('SAIR DA LISTA'));
   await mount('organizador');
   await click('Racha');
   await waitFor(()=>button('Fechar lista'));
   assert(![...document.querySelectorAll('h3')].some(e=>['Partidas','Avaliações'].includes(e.textContent)));
-  assert.equal(button('FINALIZAR RODADA').disabled,true);
+  assert.equal(button('FINALIZAR RACHA').disabled,true);
   assert(!document.body.textContent.includes('ABRIR AVALIAÇÕES'));
   await click('Fechar lista');
   await waitFor(()=>button('Reabrir lista'));
@@ -87,24 +97,25 @@ try {
   await waitFor(()=>document.body.textContent.includes('Times confirmados'));
   await click('Racha');
   await click('IR PARA RESULTADOS');
-  await waitFor(()=>document.body.textContent.includes('NOVA PARTIDA'));
-  await act(async()=>document.querySelector('details summary').click());
-  for(const [index,option] of [[0,1],[1,2]])await act(async()=>{
-    const select=document.querySelectorAll('select')[index];
-    select.value=select.options[option].value;
-    select.dispatchEvent(new window.Event('change',{bubbles:true}));
-  });
-  await click('Criar partida');
+  await click('INICIAR PRIMEIRA PARTIDA');
   await click('Aumentar placar de Time 1');
   await waitFor(()=>button('Adicionar gols de Conta teste'));
   await click('Adicionar gols de Conta teste');
-  await click('Finalizar partida');
+  await click('Aumentar placar de Time 1');
+  await waitFor(()=>document.querySelector('dialog')?.open);
+  assert(document.body.textContent.includes('Time 1 atingiu 2 gols.'));
+  await click('CONTINUAR');
+  assert.equal(document.querySelectorAll('article').length,1);
+  await click('Diminuir placar de Time 1');
+  await click('Aumentar placar de Time 1');
+  await waitFor(()=>document.querySelector('dialog')?.open);
+  await click('FINALIZAR');
   await waitFor(()=>document.body.textContent.includes('Vencedor: Time 1'));
   assert.equal(document.querySelectorAll('article').length,1);
   await click('Ranking');
   await waitFor(()=>document.body.textContent.includes('Classificação por overall'));
   await click('Racha');
-  await click('FINALIZAR RODADA');
+  await click('FINALIZAR RACHA');
   await waitFor(()=>document.querySelector('dialog')?.open);
   await click('FINALIZAR');
   await waitFor(()=>document.body.textContent.includes('RODADA FINALIZADA'));
@@ -114,14 +125,14 @@ try {
   await mount('jogador');
   await click('Racha');
   await waitFor(()=>document.body.textContent.includes('RODADA FINALIZADA'));
-  assert(!button('FINALIZAR RODADA'));
+  assert(!button('FINALIZAR RACHA'));
   await click('Resultados');
   await waitFor(()=>document.querySelectorAll('article').length===1);
   assert(!button('Editar resultado'));
   assert(!document.body.textContent.includes('NOVA PARTIDA'));
   await click('Avaliação');
   await click('AVALIAR MEU TIME');
-  await waitFor(()=>document.body.textContent.includes('0 de 3 companheiros avaliados'));
+  await waitFor(()=>document.body.textContent.includes('0 de 4 companheiros avaliados'));
   assert(!button('ABRIR AVALIAÇÕES'));
   const rpc=async(name,args)=>originalFetch('http://127.0.0.1:3011/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'rpc',role:'jogador',name,args})}).then(r=>r.json()).then(r=>r.data);
   const evaluation=await rpc('ler_avaliacoes_atual',{p_racha:null});
@@ -136,14 +147,29 @@ try {
   await act(async()=>evaluate.click());
   for(const label of ['Passe','Chute','Velocidade','Defesa','Físico'])assert(button(`${label}: 5 de 5`));
   await click('ENVIAR AVALIAÇÃO');
-  await waitFor(()=>document.body.textContent.includes('1 de 3 companheiros avaliados'));
+  await waitFor(()=>document.body.textContent.includes('1 de 4 companheiros avaliados'));
   assert(button('EDITAR'));
   await click('EDITAR');
   await click('Passe: 5 de 5');
   await click('ENVIAR AVALIAÇÃO');
-  await waitFor(()=>document.body.textContent.includes('1 de 3 companheiros avaliados') && !button('ENVIAR AVALIAÇÃO'));
+  await waitFor(()=>document.body.textContent.includes('1 de 4 companheiros avaliados') && !button('ENVIAR AVALIAÇÃO'));
   await click('Abrir meu perfil');
   await waitFor(()=>button('Sair da conta'));
+  await mount('jogador');await click('Avaliação');await click('AVALIAR MEU TIME');
+  await waitFor(()=>document.body.textContent.includes('1 de 4 companheiros avaliados'));
+  await mount('organizador');await click('Racha');
+  await waitFor(()=>document.querySelector('summary') && document.body.textContent.includes('CRIAR PRÓXIMA RODADA'));
+  assert(!button('FINALIZAR RACHA'));
+  await act(async()=>document.querySelector('summary').click());
+  for(const [type,value] of [['date','2026-10-15'],['time','20:30'],['text','Quadra teste']])await act(async()=>{
+    const input=document.querySelector(`input[type="${type}"]`);
+    Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,value);
+    input.dispatchEvent(new window.Event('input',{bubbles:true}));
+    input.dispatchEvent(new window.Event('change',{bubbles:true}));
+  });
+  await act(async()=>document.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
+  await waitFor(()=>document.body.textContent.includes('Racha Fortalaka') && button('Fechar lista'));
+  assert(document.body.textContent.includes('Quadra teste'));
   console.log('OK: cinco abas; processos separados; partida → rodada → avaliações; roles; envio/edição sem duplicata; Ranking e Perfil acessíveis.');
 } finally {
   if(root)await testAct(async()=>root.unmount());

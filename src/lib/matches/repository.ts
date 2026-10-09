@@ -26,7 +26,9 @@ export type Match = {
   finalizadaAt: string | null;
   jogadores: MatchPlayer[];
 };
-export type MatchesState = { times: { id: string; nome: string }[]; partidas: Match[] };
+export type MatchQueue = { order: string[]; version: number; currentMatchId: string | null };
+export type MatchesState = {
+  roundStatus?: string; times: { id: string; nome: string }[]; partidas: Match[]; fila?: MatchQueue | null };
 
 function check(error: { message: string; code?: string } | null) {
   if (error) throw new Error(error.code === "PGRST202" ? "Execute o SQL de partidas e estatísticas no Supabase." : error.message);
@@ -44,6 +46,11 @@ export async function getRoundMatches(roundId: string): Promise<MatchesState> {
 export async function createMatch(roundId: string, teamA: string, teamB: string) {
   const { data, error } = await createClient().rpc("criar_partida", { p_racha: roundId, p_time_a: teamA, p_time_b: teamB });
   check(error); return data as string;
+}
+export async function createNextMatch(roundId: string, version: number) {
+  const { data, error } = await createClient().rpc("criar_proxima_partida", { p_racha: roundId, p_versao: version });
+  if (error) throw new Error(error.code === "PGRST202" ? "Aplique fluxo-principal.sql no Supabase para liberar a fila." : error.message);
+  return data as string;
 }
 export async function saveMatch(match: Match, status: Match["status"]) {
   const { data, error } = await createClient().rpc("salvar_partida", {

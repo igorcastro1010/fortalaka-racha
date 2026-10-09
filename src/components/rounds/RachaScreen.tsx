@@ -4,11 +4,12 @@ import { MoreVertical, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { getRoundMatches } from "@/lib/matches/repository";
-import { nextMatch } from "@/data/mock";
+import { RoundForm } from "./RoundForm";
+import { OwnRegistration } from "./OwnRegistration";
+import { RoundSummary } from "./RoundSummary";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import {
   addRoundParticipant,
-  createRound,
   getAvailableProfiles,
   getCurrentRoundDetails,
   removeRoundParticipant,
@@ -20,7 +21,7 @@ import { createClient } from "@/lib/supabase/client";
 import { updateRoundStatus, type RoundParticipant } from "@/lib/teams/repository";
 
 export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOpenResults?: () => void }) {
-  const organizer = isOrganizer(profile);
+  const organizer = isOrganizer(profile) && profile.active;
   const [round, setRound] = useState<RoundDetails | null>(null);
   const [profiles, setProfiles] = useState<PlayerProfileOption[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState("");
@@ -108,30 +109,8 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
   }, [round?.participants]);
 
   const availableProfiles = profiles.filter((player) => {
-    return !(round?.participants ?? []).some((participant) => participant.jogadorId === player.id);
+    return !(round?.participants ?? []).some((participant) => participant.jogadorId === player.id && participant.status !== "removido");
   });
-
-  async function handleCreateRound() {
-    setIsSaving(true);
-    setError("");
-    setMessage("");
-
-    try {
-      const supabase = createClient();
-      await createRound(supabase, {
-        name: "Racha Fortalaka",
-        date: toIsoDate(nextMatch.date),
-        time: nextMatch.time,
-        address: nextMatch.address,
-      });
-      await loadRound();
-      setMessage("Rodada criada. Agora adicione os participantes.");
-    } catch {
-      setError("Nao foi possivel criar a rodada.");
-    } finally {
-      setIsSaving(false);
-    }
-  }
 
   async function handleAddParticipant() {
     const player = availableProfiles.find((profileOption) => profileOption.id === selectedProfileId);
@@ -281,21 +260,11 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
       {error ? <Feedback tone="error" text={error} /> : null}
       {message ? <Feedback tone="success" text={message} /> : null}
 
-      {!round ? (
-        <Card>
-          <p className="text-lg font-black">Nenhuma rodada cadastrada.</p>
-          <p className="mt-1 text-sm font-bold text-zinc-600">Crie a rodada da proxima quinta para adicionar participantes.</p>
-          {organizer ? (
-            <button
-              onClick={handleCreateRound}
-              disabled={isSaving}
-              className="mt-4 h-12 w-full rounded-[18px] bg-red-600 text-sm font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSaving ? "Criando..." : "Criar rodada"}
-            </button>
-          ) : null}
-        </Card>
-      ) : null}
+      {!isLoading && !round && organizer && <RoundForm onSaved={loadRound} />}
+      {!isLoading && !round && !organizer && <Feedback tone="neutral" text="Nenhuma rodada cadastrada. Aguarde um organizador." />}
+      {round && <RoundSummary round={round} />}
+      {round && <OwnRegistration key={round.roundId} round={round} profile={profile} onUpdated={loadRound} />}
+      {round && organizer && <details className="rounded-xl border border-zinc-200 bg-white p-3"><summary className="min-h-11 cursor-pointer content-center text-xs font-black">{round.status === "finalizado" ? "CRIAR PRÓXIMA RODADA" : "EDITAR DADOS DA RODADA"}</summary><RoundForm key={`${round.roundId}-${round.status}`} round={round.status === "finalizado" ? undefined : round} onSaved={loadRound} /></details>}
 
       {round ? (
         <>
@@ -306,7 +275,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
             <MiniCount label="Fora" value={counts.unavailable} />
           </Card>
 
-          {organizer && round.status === "aberto" ? (
+          {organizer && round.status !== "finalizado" ? (
             <details className="rounded-[18px] border border-zinc-200 bg-white p-4">
               <summary className="flex min-h-6 cursor-pointer list-none items-center justify-center gap-2 text-sm font-bold text-neutral-950 [&::-webkit-details-marker]:hidden"><Plus size={18} /> Adicionar jogador</summary>
               <div className="mt-4 space-y-3">
@@ -378,48 +347,48 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
           ) : null}
 
           <dialog ref={finishDialog} onCancel={event => { event.preventDefault(); if (!isSaving) setConfirmFinish(false); }} aria-labelledby="finish-title" aria-describedby="finish-description" className="fixed inset-0 m-auto w-[calc(100%-32px)] max-w-sm rounded-2xl bg-white p-5 shadow-2xl backdrop:bg-black/50">
-            <h3 id="finish-title" className="text-xl font-black">Finalizar esta rodada?</h3>
-            <p id="finish-description" className="mt-3 text-sm text-zinc-600">Os resultados serão preservados e as avaliações poderão ser abertas.</p>
+            <h3 id="finish-title" className="text-xl font-black">Finalizar o racha?</h3>
+            <p id="finish-description" className="mt-3 text-sm text-zinc-600">Todas as partidas serão preservadas e novas partidas não poderão ser criadas.</p>
             <div className="mt-5 grid grid-cols-2 gap-2">
               <button autoFocus disabled={isSaving} onClick={() => setConfirmFinish(false)} className="min-h-11 rounded-xl border border-zinc-200 font-bold disabled:opacity-60">CANCELAR</button>
               <button disabled={isSaving} onClick={finishRound} className="min-h-11 rounded-xl bg-red-600 font-bold text-white disabled:opacity-60">FINALIZAR</button>
             </div>
           </dialog>
-          {organizer ? (
+          {organizer && round.status !== "finalizado" ? (
             <Card>
               <button
                 onClick={requestFinish}
-                disabled={!profile.active || isSaving || round.status !== "times_confirmados" || finalizedMatchCount === null || finalizedMatchCount < 1}
+                disabled={!profile.active || isSaving || !["times_confirmados", "em_andamento"].includes(round.status) || finalizedMatchCount === null || finalizedMatchCount < 1}
                 aria-describedby="finish-round-status"
                 className="h-12 w-full rounded-[18px] bg-neutral-950 text-sm font-black text-white transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-zinc-200 disabled:active:scale-100"
               >
-                FINALIZAR RODADA
+                FINALIZAR RACHA
               </button>
               <p id="finish-round-status" aria-live="polite" className="mt-3 text-sm font-bold text-zinc-600">
-                {round.status === "finalizado" ? "RODADA FINALIZADA" : finalizedMatchCount === null ? "Verificando partidas da rodada..." : finalizedMatchCount === 0 ? "Finalize pelo menos uma partida antes de encerrar a rodada." : round.status !== "times_confirmados" ? "Confirme os times antes de finalizar a rodada." : `${finalizedMatchCount} partidas finalizadas`}
+                {finalizedMatchCount === null ? "Verificando partidas da rodada..." : finalizedMatchCount === 0 ? "Finalize pelo menos uma partida antes de encerrar a rodada." : !["times_confirmados", "em_andamento"].includes(round.status) ? "Confirme os times antes de finalizar a rodada." : `${finalizedMatchCount} partidas finalizadas`}
               </p>
-              {round.status !== "finalizado" && onOpenResults && <button onClick={onOpenResults} className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 text-xs font-black">IR PARA RESULTADOS</button>}
+              {onOpenResults && <button onClick={onOpenResults} className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 text-xs font-black">IR PARA RESULTADOS</button>}
             </Card>
           ) : null}
 
           <ParticipantSection
             title="Goleiros"
-            participants={round.participants.filter((participant) => participant.type === "goleiro")}
-            editable={organizer && round.status === "aberto"}
+            participants={round.participants.filter((participant) => participant.status !== "removido" && participant.type === "goleiro")}
+            editable={organizer && round.status !== "finalizado"}
             onUpdate={handleUpdateParticipant}
             onRemove={handleRemoveParticipant}
           />
           <ParticipantSection
             title="Linha"
-            participants={round.participants.filter((participant) => participant.type === "linha")}
-            editable={organizer && round.status === "aberto"}
+            participants={round.participants.filter((participant) => participant.status !== "removido" && participant.type === "linha")}
+            editable={organizer && round.status !== "finalizado"}
             onUpdate={handleUpdateParticipant}
             onRemove={handleRemoveParticipant}
           />
           <ParticipantSection
             title="Suplentes"
-            participants={round.participants.filter((participant) => participant.type === "suplente")}
-            editable={organizer && round.status === "aberto"}
+            participants={round.participants.filter((participant) => participant.status !== "removido" && participant.type === "suplente")}
+            editable={organizer && round.status !== "finalizado"}
             onUpdate={handleUpdateParticipant}
             onRemove={handleRemoveParticipant}
           />
@@ -526,6 +495,7 @@ function getStatusLabel(status: string) {
     aberto: "Lista aberta",
     lista_fechada: "Lista fechada",
     times_confirmados: "Times confirmados",
+    em_andamento: "Racha em andamento",
     finalizado: "RODADA FINALIZADA",
   };
 
@@ -540,9 +510,4 @@ function getParticipantStatusLabel(status: RoundParticipant["status"]) {
   };
 
   return labels[status];
-}
-
-function toIsoDate(date: string) {
-  const [day, month, year] = date.split("/");
-  return `${year}-${month}-${day}`;
 }

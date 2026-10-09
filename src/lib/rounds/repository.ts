@@ -1,10 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RoundParticipant, RoundStatus } from "@/lib/teams/repository";
+import { createClient } from "@/lib/supabase/client";
 
 export type RoundDetails = {
   roundId: string;
   roundName: string;
   status: RoundStatus;
+  date: string | null;
+  time: string | null;
+  address: string | null;
   participants: RoundParticipant[];
 };
 
@@ -19,6 +23,9 @@ type RoundRow = {
   id: string;
   nome: string | null;
   estado: RoundStatus;
+  data: string | null;
+  horario: string | null;
+  endereco: string | null;
 };
 
 type ParticipantRow = {
@@ -39,7 +46,7 @@ type ProfileRow = {
 export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<RoundDetails | null> {
   const { data: round, error: roundError } = await supabase
     .from("rachas")
-    .select("id, nome, estado")
+    .select("id, nome, estado, data, horario, endereco")
     .order("data", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
@@ -68,6 +75,9 @@ export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<
     roundId: round.id,
     roundName: round.nome ?? "Racha atual",
     status: round.estado,
+    date: round.data,
+    time: round.horario,
+    address: round.endereco,
     participants: (participants ?? []).map((participant) => ({
       id: participant.id,
       jogadorId: participant.jogador_id,
@@ -141,6 +151,9 @@ export async function addRoundParticipant(supabase: SupabaseClient, input: {
   type: RoundParticipant["type"];
   status: RoundParticipant["status"];
 }) {
+  const existing = await supabase.from("racha_participantes").select("id").eq("racha_id", input.roundId).eq("jogador_id", input.player.id).maybeSingle<{ id: string }>();
+  if (existing.error) throw existing.error;
+  if (existing.data) return updateRoundParticipant(supabase, existing.data.id, { type: input.type, status: input.status });
   const { error } = await supabase.from("racha_participantes").insert({
     racha_id: input.roundId,
     jogador_id: input.player.id,
@@ -172,9 +185,14 @@ export async function updateRoundParticipant(supabase: SupabaseClient, participa
 }
 
 export async function removeRoundParticipant(supabase: SupabaseClient, participantId: string) {
-  const { error } = await supabase.from("racha_participantes").delete().eq("id", participantId);
+  const { error } = await supabase.from("racha_participantes").update({ status: "removido" }).eq("id", participantId);
 
   if (error) {
     throw error;
   }
+}
+
+export async function setOwnRegistration(roundId: string, type: "linha" | "goleiro" | null, join: boolean) {
+  const { error } = await createClient().rpc("inscricao_rodada", { p_racha: roundId, p_tipo: type, p_entrar: join });
+  if (error) throw new Error(error.code === "PGRST202" ? "Aplique fluxo-principal.sql no Supabase para liberar inscrições." : error.message);
 }

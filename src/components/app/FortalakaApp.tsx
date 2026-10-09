@@ -28,7 +28,7 @@ import { ResultsScreen } from "@/components/results/ResultsScreen";
 import { useCurrentRound } from "@/components/rounds/useCurrentRound";
 import { RoundLoadStatus, RoundSummary } from "@/components/rounds/RoundSummary";
 import { getRoundMatches } from "@/lib/matches/repository";
-import { nextMatch } from "@/data/mock";
+import { OwnRegistration } from "@/components/rounds/OwnRegistration";
 import { getRoleLabel, type Profile } from "@/lib/auth/roles";
 import { getEvaluationState, type EvaluationState } from "@/lib/ratings/repository";
 import { createClient } from "@/lib/supabase/client";
@@ -99,7 +99,7 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
     }).catch(() => {});
     return () => { active = false; };
   }, [roundId]);
-  const participants = round?.participants ?? [];
+  const participants = round?.participants.filter(player => player.status === "confirmado") ?? [];
   const counts = {
     goalkeepers: participants.filter(player => player.type === "goleiro" && player.status === "confirmado").length,
     fieldPlayers: participants.filter(player => player.type === "linha" && player.status === "confirmado").length,
@@ -131,6 +131,7 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
       </div>
 
       <HomeEvaluationCard onOpenEvaluate={onOpenEvaluate} />
+      {!loading && !error && round && <OwnRegistration key={round.roundId} round={round} profile={profile} onUpdated={retry} />}
 
       <RoundLoadStatus loading={loading} error={error} empty={!round} retry={retry} />
       {!loading && !error && round && <RoundSummary round={round} />}
@@ -143,13 +144,13 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <InfoBlock icon={CalendarDays} label="Data" value={nextMatch.date} />
-          <InfoBlock icon={Clock3} label="Horário" value={nextMatch.time} />
+          <InfoBlock icon={CalendarDays} label="Data" value={round?.date ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${round.date}T12:00:00Z`)) : "A definir"} />
+          <InfoBlock icon={Clock3} label="Horário" value={round?.time?.slice(0, 5) ?? "A definir"} />
         </div>
 
         <div className="flex min-w-0 items-start gap-2.5 rounded-[14px] bg-zinc-50 px-3 py-3 text-[13px] font-semibold leading-relaxed text-zinc-800">
           <MapPin size={18} className="mt-0.5 shrink-0 text-red-600" />
-          <span className="min-w-0 break-words">{nextMatch.address}</span>
+          <span className="min-w-0 break-words">{round?.address ?? "Endereço a definir"}</span>
         </div>
 
         <div className="h-px bg-zinc-100" />

@@ -20,7 +20,7 @@ create table storage.objects(id uuid primary key default gen_random_uuid(),bucke
 alter table storage.objects enable row level security;
 create function storage.foldername(text) returns text[] language sql immutable as $$select string_to_array($1,'/')$$;
 grant usage on schema storage to authenticated,anon;grant select,insert,update,delete on storage.objects to authenticated;`);
-for(const path of ['supabase/schema.sql','supabase/sorteio-times.sql','supabase/validacao-sorteio-avatars.sql','supabase/partidas-estatisticas.sql','supabase/avaliacoes.sql','supabase/finalizar-rodada.sql','supabase/entrada-avaliacoes.sql'])await db.exec(readFileSync(path,'utf8'));
+for(const path of ['supabase/schema.sql','supabase/sorteio-times.sql','supabase/validacao-sorteio-avatars.sql','supabase/partidas-estatisticas.sql','supabase/avaliacoes.sql','supabase/finalizar-rodada.sql','supabase/entrada-avaliacoes.sql','supabase/fluxo-principal.sql'])await db.exec(readFileSync(path,'utf8'));
 const organizer=randomUUID(),viewer=randomUUID();const ids=Array.from({length:14},()=>randomUUID());
 for(const [i,id] of [organizer,viewer,...ids].entries())await db.query('insert into auth.users values($1,$2,$3)',[id,'test@example.invalid',JSON.stringify({name:i<2?'Conta teste':`Pessoa ${i-2}`})]);
 await db.query("update public.profiles set role='organizador' where id=$1",[organizer]);
@@ -28,6 +28,7 @@ await db.query("update public.profiles set role='organizador' where id=$1",[orga
 ids[0]=viewer;
 await db.query('update public.profiles set avatar_url=$2 where id=$1',[ids[0],'http://127.0.0.1:3011/photo.png']);
 await db.query('update public.profiles set avatar_url=$2 where id=$1',[ids[2],'http://127.0.0.1:3011/missing.png']);
+await db.query("select set_config('request.jwt.claim.sub',$1,false)",[organizer]);
 const round=randomUUID();await db.query("insert into public.rachas(id,nome,data) values($1,'Rodada isolada','2026-10-08')",[round]);
 for(let i=0;i<8;i++)await db.query("insert into public.racha_participantes(racha_id,jogador_id,nome,tipo) values($1,$2,$3,'linha')",[round,ids[i],`Pessoa ${i}`]);
 for(let i=10;i<14;i++)await db.query('insert into public.racha_participantes(racha_id,jogador_id,nome,tipo,status) values($1,$2,$3,$4,$5)',[round,ids[i],`Pessoa ${i}`,i<12?'goleiro':i===12?'suplente':'linha',i===13?'ausente':'confirmado']);
@@ -38,7 +39,7 @@ const role=new URLSearchParams(location.search).get('role')==='jogador'?'jogador
 async function request(body){const r=await fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,role})});return r.json();}
 export function createClient(){return {
  rpc:(name,args)=>request({kind:'rpc',name,args}),
- from(table){let body={kind:'table',table,op:'select',filters:[],single:false};const q={select(){return q},eq(k,v){body.filters.push([k,v]);return q},order(){return q},limit(){return q},returns(){return q},maybeSingle(){body.single=true;return q},single(){body.single=true;return q},insert(value){body.op='insert';body.value=value;return q},update(value){body.op='update';body.value=value;return q},delete(){body.op='delete';return q},then(a,b){return request(body).then(a,b)}};return q},
+ from(table){let body={kind:'table',table,op:'select',filters:[],single:false};const q={select(){return q},eq(k,v){body.filters.push([k,v]);return q},order(k,o){body.orders??=[];body.orders.push([k,o]);return q},limit(n){body.limit=n;return q},returns(){return q},maybeSingle(){body.single=true;return q},single(){body.single=true;return q},insert(value){body.op='insert';body.value=value;return q},update(value){body.op='update';body.value=value;return q},delete(){body.op='delete';return q},then(a,b){return request(body).then(a,b)}};return q},
  auth:{async getUser(){const r=await request({kind:'user'});return {data:{user:r.data},error:r.error}}},
  storage:{from(){return {async upload(path,file){const bytes=new Uint8Array(await file.arrayBuffer());let text='';for(const b of bytes)text+=String.fromCharCode(b);return request({kind:'upload',path,type:file.type,base64:btoa(text)})},getPublicUrl(path){return {data:{publicUrl:location.origin+'/avatar/'+path}}},remove(paths){return request({kind:'remove',paths})}}}}
 };}
@@ -69,10 +70,10 @@ async function api(input){
   const uid=input.role==='jogador'?viewer:organizer;await db.query("select set_config('request.jwt.claim.sub',$1,true)",[uid]);let data;
   if(input.kind==='user')data={id:uid};
   else if(input.kind==='rpc'){
-   const specs={ler_avaliacoes_atual:['p_racha'],ler_progresso_avaliacoes:['p_racha'],alterar_avaliacoes_rodada:['p_racha','p_abertas'],salvar_avaliacao:['p_racha','p_avaliado','p_passe','p_chute','p_velocidade','p_defesa','p_fisico'],finalizar_rodada:['p_racha'],ler_estatisticas_jogadores:['p_jogador'],ler_partidas_rodada:['p_racha'],criar_partida:['p_racha','p_time_a','p_time_b'],salvar_partida:['p_partida','p_versao','p_placar_a','p_placar_b','p_status','p_jogadores'],ler_times_rodada:[],avatars_da_rodada:['p_racha'],alterar_estado_rodada:['p_racha','p_estado'],salvar_rascunho_times:['p_racha','p_versao','p_times'],confirmar_rascunho_times:['p_racha','p_versao']};
+   const specs={inscricao_rodada:['p_racha','p_tipo','p_entrar'],criar_proxima_partida:['p_racha','p_versao'],medias_jogador:['p_jogador'],ler_avaliacoes_atual:['p_racha'],ler_progresso_avaliacoes:['p_racha'],alterar_avaliacoes_rodada:['p_racha','p_abertas'],salvar_avaliacao:['p_racha','p_avaliado','p_passe','p_chute','p_velocidade','p_defesa','p_fisico'],finalizar_rodada:['p_racha'],ler_estatisticas_jogadores:['p_jogador'],ler_partidas_rodada:['p_racha'],criar_partida:['p_racha','p_time_a','p_time_b'],salvar_partida:['p_partida','p_versao','p_placar_a','p_placar_b','p_status','p_jogadores'],ler_times_rodada:[],avatars_da_rodada:['p_racha'],alterar_estado_rodada:['p_racha','p_estado'],salvar_rascunho_times:['p_racha','p_versao','p_times'],confirmar_rascunho_times:['p_racha','p_versao']};
    const keys=specs[input.name];if(!keys)throw Error('RPC inválida');const values=keys.map(k=>['p_times','p_jogadores'].includes(k)?JSON.stringify(input.args[k]):input.args[k]);
    const rows=(await db.query('select * from public.'+input.name+'('+values.map((_,i)=>'$'+(i+1)).join(',')+')',values)).rows;
-   data=['avatars_da_rodada','ler_estatisticas_jogadores'].includes(input.name)?rows:rows[0]?.[input.name];
+   data=['avatars_da_rodada','ler_estatisticas_jogadores','medias_jogador'].includes(input.name)?rows:rows[0]?.[input.name];
   }else if(input.kind==='table'){
    const fields={profiles:['id','name','email','avatar_url','role','active'],rachas:['id','nome','data','estado','horario','endereco','versao','created_at'],racha_participantes:['id','racha_id','jogador_id','nome','tipo','status','created_at']};
    if(!fields[input.table])throw Error('Tabela inválida');const params=[];const clauses=(input.filters??[]).map(([k,v])=>{if(!fields[input.table].includes(k))throw Error('Campo inválido');params.push(v);return k+'=$'+params.length;});const where=clauses.length?' where '+clauses.join(' and '):'';
@@ -80,7 +81,14 @@ async function api(input){
    if(input.op==='insert'){const keys=Object.keys(input.value);if(keys.some(k=>!fields[input.table].includes(k)))throw Error('Campo inválido');sql='insert into public.'+input.table+'('+keys.join(',')+') values('+keys.map(k=>{params.push(input.value[k]);return '$'+params.length}).join(',')+') returning *';}
    if(input.op==='update'){const keys=Object.keys(input.value);if(keys.some(k=>!fields[input.table].includes(k)))throw Error('Campo inválido');sql='update public.'+input.table+' set '+keys.map(k=>{params.push(input.value[k]);return k+'=$'+params.length}).join(',')+where+' returning *';}
    if(input.op==='delete')sql='delete from public.'+input.table+where+' returning *';
-   const rows=(await db.query(sql,params)).rows;data=input.single?(rows[0]??null):rows;
+   if(input.op==='select'){
+     for(const [index,[field,options]] of (input.orders??[]).entries()){
+       if(!fields[input.table].includes(field))throw Error('Campo inválido');
+       sql+=(index?',':' order by ')+field+(options?.ascending===false?' desc':' asc')+(options?.nullsFirst===false?' nulls last':'');
+     }
+     if(input.limit)sql+=' limit '+Math.min(100,Math.max(1,Number(input.limit)||1));
+   }
+   const rows=(await db.query(sql,params)).rows;for(const row of rows)if(row.data instanceof Date)row.data=row.data.toISOString().slice(0,10);data=input.single?(rows[0]??null):rows;
   }else if(input.kind==='upload'){
    const bytes=Buffer.from(input.base64,'base64');if(bytes.length>2097152||!['image/png','image/jpeg','image/webp'].includes(input.type))throw Error('Imagem inválida');
    await db.query("insert into storage.objects(bucket_id,name) values('avatars',$1)",[input.path]);uploaded.set(input.path,{bytes,type:input.type});data={path:input.path};

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { RankingScreen } from "@/components/players/StatisticsViews";
 import { MatchesPanel } from "@/components/rounds/MatchesPanel";
@@ -9,6 +9,8 @@ import { useCurrentRound } from "@/components/rounds/useCurrentRound";
 
 export function ResultsScreen({ profile }: { profile: Profile }) {
   const [view, setView] = useState<"matches" | "ranking">("matches");
+  const [startedRound, setStartedRound] = useState<string | null>(null);
+  const onRoundStarted = useCallback((id: string) => setStartedRound(id), []);
   const { round, loading, error, retry } = useCurrentRound();
 
   return <section className="space-y-3.5">
@@ -19,8 +21,8 @@ export function ResultsScreen({ profile }: { profile: Profile }) {
     {view === "ranking" ? <RankingScreen /> : <>
       <RoundLoadStatus loading={loading} error={error} empty={!round} retry={retry} />
       {!loading && !error && round && <>
-        <RoundSummary round={round} />
-        <MatchesPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} organizer={isOrganizer(profile) && profile.active} />
+        <RoundSummary round={round.status === "times_confirmados" && startedRound === round.roundId ? { ...round, status: "em_andamento" } : round} />
+        <MatchesPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} onRoundStarted={onRoundStarted} organizer={isOrganizer(profile) && profile.active} />
       </>}
     </>}
   </section>;
