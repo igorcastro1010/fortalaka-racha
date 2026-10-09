@@ -6,7 +6,12 @@ import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 
 const button = "min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-bold disabled:opacity-50";
 
-export function MatchesPanel({ roundId, organizer, roundStatus }: { roundId: string; organizer: boolean; roundStatus: string }) {
+export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCountChange }: {
+  roundId: string;
+  organizer: boolean;
+  roundStatus: string;
+  onFinalizedCountChange: (roundId: string, count: number | null) => void;
+}) {
   const [state, setState] = useState<MatchesState>({ times: [], partidas: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -27,6 +32,10 @@ export function MatchesPanel({ roundId, organizer, roundStatus }: { roundId: str
     });
     return () => { active = false; };
   }, [roundId, roundStatus]);
+
+  useEffect(() => {
+    onFinalizedCountChange(roundId, loading || busy || error ? null : state.partidas.filter(match => match.status === "finalizada").length);
+  }, [roundId, state.partidas, loading, busy, error, onFinalizedCountChange]);
 
   const selectedTeamNames = useMemo(() => ({
     a: state.times.find(team => team.id === teamA)?.nome ?? "Time A",

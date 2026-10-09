@@ -1,7 +1,7 @@
 "use client";
 
 import { MoreVertical, Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { EvaluationAdminPanel } from "@/components/ratings/EvaluationAdminPanel";
 import { MatchesPanel } from "./MatchesPanel";
@@ -33,6 +33,19 @@ export function RachaScreen({ profile }: { profile: Profile }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [confirmFinish, setConfirmFinish] = useState(false);
+
+  const [matchSummary, setMatchSummary] = useState<{ roundId: string; count: number | null } | null>(null);
+  const matchesArea = useRef<HTMLDivElement>(null);
+  const onFinalizedCountChange = useCallback((roundId: string, count: number | null) => {
+    setMatchSummary({ roundId, count });
+  }, []);
+  const finalizedMatchCount = matchSummary?.roundId === round?.roundId ? matchSummary?.count ?? null : null;
+
+  function goToMatches() {
+    const area = matchesArea.current;
+    area?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+    area?.focus({ preventScroll: true });
+  }
 
   const finishDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -234,9 +247,9 @@ export function RachaScreen({ profile }: { profile: Profile }) {
     setIsSaving(true); setError(""); setMessage("");
     try {
       const matches = await getRoundMatches(round.roundId);
-      if (!matches.partidas.some(match => match.status === "finalizada")) {
-        setError("Finalize pelo menos uma partida antes de encerrar a rodada.");
-      } else { setConfirmFinish(true); }
+      const count = matches.partidas.filter(match => match.status === "finalizada").length;
+      onFinalizedCountChange(round.roundId, count);
+      if (count > 0) setConfirmFinish(true);
     } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível verificar as partidas."); }
     finally { setIsSaving(false); }
   }
@@ -361,7 +374,20 @@ export function RachaScreen({ profile }: { profile: Profile }) {
             </div>
           ) : null}
 
-          {organizer && profile.active && round.status !== "finalizado" ? <button onClick={requestFinish} disabled={isSaving} className="h-12 w-full rounded-[18px] bg-neutral-950 text-sm font-black text-white disabled:opacity-60">FINALIZAR RODADA</button> : null}
+          {organizer && profile.active && round.status === "times_confirmados" ? (
+            <Card>
+              <div aria-live="polite">
+                {finalizedMatchCount === null ? <p className="text-sm font-bold text-zinc-600">Verificando partidas da rodada...</p> : finalizedMatchCount === 0 ? (
+                  <p className="text-sm font-bold text-zinc-600">Finalize pelo menos uma partida antes de encerrar a rodada.</p>
+                ) : <p className="text-sm font-bold text-zinc-600">{finalizedMatchCount} partidas finalizadas</p>}
+              </div>
+              {finalizedMatchCount !== null && finalizedMatchCount > 0 ? (
+                <button onClick={requestFinish} disabled={isSaving} className="mt-3 h-12 w-full rounded-[18px] bg-neutral-950 text-sm font-black text-white transition hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-60">FINALIZAR RODADA</button>
+              ) : (
+                <button onClick={goToMatches} className="mt-3 h-12 w-full rounded-[18px] bg-red-600 text-sm font-black text-white transition hover:bg-red-700 active:scale-[0.98]">IR PARA PARTIDAS</button>
+              )}
+            </Card>
+          ) : null}
           <dialog ref={finishDialog} onCancel={event => { event.preventDefault(); if (!isSaving) setConfirmFinish(false); }} aria-labelledby="finish-title" aria-describedby="finish-description" className="fixed inset-0 m-auto w-[calc(100%-32px)] max-w-sm rounded-2xl bg-white p-5 shadow-2xl backdrop:bg-black/50">
             <h3 id="finish-title" className="text-xl font-black">Finalizar esta rodada?</h3>
             <p id="finish-description" className="mt-3 text-sm text-zinc-600">Depois de finalizada, ela entra no histórico e as avaliações poderão ser abertas.</p>
@@ -370,7 +396,9 @@ export function RachaScreen({ profile }: { profile: Profile }) {
               <button disabled={isSaving} onClick={finishRound} className="min-h-11 rounded-xl bg-red-600 font-bold text-white disabled:opacity-60">FINALIZAR</button>
             </div>
           </dialog>
-          <MatchesPanel roundId={round.roundId} roundStatus={round.status} organizer={organizer && profile.active} />
+          <div ref={matchesArea} tabIndex={-1} aria-label="Partidas da rodada atual" className="scroll-mt-4 rounded-[22px] focus-visible:outline-2 focus-visible:outline-red-600">
+            <MatchesPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} organizer={organizer && profile.active} onFinalizedCountChange={onFinalizedCountChange} />
+          </div>
           <EvaluationAdminPanel roundStatus={round.status} roundId={round.roundId} organizer={organizer && profile.active} />
 
           <ParticipantSection
