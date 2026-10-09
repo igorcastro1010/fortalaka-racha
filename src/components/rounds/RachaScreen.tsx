@@ -375,7 +375,7 @@ export function RachaScreen({ profile, onOpenEvaluate }: { profile: Profile; onO
               <button disabled={isSaving} onClick={finishRound} className="min-h-11 rounded-xl bg-red-600 font-bold text-white disabled:opacity-60">FINALIZAR</button>
             </div>
           </dialog>
-          <MatchesPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} organizer={organizer && profile.active} onFinalizedCountChange={onFinalizedCountChange} />
+          <MatchesPanel key={`matches-${round.roundId}`} roundId={round.roundId} roundStatus={round.status} organizer={organizer && profile.active} onFinalizedCountChange={onFinalizedCountChange} />
           {organizer ? (
             <Card>
               <button
@@ -391,7 +391,7 @@ export function RachaScreen({ profile, onOpenEvaluate }: { profile: Profile; onO
               </p>
             </Card>
           ) : null}
-          <EvaluationAdminPanel key={round.roundId} onOpenEvaluate={onOpenEvaluate} roundStatus={round.status} roundId={round.roundId} organizer={organizer && profile.active} />
+          <EvaluationAdminPanel key={`evaluations-${round.roundId}`} onOpenEvaluate={onOpenEvaluate} roundStatus={round.status} roundId={round.roundId} organizer={organizer && profile.active} />
 
           <ParticipantSection
             title="Goleiros"
