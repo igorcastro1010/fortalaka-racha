@@ -1,6 +1,16 @@
 import { createClient } from "@/lib/supabase/client";
 
-export type PlayerStatistics = { jogador_id: string; nome: string; avatar_url: string | null; jogos: number; gols: number; assistencias: number; vitorias: number };
+export type PlayerStatistics = {
+  jogador_id: string;
+  nome: string;
+  avatar_url: string | null;
+  jogos: number;
+  gols: number;
+  assistencias: number;
+  vitorias: number;
+  nota_geral_100: number | null;
+  quantidade_avaliacoes: number;
+};
 export type MatchPlayer = { jogador_id: string; nome: string; avatar_url: string | null; time_id: string; participou: boolean; gols: number; assistencias: number };
 export type Match = {
   id: string;

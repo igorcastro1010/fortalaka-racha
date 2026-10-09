@@ -70,6 +70,6 @@ export function PlayerPerformance({ profile }: { profile: Profile }) {
       {summary && overall !== null && <polygon points={radarPoints(summary)} fill="#bef264" fillOpacity="0.18" stroke="#bef264" strokeWidth="2.5" strokeLinejoin="round" className="transition-all duration-700" />}
       <g fill="#e4e4e7" fontSize="10" fontWeight="600" textAnchor="middle">{attributes.map(({key,label},index) => { const [x,y]=radarVertex(index,88); return <text key={key} x={x} y={y+4}>{label}</text>; })}</g>
     </svg>
-    <div className="border-t border-white/10 bg-black/10 px-5 py-4 text-center text-xs leading-relaxed text-zinc-200" aria-live="polite">{loading ? "Carregando médias..." : error ? <p role="alert">{error}</p> : summary?.quantidade ? `${summary.quantidade} avaliações recebidas • médias de 0 a 10` : "Ainda sem avaliações. Suas médias aparecerão aqui."}</div>
+    <div className="border-t border-white/10 bg-black/10 px-5 py-4 text-center text-xs leading-relaxed text-zinc-200" aria-live="polite">{loading ? "Carregando médias..." : error ? <p role="alert">{error}</p> : summary?.quantidade && summary.quantidade >= 2 ? `${summary.quantidade} avaliações recebidas • médias de 0 a 10` : summary?.quantidade === 1 ? "Ainda sem avaliações suficientes. A nota aparece com 2 respostas." : "Ainda sem avaliações. Suas médias aparecerão aqui."}</div>
   </section>;
 }

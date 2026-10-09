@@ -3,6 +3,7 @@
 import { MoreVertical, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { EvaluationAdminPanel } from "@/components/ratings/EvaluationAdminPanel";
 import { MatchesPanel } from "./MatchesPanel";
 import { nextMatch } from "@/data/mock";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
@@ -329,6 +330,7 @@ export function RachaScreen({ profile }: { profile: Profile }) {
           ) : null}
 
           <MatchesPanel roundId={round.roundId} roundStatus={round.status} organizer={organizer && profile.active} />
+          <EvaluationAdminPanel roundId={round.roundId} organizer={organizer && profile.active} />
 
           <ParticipantSection
             title="Goleiros"

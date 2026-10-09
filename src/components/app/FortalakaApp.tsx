@@ -7,6 +7,7 @@ import {
   Home,
   MapPin,
   Shield,
+  Star,
   Trophy,
   User,
   UserPlus,
@@ -15,13 +16,14 @@ import {
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { RachaScreen } from "@/components/rounds/RachaScreen";
 import { TeamsScreen } from "@/components/teams/TeamsScreen";
 import { PlayerPerformance } from "@/components/players/PlayerPerformance";
 import { ProfilePhoto } from "@/components/players/ProfilePhoto";
 import { RankingScreen, PlayerStatisticsCard } from "@/components/players/StatisticsViews";
+import { EvaluationScreen } from "@/components/ratings/EvaluationScreen";
 import {
   fieldPlayers,
   goalkeepers,
@@ -29,9 +31,10 @@ import {
   substitutes,
 } from "@/data/mock";
 import { getRoleLabel, type Profile } from "@/lib/auth/roles";
+import { getEvaluationState, type EvaluationState } from "@/lib/ratings/repository";
 import { createClient } from "@/lib/supabase/client";
 
-type Tab = "home" | "racha" | "teams" | "ranking" | "profile";
+type Tab = "home" | "racha" | "teams" | "ranking" | "profile" | "evaluate";
 
 const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "home", label: "Inicio", icon: Home },
@@ -49,11 +52,12 @@ export function FortalakaApp({ profile }: { profile: Profile }) {
       <div className="mx-auto min-h-screen w-full max-w-[430px] bg-[#f3f3f4] shadow-2xl shadow-black/35">
         <div className="min-h-screen px-4 pb-[calc(104px+env(safe-area-inset-bottom))] pt-[calc(16px+env(safe-area-inset-top))]">
           {activeTab !== "home" && <AppHeader />}
-          {activeTab === "home" && <HomeScreen profile={profile} onOpenRacha={() => setActiveTab("racha")} />}
+          {activeTab === "home" && <HomeScreen profile={profile} onOpenRacha={() => setActiveTab("racha")} onOpenEvaluate={() => setActiveTab("evaluate")} />}
           {activeTab === "racha" && <RachaScreen profile={profile} />}
           {activeTab === "teams" && <TeamsScreen profile={profile} />}
           {activeTab === "ranking" && <RankingScreen />}
           {activeTab === "profile" && <ProfileScreen profile={profile} />}
+          {activeTab === "evaluate" && <EvaluationScreen />}
         </div>
         <BottomNav activeTab={activeTab} onChange={setActiveTab} />
       </div>
@@ -78,7 +82,7 @@ function AppHeader() {
   );
 }
 
-function HomeScreen({ profile, onOpenRacha }: { profile: Profile; onOpenRacha: () => void }) {
+function HomeScreen({ profile, onOpenRacha, onOpenEvaluate }: { profile: Profile; onOpenRacha: () => void; onOpenEvaluate: () => void }) {
   const displayName = getDisplayName(profile);
   const firstName = getFirstName(displayName);
 
@@ -105,6 +109,8 @@ function HomeScreen({ profile, onOpenRacha }: { profile: Profile; onOpenRacha: (
           Pronto pra quinta?
         </h2>
       </div>
+
+      <HomeEvaluationCard onOpenEvaluate={onOpenEvaluate} />
 
       <Card className="space-y-4 rounded-[24px] border-t-[3px] border-red-600 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.06)]">
         <div className="flex items-center justify-between gap-3">
@@ -151,6 +157,32 @@ function HomeScreen({ profile, onOpenRacha }: { profile: Profile; onOpenRacha: (
       </div>
     </section>
   );
+}
+
+function HomeEvaluationCard({ onOpenEvaluate }: { onOpenEvaluate: () => void }) {
+  const [state, setState] = useState<EvaluationState | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getEvaluationState().then(data => {
+      if (active) setState(data);
+    }).catch(() => {
+      if (active) setState(null);
+    });
+    return () => { active = false; };
+  }, []);
+
+  if (!state?.open) return null;
+
+  return <button onClick={onOpenEvaluate} className="flex w-full items-center gap-3 rounded-[18px] bg-neutral-950 p-4 text-left text-white shadow-sm transition active:scale-[0.98]">
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-red-600 text-white">
+      <Star size={21} />
+    </div>
+    <div className="min-w-0 flex-1">
+      <p className="text-sm font-black">Avaliacao aberta</p>
+      <p className="mt-1 text-xs leading-relaxed text-zinc-300">{state.canEvaluate ? "Avalie seus companheiros de time." : "Confira a rodada de avaliacoes."}</p>
+    </div>
+  </button>;
 }
 
 function InfoBlock({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
