@@ -133,6 +133,7 @@ export function SignupForm({ initialError }: { initialError?: string }) {
                 </label>
                 <TextInput
                   id="signup-name"
+                  autoComplete="name"
                   icon={User}
                   placeholder="Seu nome"
                   type="text"
@@ -146,6 +147,7 @@ export function SignupForm({ initialError }: { initialError?: string }) {
                 </label>
                 <TextInput
                   id="signup-email"
+                  autoComplete="email"
                   icon={Mail}
                   placeholder="voce@email.com"
                   type="email"
@@ -159,6 +161,7 @@ export function SignupForm({ initialError }: { initialError?: string }) {
                 </label>
                 <TextInput
                   id="signup-password"
+                  autoComplete="new-password"
                   icon={Lock}
                   placeholder="Digite sua senha"
                   type="password"
@@ -172,6 +175,7 @@ export function SignupForm({ initialError }: { initialError?: string }) {
                 </label>
                 <TextInput
                   id="signup-confirm-password"
+                  autoComplete="new-password"
                   icon={Lock}
                   placeholder="Confirme sua senha"
                   type="password"
@@ -210,6 +214,7 @@ export function SignupForm({ initialError }: { initialError?: string }) {
 
 function TextInput({
   id,
+  autoComplete,
   icon: Icon,
   placeholder,
   type,
@@ -218,6 +223,7 @@ function TextInput({
   disabled,
 }: {
   id: string;
+  autoComplete: string;
   icon: LucideIcon;
   placeholder: string;
   type: "email" | "password" | "text";
@@ -231,6 +237,8 @@ function TextInput({
       <input
         className="h-full min-w-0 flex-1 bg-transparent text-base font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-70"
         id={id}
+        name={id}
+        autoComplete={autoComplete}
         type={type}
         placeholder={placeholder}
         value={value}

@@ -13,6 +13,7 @@ export function OwnRegistration({ round, profile, onUpdated }: { round: RoundDet
 
   async function submit(type: "linha" | "goleiro" | null, join: boolean) {
     if (!canChange || busy) return;
+    if (!join && !window.confirm("Sair da lista desta rodada?")) return;
     setBusy(true); setError("");
     try {
       await setOwnRegistration(round.roundId, type, join);

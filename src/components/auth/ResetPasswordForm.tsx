@@ -227,6 +227,8 @@ function PasswordInput({
       <input
         className="h-full min-w-0 flex-1 bg-transparent text-base font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-70"
         id={id}
+        name={id}
+        autoComplete="new-password"
         type="password"
         placeholder={placeholder}
         value={value}

@@ -76,6 +76,11 @@ try {
     assert.deepEqual([...document.querySelectorAll('nav[aria-label="Navegação principal"] button')].map(e=>e.textContent),['Início','Racha','Times','Avaliação','Resultados']);
   }
   await mount('jogador');
+  window.confirm=()=>false;
+  await click('SAIR DA LISTA');
+  assert(button('SAIR DA LISTA'),'Cancelar a saída deve manter a inscrição');
+  assert(!button('ENTRAR NA LISTA'));
+  window.confirm=()=>true;
   await click('SAIR DA LISTA');
   await waitFor(()=>button('ENTRAR NA LISTA'));
   await click('ENTRAR NA LISTA');await click('goleiro');

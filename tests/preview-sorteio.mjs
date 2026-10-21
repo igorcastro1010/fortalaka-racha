@@ -61,7 +61,7 @@ writeFileSync(navigation,`export function useRouter(){return {replace(){},refres
 await build({entryPoints:[join(output,'main.tsx')],outfile:join(output,'app.js'),bundle:true,jsx:'automatic',define:{'process.env':'{}'},tsconfig:resolve('tsconfig.json'),nodePaths:[resolve('node_modules')],plugins:[{name:'isolated-client',setup(b){b.onResolve({filter:/^@\/lib\/supabase\/client$/},()=>({path:client}));b.onResolve({filter:/^next\/navigation$/},()=>({path:navigation}));}}]});
 const chunks=resolve('.next/static/chunks');const css=readdirSync(chunks).find(n=>n.endsWith('.css'));
 writeFileSync(join(output,'app.css'),readFileSync(join(chunks,css)));
-writeFileSync(join(output,'index.html'),'<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Validação isolada</title><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');
+writeFileSync(join(output,'index.html'),'<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Validação isolada</title><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');
 const photo=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
 const uploaded=new Map();let queue=Promise.resolve();
 async function api(input){

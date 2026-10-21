@@ -105,6 +105,8 @@ export function LoginForm({ initialError }: { initialError?: string }) {
             <input
               className="mt-2 h-[52px] w-full rounded-[18px] border border-zinc-200 bg-zinc-50 px-4 text-base font-semibold outline-none transition focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-100 disabled:cursor-not-allowed disabled:opacity-70"
               id="email"
+              name="email"
+              autoComplete="username"
               type="email"
               placeholder="voce@email.com"
               value={email}
@@ -120,6 +122,8 @@ export function LoginForm({ initialError }: { initialError?: string }) {
               <input
                 className="h-full min-w-0 flex-1 bg-transparent text-base font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-70"
                 id="password"
+                name="password"
+                autoComplete="current-password"
                 type="password"
                 placeholder="Sua senha"
                 value={password}
@@ -152,7 +156,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
               type="button"
               onClick={handlePasswordReset}
               disabled={isLoading || isSendingReset}
-              className="mt-4 w-full text-center text-sm font-black text-neutral-700 transition hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-4 min-h-11 w-full text-center text-sm font-black text-neutral-700 transition hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSendingReset ? "Enviando..." : "Esqueci minha senha"}
             </button>
