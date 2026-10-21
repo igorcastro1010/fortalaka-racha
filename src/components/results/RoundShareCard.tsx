@@ -2,7 +2,7 @@
 
 import { Copy, Eye, Share2, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
-import { buildRoundShareText, getRoundShareSummary, getWhatsAppShareUrl, type RoundLeader, type RoundShareSource } from "@/lib/results/round-share";
+import { buildRoundShareTextFromSummary, getRoundShareSummary, getWhatsAppShareUrl, type RoundLeader, type RoundShareSource, type RoundShareSummary } from "@/lib/results/round-share";
 import { copyRoundShareText, shareRoundText } from "@/lib/results/share-actions";
 
 function leaderLabel(players: RoundLeader[], empty: string) {
@@ -11,9 +11,9 @@ function leaderLabel(players: RoundLeader[], empty: string) {
   return `${players[0].name} · ${players[0].value}${tied > 1 ? ` (+${tied - 1} empatado${tied > 2 ? "s" : ""})` : ""}`;
 }
 
-export function RoundShareCard({ roundId, source }: { roundId: string; source: RoundShareSource }) {
-  const summary = getRoundShareSummary(roundId, source);
-  const text = buildRoundShareText(roundId, source);
+export function RoundShareCard({ roundId, source, summary: providedSummary, compact = false }: { roundId: string; source: RoundShareSource; summary?: RoundShareSummary; compact?: boolean }) {
+  const summary = providedSummary ?? getRoundShareSummary(roundId, source);
+  const text = buildRoundShareTextFromSummary(summary);
   const url = getWhatsAppShareUrl(text);
   const [preview, setPreview] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -52,10 +52,10 @@ export function RoundShareCard({ roundId, source }: { roundId: string; source: R
 
   return <section aria-label="Resumo para compartilhar" className="space-y-3 rounded-[22px] bg-white p-4 ring-1 ring-black/5">
     <div className="flex items-center gap-2"><Share2 size={18} aria-hidden="true" /><h3 className="text-sm font-black uppercase tracking-wide">Resumo para compartilhar</h3></div>
-    <dl className="grid grid-cols-2 gap-2">{[
+    {!compact && <dl className="grid grid-cols-2 gap-2">{[
       ["Partidas finalizadas", String(summary.matches.length)], ["Participantes em campo", String(summary.participantCount)],
       ["Artilharia", leaderLabel(summary.goals, "Sem gols registrados")], ["Assistências", leaderLabel(summary.assists, "Sem assistências registradas")],
-    ].map(([label, value]) => <div key={label} className="min-w-0 rounded-xl bg-zinc-50 p-3"><dt className="text-[10px] font-bold text-zinc-600">{label}</dt><dd className="mt-1 break-words text-sm font-black">{value}</dd></div>)}</dl>
+    ].map(([label, value]) => <div key={label} className="min-w-0 rounded-xl bg-zinc-50 p-3"><dt className="text-[10px] font-bold text-zinc-600">{label}</dt><dd className="mt-1 break-words text-sm font-black">{value}</dd></div>)}</dl>}
     <p className="text-[11px] leading-relaxed text-zinc-500">Somente partidas finalizadas e eventos registrados nesta rodada.</p>
     {!hasMatches && <p className="text-sm text-zinc-600">Nenhuma partida finalizada para compartilhar.</p>}
     <button onClick={() => setPreview(true)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 text-xs font-black"><Eye size={16} aria-hidden="true" />VER RESUMO</button>

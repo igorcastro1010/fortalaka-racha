@@ -5,7 +5,7 @@ import { createMatch, createNextMatch, getRoundMatches, saveMatch, type Match, t
 import { Trophy } from "lucide-react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
-import { RoundShareCard } from "@/components/results/RoundShareCard";
+import { PostRoundSummary } from "@/components/results/PostRoundSummary";
 
 const button = "min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-bold disabled:opacity-50";
 
@@ -137,7 +137,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   }
 
   return <>
-    {currentStatus === "finalizado" && !loading && !error && !busy && !draft && <RoundShareCard roundId={roundId} source={{ roundId, date: roundDate, partidas: state.partidas }} />}
+    {currentStatus === "finalizado" && !loading && !error && !busy && !draft && <PostRoundSummary roundId={roundId} date={roundDate} matches={state.partidas} />}
     <section className="flex flex-col gap-3 rounded-[22px] bg-white p-4 ring-1 ring-black/5">
     <div>
       <h3 className="text-xl font-black">Partidas</h3>

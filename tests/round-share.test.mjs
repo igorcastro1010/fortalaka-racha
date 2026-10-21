@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRoundShareText, getRoundShareSummary, getWhatsAppShareUrl } from '../src/lib/results/round-share.ts';
+import { buildRoundShareText, buildRoundShareTextFromSummary, getRoundRatingLeaders, getRoundShareSummary, getWhatsAppShareUrl } from '../src/lib/results/round-share.ts';
 import { copyRoundShareText, shareRoundText } from '../src/lib/results/share-actions.ts';
 
 const player = (id, team, goals=0, assists=0, participou=true) => ({jogador_id:id,nome:id,avatar_url:null,time_id:team,participou,gols:goals,assistencias:assists});
@@ -89,4 +89,30 @@ test('copiar usa exatamente o texto; clipboard ausente ou negado tem erro amigá
   await copyRoundShareText(value,{writeText:async text=>{copied=text;}});assert.equal(copied,value);
   await assert.rejects(copyRoundShareText(value,null),/Abra VER RESUMO/);
   await assert.rejects(copyRoundShareText(value,{writeText:async()=>{throw new Error('negado');}}),/Não foi possível copiar/);
+});
+
+test('números usam placares finalizados, sem confundir gols sem autor com artilharia',()=>{
+  const games=[match('1',{placarA:2,placarB:1,jogadores:[player('Igão','a',1)]}),match('2',{placarA:0,placarB:2,jogadores:[player('Igão','a'),player('PH','b',1)]}),match('open',{status:'aberta',placarA:99}),match('cancel',{status:'cancelada',placarA:99})];
+  const result=summary(games);
+  assert.equal(result.totalGoals,5);assert.equal(result.averageGoals,2.5);
+  assert.equal(result.participantCount,2);assert.equal(result.players.length,2);
+  assert.equal(result.goals.reduce((total,p)=>total+p.value,0),2);
+  assert.equal(summary([]).totalGoals,0);assert.equal(summary([]).averageGoals,null);
+  assert.equal(summary([match('one')]).averageGoals,2);
+});
+test('UI e compartilhamento consomem o mesmo resumo sem recalcular nem alterar a mensagem',()=>{
+  const input=source([match('1',{jogadores:[player('Igão','a',1,1)]})]);
+  const data=getRoundShareSummary('rodada-1',input);
+  assert.equal(buildRoundShareTextFromSummary(data),buildRoundShareText('rodada-1',input));
+  assert.deepEqual(data.players[0],{id:'Igão',name:'Igão',avatarUrl:null,goals:1,assists:1,wins:1});
+  assert.equal(buildRoundShareTextFromSummary(data),'⚽❤️ *RACHA FORTALAKA*\n\n📅 22/10/2026\n\n🏁 *RESULTADOS*\nTime 1 2 x 0 Time 2\n\n⚽ *ARTILHEIROS*\n🥇 Igão — 1 gol\n\n🎯 *ASSISTÊNCIAS*\n🥇 Igão — 1 assistência\n\n🏆 *MAIS VITÓRIAS*\n🥇 Igão — 1 vitória\n\n❤️⚽ FORTALAKA');
+});
+test('maiores notas preservam mínimo de duas respostas e incluem somente participantes',()=>{
+  const data=summary([match('1',{jogadores:['Igão','PH','Jack','Lobo'].map(id=>player(id,'a'))})]);
+  const rating=(id,n,count=2)=>({jogador_id:id,nota_geral_100:n,quantidade_avaliacoes:count});
+  const ratings=[rating('Externo',100),rating('Igão',88),rating('PH',88),rating('Jack',99,1),rating('Lobo',null),rating('Igão',88)];
+  assert.deepEqual(getRoundRatingLeaders(data,ratings).map(p=>[p.name,p.value,p.place]),[['Igão',88,1],['PH',88,1]]);
+  assert.deepEqual(getRoundRatingLeaders(data,[]),[]);
+  assert.deepEqual(getRoundRatingLeaders(summary([]),ratings),[]);
+  assert.deepEqual(getRoundRatingLeaders(data,[rating('Igão',NaN),rating('PH',101)]),[]);
 });

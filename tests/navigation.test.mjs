@@ -142,6 +142,15 @@ try {
   await waitFor(()=>document.body.textContent.includes('RODADA FINALIZADA'));
   await click('Resultados');
   await waitFor(()=>document.querySelector('section[aria-label="Resumo para compartilhar"]'));
+  const postSummary=document.querySelector('section[aria-label="Resumo pós-racha"]');
+  assert(postSummary,'Resumo visível somente após finalizar rodada');
+  const numbers=postSummary.querySelector('section[aria-label="Números do racha"]');
+  assert.deepEqual([...numbers.querySelectorAll('dd')].map(el=>el.textContent),['10','1','2','2,0']);
+  assert(postSummary.querySelector('section[aria-label="Artilharia"]'));
+  assert(!postSummary.querySelector('section[aria-label="Assistências"]'),'Oculta assistências sem eventos');
+  assert(!postSummary.querySelector('section[aria-label="Maiores notas"]'),'Oculta notas insuficientes');
+  assert(postSummary.querySelector('section[aria-label="Resultados da rodada"]').textContent.includes('2 × 0'));
+  assert(postSummary.querySelector('summary').textContent.includes('VER PARTICIPANTES · 10'));
   const shareLink=[...document.querySelectorAll('a')].find(a=>a.textContent.includes('COMPARTILHAR NO WHATSAPP'));
   assert(shareLink,'Rodada finalizada oferece o link de compartilhamento');
   const sharedText=new URL(shareLink.href).searchParams.get('text');
@@ -203,6 +212,11 @@ try {
   await click('Resultados');await click('Ranking');
   await waitFor(()=>document.querySelector('article [aria-label="Nota media 88"]'));
   assert(document.querySelector('article').querySelector('[aria-label="Nota media 88"]'),'Maior overall aparece primeiro');
+  await click('Partidas');
+  await waitFor(()=>document.querySelector('section[aria-label="Maiores notas"]'));
+  assert(document.querySelector('section[aria-label="Maiores notas"]').textContent.includes('88'));
+  assert(document.body.textContent.includes('Overall histórico dos participantes desta rodada'));
+
   await click('Abrir meu perfil');
   await waitFor(()=>button('Sair da conta'));
   await mount('jogador');await click('Avaliação');await click('AVALIAR MEU TIME');
@@ -236,6 +250,7 @@ try {
   assert(document.body.textContent.includes('Quadra teste'));
   await click('Resultados');
   await waitFor(()=>document.body.textContent.includes('Nenhuma partida ainda'));
+  assert(!document.querySelector('section[aria-label="Resumo pós-racha"]'),'Nova rodada não apresenta resumo final');
   assert(!document.querySelector('section[aria-label="Resumo para compartilhar"]'),'Nova rodada não compartilha partidas da rodada antiga');
   console.log('OK: cinco abas; processos separados; partida → rodada → avaliações; roles; envio/edição sem duplicata; Ranking e Perfil acessíveis.');
 } finally {
