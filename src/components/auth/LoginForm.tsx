@@ -91,14 +91,14 @@ export function LoginForm({ initialError }: { initialError?: string }) {
       <div className="mx-auto flex min-h-screen w-full max-w-[430px] items-center bg-[linear-gradient(160deg,#111_0%,#18181b_54%,#050505_100%)] px-5 py-[calc(24px+env(safe-area-inset-top))] pb-[calc(18px+env(safe-area-inset-bottom))]">
         <div className="flex w-full flex-col items-center">
           <section className="flex w-full flex-col items-center text-center">
-            <LogoMark size="login" priority />
-            <h1 className="mt-6 text-[44px] font-black uppercase leading-[0.92] tracking-normal">
+            <LogoMark size="profile" priority />
+            <h1 className="mt-4 text-[36px] font-black uppercase leading-[0.92] tracking-normal">
               Racha Fortalaka
             </h1>
-            <div className="mt-5 h-1.5 w-24 rounded-full bg-red-600" />
+            <div className="mt-3 h-1 w-12 rounded-full bg-red-600" />
           </section>
 
-          <form onSubmit={handleLogin} className="mt-10 w-full rounded-[24px] bg-white p-4 text-left text-neutral-950 shadow-xl shadow-black/25">
+          <form onSubmit={handleLogin} className="mt-6 w-full rounded-[24px] bg-white p-4 text-left text-neutral-950 shadow-xl shadow-black/25">
             <label className="text-sm font-bold" htmlFor="email">
               E-mail
             </label>

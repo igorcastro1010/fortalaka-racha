@@ -1,5 +1,7 @@
 "use client";
 
+import { Star } from "lucide-react";
+import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { useEffect, useRef, useState } from "react";
 import { getEvaluationProgress, getEvaluationState, setRoundEvaluationsOpen, type EvaluationProgress, type EvaluationState } from "@/lib/ratings/repository";
 
@@ -64,14 +66,13 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
     <div className="flex items-start justify-between gap-3">
       <div>
         <h3 className="text-xl font-black">Avaliações</h3>
-        <p className="mt-1 text-xs text-zinc-600">Notas pos-jogo dos companheiros de time</p>
       </div>
       <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${open ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}>{open === undefined ? "Carregando" : open ? "ABERTA" : "FECHADA"}</span>
     </div>
-    {organizer && progress ? <p className="rounded-xl bg-zinc-50 p-3 text-sm font-bold text-zinc-800">{progress.respondentes} de {progress.total} jogadores responderam</p> : !organizer && personal ? <p className="rounded-xl bg-zinc-50 p-3 text-sm font-bold text-zinc-800">{completed} de {personal.players.length} companheiros avaliados</p> : <p className="text-sm text-zinc-600">Carregando progresso...</p>}
+    {organizer && progress ? <p className="rounded-xl bg-zinc-50 p-3 text-sm font-bold text-zinc-800">{progress.respondentes} de {progress.total} jogadores responderam</p> : !organizer && personal ? <p className="rounded-xl bg-zinc-50 p-3 text-sm font-bold text-zinc-800">{completed} de {personal.players.length} companheiros avaliados</p> : <LoadingCards label="Carregando progresso..." />}
     {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p>}
     {message && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
-    {organizer && roundStatus !== "finalizado" && <p className="text-sm text-zinc-600">Finalize pelo menos uma partida e encerre a rodada antes de abrir avaliações.</p>}
+    {organizer && roundStatus !== "finalizado" && <EmptyState icon={Star} title="As avaliações ainda não estão abertas." description="Finalize pelo menos uma partida e encerre a rodada antes de abrir avaliações." />}
     {!organizer && open === false && <p className="text-sm font-bold text-zinc-600">Avaliações fechadas</p>}
     {!organizer && open === false && completed > 0 && <button onClick={() => onOpenEvaluate(roundId)} disabled={Boolean(error)} className="min-h-12 w-full rounded-[16px] border border-zinc-200 bg-white px-3 text-sm font-black disabled:opacity-50">VER MINHAS AVALIAÇÕES</button>}
     {!organizer && open && <button onClick={() => onOpenEvaluate(roundId)} disabled={Boolean(error)} className="min-h-12 w-full rounded-[16px] bg-red-600 px-3 text-sm font-black text-white transition hover:bg-red-700 active:scale-[0.98] disabled:opacity-50">AVALIAR MEU TIME</button>}

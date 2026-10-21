@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createMatch, createNextMatch, getRoundMatches, saveMatch, type Match, type MatchPlayer, type MatchesState } from "@/lib/matches/repository";
+import { Trophy } from "lucide-react";
+import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 
 const button = "min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-bold disabled:opacity-50";
@@ -138,19 +140,27 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
       <p className="mt-1 text-xs text-zinc-600">Historico e estatisticas desta rodada</p>
     </div>
 
-    {!loading && !error && <p className="rounded-xl bg-zinc-50 p-3 text-sm font-bold text-zinc-700">{state.partidas.length} partidas · {state.partidas.filter(match => match.status === "finalizada").length} finalizadas</p>}
+    {!loading && !error && state.partidas.length > 0 && <p className="text-xs font-bold text-zinc-500">{state.partidas.length} partidas · {state.partidas.filter(match => match.status === "finalizada").length} finalizadas</p>}
 
-    {loading && <p role="status" className="text-sm text-zinc-600">Carregando partidas...</p>}
+    {loading && <LoadingCards label="Carregando partidas..." />}
     {error && <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700"><p>{error}</p><button className={`${button} mt-2`} disabled={busy} onClick={async () => { try { setState(await getRoundMatches(roundId)); setError(""); } catch (e) { setError(e instanceof Error ? e.message : "Nao foi possivel carregar."); } }}>Atualizar partidas</button></div>}
     {message && <p role="status" className="rounded-xl bg-zinc-50 p-3 text-sm text-zinc-800">{message}</p>}
     {state.fila && (["times_confirmados", "em_andamento", "finalizado"].includes(currentStatus)) && !loading && !error && <div className="space-y-3 rounded-[18px] bg-neutral-950 p-4 text-white">
       <p className="text-[10px] font-black uppercase tracking-wide text-red-400">{currentMatch ? "EM CAMPO" : roundStatus === "finalizado" ? "FILA PRESERVADA" : "PRÓXIMA PARTIDA"}</p>
       {currentMatch ? <>
-        <p className="break-words text-center text-sm font-black">{currentMatch.timeA} x {currentMatch.timeB}</p>
-        <p className="text-center text-4xl font-black tabular-nums">{draft?.id === currentMatch.id ? draft.placarA : currentMatch.placarA} x {draft?.id === currentMatch.id ? draft.placarB : currentMatch.placarB}</p>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-center">
+          <div className="min-w-0"><p className="break-words text-xs font-bold text-zinc-300">{currentMatch.timeA}</p><p className="mt-2 text-6xl font-black tabular-nums">{draft?.id === currentMatch.id ? draft.placarA : currentMatch.placarA}</p></div>
+          <span className="text-lg font-bold text-zinc-500">×</span>
+          <div className="min-w-0"><p className="break-words text-xs font-bold text-zinc-300">{currentMatch.timeB}</p><p className="mt-2 text-6xl font-black tabular-nums">{draft?.id === currentMatch.id ? draft.placarB : currentMatch.placarB}</p></div>
+        </div>
         {organizer && draft?.id !== currentMatch.id && <button disabled={busy} onClick={() => editMatch(currentMatch)} className="min-h-12 w-full rounded-xl bg-red-600 text-xs font-black disabled:opacity-50">LANÇAR PLACAR E EVENTOS</button>}
       </> : <p className="break-words text-center text-lg font-black">{state.fila.order.slice(0, 2).map(teamName).join(" x ") || "Confirme os times"}</p>}
-      <div className="border-t border-white/15 pt-3"><p className="text-[10px] font-black uppercase text-zinc-400">{currentMatch ? "Próximo time · fila" : "Ordem dos times"}</p><ol className="mt-2 space-y-1">{waiting.map((id, index) => <li key={id} className="break-words text-sm font-bold">{index + 1}. {teamName(id)}</li>)}</ol></div>
+      {(currentMatch ? waiting : waiting.slice(2)).length > 0 && <div className="border-t border-white/15 pt-3">
+        <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Próximos</p>
+        <ol className="mt-2 grid gap-2">{(currentMatch ? waiting : waiting.slice(2)).map((id, index) => <li key={id} className="flex items-center gap-3 rounded-xl bg-white/10 px-3 py-2.5">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xs font-black">{index + 1}</span><span className="min-w-0 flex-1 break-words text-sm font-bold">{teamName(id)}</span><span className="text-[9px] font-black uppercase text-zinc-300">{index === 0 ? "Próximo" : "Na fila"}</span>
+        </li>)}</ol>
+      </div>}
       {!currentMatch && canCreate && <button disabled={busy || state.fila.order.length < 2} onClick={() => create(true)} className="min-h-12 w-full rounded-xl bg-red-600 px-2 text-xs font-black disabled:opacity-50">{state.partidas.length ? "INICIAR PRÓXIMA PARTIDA" : "INICIAR PRIMEIRA PARTIDA"}</button>}
     </div>}
     <dialog ref={goalDialog} aria-labelledby="goal-limit-title" onCancel={event => { event.preventDefault(); if (!busy) setGoalLimitTeam(null); }} className="fixed inset-0 m-auto w-[calc(100%-32px)] max-w-sm rounded-2xl bg-white p-5 shadow-2xl backdrop:bg-black/50">
@@ -175,7 +185,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
       </div>
     </details>}
 
-    {!loading && !error && !state.partidas.length && <p className="text-sm text-zinc-600">Nenhuma partida registrada.{organizer && state.times.length < 2 ? " Confirme pelo menos dois times para criar uma partida." : ""}</p>}
+    {!loading && !error && !state.partidas.length && <EmptyState icon={Trophy} title="Nenhuma partida ainda" description={organizer && state.times.length < 2 ? "Confirme os times para começar. Quando o racha começar, os resultados aparecem aqui." : "Quando o racha começar, os resultados aparecem aqui."} />}
 
     {state.partidas.map((match, index) => <article key={match.id} className="order-2 rounded-xl border border-zinc-200 p-3">
       <p className="text-[10px] font-black uppercase tracking-wide text-zinc-500">Partida {index + 1}</p>
@@ -188,7 +198,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
       {match.status === "finalizada" && <p className="mt-1 text-center text-xs font-semibold">{match.placarA === match.placarB ? "Empate" : `Vencedor: ${match.placarA > match.placarB ? match.timeA : match.timeB}`}</p>}
       {match.finalizadaAt && <p className="mt-1 text-center text-[10px] font-semibold text-zinc-500">Finalizada em {formatDateTime(match.finalizadaAt)}</p>}
       <details className="mt-2 text-xs">
-        <summary className="min-h-8 cursor-pointer py-2 font-semibold">Participantes e eventos</summary>
+        <summary className="min-h-11 cursor-pointer py-2 font-semibold">Participantes e eventos</summary>
         {match.jogadores.map(player => <p key={player.jogador_id} className="border-t border-zinc-100 py-2">{player.nome} - {player.participou ? `${player.gols} gols / ${player.assistencias} assistencias` : "Nao participou"}</p>)}
       </details>
       {organizer && <button disabled={busy} onClick={() => editMatch(match)} className={`${button} mt-2 w-full`}>{match.status === "finalizada" ? "Editar resultado" : "Editar partida"}</button>}
@@ -207,8 +217,9 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
         <ScoreControl label={draft.timeB} value={draft.placarB} disabled={busy} onMinus={() => changeScore("placarB", -1)} onPlus={() => changeScore("placarB", 1)} />
       </div>
 
-      <div className="space-y-3">
-        <h5 className="text-sm font-black">Participacao</h5>
+      <details className="rounded-xl border border-zinc-200 bg-white p-3">
+        <summary className="min-h-11 cursor-pointer content-center text-xs font-black">Participação · {draft.jogadores.filter(player => player.participou).length} jogadores</summary>
+        <div className="mt-2 space-y-3">
         {[draft.timeAId, draft.timeBId].map(teamId => <div key={teamId}>
           <p className="mb-2 text-xs font-black uppercase text-zinc-600">{teamId === draft.timeAId ? draft.timeA : draft.timeB}</p>
           {draft.jogadores.filter(player => player.time_id === teamId).map(player => <div key={player.jogador_id} className="flex items-center gap-2 border-t border-zinc-200 py-2">
@@ -217,7 +228,8 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
             <label className="flex min-h-10 items-center gap-2 text-xs font-semibold"><input type="checkbox" disabled={busy} checked={player.participou} onChange={event => updatePlayer(player.jogador_id, { participou: event.target.checked, ...(!event.target.checked ? { gols: 0, assistencias: 0 } : {}) })} className="h-5 w-5 accent-red-600" />Participou</label>
           </div>)}
         </div>)}
-      </div>
+        </div>
+      </details>
 
       <EventEditor title="Gols" field="gols" draft={draft} busy={busy} updatePlayer={updatePlayer} />
       <EventEditor title="Assistencias" field="assistencias" draft={draft} busy={busy} updatePlayer={updatePlayer} />
@@ -237,27 +249,29 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
 function ScoreControl({ label, value, disabled, onMinus, onPlus }: { label: string; value: number; disabled: boolean; onMinus: () => void; onPlus: () => void }) {
   return <div className="text-center">
     <p className="mb-2 min-h-8 break-words text-xs font-black">{label}</p>
-    <div className="flex items-center justify-center gap-1">
-      <button className="h-11 w-11 rounded-xl border border-zinc-200 bg-white text-xl font-black disabled:opacity-40" disabled={disabled || value <= 0} onClick={onMinus} aria-label={`Diminuir placar de ${label}`}>-</button>
-      <span className="min-w-10 text-3xl font-black tabular-nums">{value}</span>
-      <button className="h-11 w-11 rounded-xl border border-zinc-200 bg-white text-xl font-black disabled:opacity-40" disabled={disabled} onClick={onPlus} aria-label={`Aumentar placar de ${label}`}>+</button>
+    <p className="mb-3 text-4xl font-black tabular-nums">{value}</p>
+    <div className="grid grid-cols-2 gap-2">
+      <button className="h-11 rounded-xl border border-zinc-200 bg-white text-xl font-black disabled:opacity-40" disabled={disabled || value <= 0} onClick={onMinus} aria-label={`Diminuir placar de ${label}`}>−</button>
+      <button className="h-11 rounded-xl bg-neutral-950 text-xl font-black text-white disabled:opacity-40" disabled={disabled} onClick={onPlus} aria-label={`Aumentar placar de ${label}`}>+</button>
     </div>
   </div>;
 }
 
 function EventEditor({ title, field, draft, busy, updatePlayer }: { title: string; field: "gols" | "assistencias"; draft: Match; busy: boolean; updatePlayer: (id: string, patch: Partial<MatchPlayer>) => void }) {
   const players = draft.jogadores.filter(player => player.participou);
-  return <div className="space-y-2">
-    <h5 className="text-sm font-black">{title}</h5>
+  return <details className="rounded-xl border border-zinc-200 bg-white p-3">
+    <summary className="min-h-11 cursor-pointer content-center text-xs font-black">{title} · {players.reduce((total, player) => total + player[field], 0)} registrados</summary>
+    <div className="mt-2 space-y-2">
     {!players.length && <p className="text-xs text-zinc-500">Marque participantes para lancar {title.toLowerCase()}.</p>}
     {players.map(player => <div key={player.jogador_id} className="flex items-center gap-2 rounded-xl bg-white p-2 ring-1 ring-zinc-100">
       <PlayerAvatar name={player.nome} avatarUrl={player.avatar_url} size="sm" />
       <span className="min-w-0 flex-1 break-words text-sm font-bold">{player.nome}</span>
-      <button className="h-10 w-10 rounded-xl border border-zinc-200 text-lg font-black disabled:opacity-40" disabled={busy || player[field] <= 0} onClick={() => updatePlayer(player.jogador_id, { [field]: player[field] - 1 })} aria-label={`Diminuir ${title.toLowerCase()} de ${player.nome}`}>-</button>
+      <button className="h-11 w-11 shrink-0 rounded-xl border border-zinc-200 text-lg font-black disabled:opacity-40" disabled={busy || player[field] <= 0} onClick={() => updatePlayer(player.jogador_id, { [field]: player[field] - 1 })} aria-label={`Diminuir ${title.toLowerCase()} de ${player.nome}`}>-</button>
       <span className="w-8 text-center text-base font-black tabular-nums">{player[field]}</span>
-      <button className="h-10 w-10 rounded-xl border border-zinc-200 text-lg font-black disabled:opacity-40" disabled={busy} onClick={() => updatePlayer(player.jogador_id, { [field]: player[field] + 1 })} aria-label={`Adicionar ${title.toLowerCase()} de ${player.nome}`}>+</button>
+      <button className="h-11 w-11 shrink-0 rounded-xl border border-zinc-200 text-lg font-black disabled:opacity-40" disabled={busy} onClick={() => updatePlayer(player.jogador_id, { [field]: player[field] + 1 })} aria-label={`Adicionar ${title.toLowerCase()} de ${player.nome}`}>+</button>
     </div>)}
-  </div>;
+    </div>
+  </details>;
 }
 
 function goalWarning(match: Match) {

@@ -2,6 +2,7 @@
 
 import { RefreshCw, Shuffle, Users } from "lucide-react";
 import { useEffect, useState } from "react";
+import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
@@ -242,7 +243,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       {listClosed && !hasPlayersToDraw ? <Feedback tone="neutral" text="Nenhum participante disponível para sorteio." /> : null}
       {adjustMode ? <Feedback tone="neutral" text="Toque em um jogador e depois em outro jogador de outro time para trocar." /> : null}
 
-      {isLoading ? <Feedback tone="neutral" text="Carregando times..." /> : null}
+      {isLoading ? <LoadingCards label="Carregando times..." /> : null}
 
       {!canShowTeams && !isLoading && !error ? (
         <Card>
@@ -253,6 +254,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
       {canShowTeams && draw ? (
         <div className="order-10 space-y-3">
+          <p className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-zinc-600">Composição dos times<span className="rounded-full bg-zinc-100 px-3 py-1">{confirmed ? "Confirmado" : "Rascunho"}</span></p>
           {draw.teams.map((team) => (
             <TeamCard
               key={team.id}
@@ -267,10 +269,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
       {canShowTeams && !draw && !isLoading && !error ? (
         <Card className="order-10">
-          <p className="text-base font-black">Nenhum sorteio feito ainda.</p>
-          <p className="mt-1 text-sm font-bold text-zinc-600">
-            {organizer ? "Feche a lista e toque em Sortear Times." : "Aguarde a confirmacao dos organizadores."}
-          </p>
+          <EmptyState icon={Users} title="Os times ainda não foram sorteados." description={organizer ? "Feche a lista para sortear e confirmar a composição dos times." : "Assim que forem confirmados, seus companheiros aparecem aqui."} />
         </Card>
       ) : null}
     </section>
@@ -343,14 +342,14 @@ function TeamCard({
   onPlayerClick: (player: TeamPlayer) => void;
 }) {
   return (
-    <Card className="space-y-2 border-t-2 border-red-600">
+    <Card className="space-y-2 border-t-2 border-neutral-950">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-black">Time {team.number}</h3>
+          <h3 className="break-words text-lg font-black">{team.name}</h3>
           <p className="text-xs font-bold text-zinc-600">{team.players.length} jogadores</p>
         </div>
-        <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700">
-          {team.name}
+        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black text-zinc-700">
+          #{String(team.number).padStart(2, "0")}
         </span>
       </div>
       <div className="divide-y divide-zinc-100">
@@ -378,13 +377,9 @@ function RoundStatusBadge({ status }: { status: RoundStatus }) {
   };
 
   return (
-    <div className="rounded-[16px] bg-white p-3 ring-1 ring-black/5">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-bold">{labels[status]}</p>
-        <span className="rounded-full bg-red-50 px-2 py-1 text-[9px] font-bold uppercase text-red-700">
-          {status.replace("_", " ")}
-        </span>
-      </div>
+    <div className="flex items-center gap-2 rounded-[16px] bg-white p-3 ring-1 ring-black/5">
+      <Users size={16} aria-hidden="true" className="text-zinc-500" />
+      <p className="text-xs font-bold">{labels[status]}</p>
     </div>
   );
 }
@@ -422,7 +417,7 @@ function Feedback({ text, tone }: { text: string; tone: "error" | "success" | "n
     neutral: "bg-zinc-50 text-zinc-700 ring-zinc-100",
   }[tone];
 
-  return <p className={`rounded-[16px] p-3 text-sm font-bold ring-1 ${toneClass}`}>{text}</p>;
+  return <p role={tone === "error" ? "alert" : tone === "success" ? "status" : undefined} className={`rounded-[16px] p-3 text-sm font-bold ring-1 ${toneClass}`}>{text}</p>;
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {

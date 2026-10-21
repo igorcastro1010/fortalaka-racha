@@ -6,6 +6,7 @@ import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { getRoundMatches } from "@/lib/matches/repository";
 import { RoundForm } from "./RoundForm";
 import { OwnRegistration } from "./OwnRegistration";
+import { LoadingCards, EmptyState } from "@/components/ui/ScreenState";
 import { RoundSummary } from "./RoundSummary";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import {
@@ -255,7 +256,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
         </p>
       </div>
 
-      {isLoading ? <Feedback tone="neutral" text="Carregando rodada..." /> : null}
+      {isLoading ? <LoadingCards label="Carregando rodada..." /> : null}
       {error ? <Feedback tone="error" text={error} /> : null}
       {message ? <Feedback tone="success" text={message} /> : null}
 
@@ -274,8 +275,8 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
           </Card>
 
           {organizer && round.status !== "finalizado" ? (
-            <details className="rounded-[18px] border border-zinc-200 bg-white p-4">
-              <summary className="flex min-h-6 cursor-pointer list-none items-center justify-center gap-2 text-sm font-bold text-neutral-950 [&::-webkit-details-marker]:hidden"><Plus size={18} /> Adicionar jogador</summary>
+            <details className="rounded-[18px] border border-zinc-200 bg-white px-3 py-1">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 text-sm font-bold text-neutral-950 [&::-webkit-details-marker]:hidden"><Plus size={18} /> Adicionar jogador</summary>
               <div className="mt-4 space-y-3">
               <select
                 value={selectedProfileId}
@@ -405,7 +406,7 @@ function ParticipantSection({
     <Card>
       <div className="mb-2.5 flex items-center justify-between">
         <h3 className="text-lg font-black">{title}</h3>
-        <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700">
+        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black text-zinc-700">
           {participants.length}
         </span>
       </div>
@@ -427,7 +428,7 @@ function ParticipantSection({
                   aria-label={`Categoria de ${participant.name}`}
                   value={participant.type === "suplente" ? "suplente" : "linha"}
                   onChange={(event) => onUpdate(participant, "type", event.target.value)}
-                  className="h-9 rounded-[13px] border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"
+                  className="h-11 rounded-[13px] border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"
                 >
                   <option value="linha">Participante</option>
                   <option value="suplente">Suplente</option>
@@ -436,20 +437,20 @@ function ParticipantSection({
                   aria-label={`Presença de ${participant.name}`}
                   value={participant.status}
                   onChange={(event) => onUpdate(participant, "status", event.target.value)}
-                  className="h-9 rounded-[13px] border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"
+                  className="h-11 rounded-[13px] border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"
                 >
                   <option value="confirmado">Confirmado</option>
                   <option value="ausente">Ausente</option>
                   <option value="removido">Removido</option>
                 </select>
-                <button onClick={() => onRemove(participant)} className="col-span-2 flex min-h-10 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white text-xs font-bold text-red-600"><Trash2 size={15} /> Remover da rodada</button>
+                <button onClick={() => onRemove(participant)} className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white text-xs font-bold text-red-600"><Trash2 size={15} /> Remover da rodada</button>
               </div>
               </details>
             ) : null}
           </div>
         ))}
         {!participants.length ? (
-          <p className="py-2 text-sm text-zinc-500">Nenhum participante</p>
+          <EmptyState title="Ninguém por aqui ainda" description="Os jogadores aparecem nesta lista quando forem inscritos." />
         ) : null}
       </div>
     </Card>
@@ -476,7 +477,7 @@ function Feedback({ text, tone }: { text: string; tone: "error" | "success" | "n
     neutral: "bg-zinc-50 text-zinc-700 ring-zinc-100",
   }[tone];
 
-  return <p className={`rounded-[16px] p-3 text-sm font-bold ring-1 ${toneClass}`}>{text}</p>;
+  return <p role={tone === "error" ? "alert" : tone === "success" ? "status" : undefined} className={`rounded-[16px] p-3 text-sm font-bold ring-1 ${toneClass}`}>{text}</p>;
 }
 
 function getStatusLabel(status: string) {

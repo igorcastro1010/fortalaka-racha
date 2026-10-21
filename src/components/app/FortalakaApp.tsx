@@ -8,7 +8,6 @@ import {
   MapPin,
   Star,
   Trophy,
-  UserPlus,
   Users,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -25,10 +24,11 @@ import { PlayerStatisticsCard } from "@/components/players/StatisticsViews";
 import { EvaluationArea } from "@/components/ratings/EvaluationArea";
 import { ResultsScreen } from "@/components/results/ResultsScreen";
 import { useCurrentRound } from "@/components/rounds/useCurrentRound";
-import { RoundLoadStatus, RoundSummary } from "@/components/rounds/RoundSummary";
+import { RoundLoadStatus } from "@/components/rounds/RoundSummary";
 import { getRoundMatches } from "@/lib/matches/repository";
+import { RoundProgress } from "@/components/rounds/RoundProgress";
 import { OwnRegistration } from "@/components/rounds/OwnRegistration";
-import { getRoleLabel, type Profile } from "@/lib/auth/roles";
+import type { Profile } from "@/lib/auth/roles";
 import { getEvaluationState, type EvaluationState } from "@/lib/ratings/repository";
 import { createClient } from "@/lib/supabase/client";
 
@@ -69,12 +69,12 @@ export function FortalakaApp({ profile }: { profile: Profile }) {
 
 function AppHeader({ profile, onOpenProfile }: { profile: Profile; onOpenProfile: () => void }) {
   return (
-    <header className="mb-4 flex items-center justify-between">
+    <header className="mb-4 flex min-h-14 items-center justify-between gap-3 border-b border-black/5 pb-3">
       <div className="flex items-center gap-3">
         <LogoMark size="header" />
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-red-600">Racha</p>
-          <h1 className="text-[25px] font-black uppercase leading-none tracking-normal">Fortalaka</h1>
+          <h1 className="text-[23px] font-black uppercase leading-none tracking-normal">Fortalaka</h1>
         </div>
       </div>
       <ProfileButton profile={profile} onClick={onOpenProfile} />
@@ -106,79 +106,37 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
   const displayName = getDisplayName(profile);
   const firstName = getFirstName(displayName);
 
-  return (
-    <section className="space-y-5">
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <LogoMark size="header" />
-          <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-red-600">Racha</p>
-            <h1 className="truncate text-[24px] font-black uppercase leading-none tracking-normal text-neutral-950">
-              Fortalaka
-            </h1>
+  return <section className="space-y-4">
+    <AppHeader profile={profile} onOpenProfile={onOpenProfile} />
+    <div><p className="text-xs font-medium text-zinc-600">Olá, {firstName}</p><h2 className="mt-1 text-[28px] font-black leading-tight tracking-tight">Seu próximo jogo.</h2></div>
+    <RoundLoadStatus loading={loading && !round} error={error} empty={!round} retry={retry} />
+    {!error && round && <>
+      <Card className="overflow-hidden !p-0">
+        <div className="bg-neutral-950 p-4 text-white">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Próximo Racha</p>
+          <h3 className="mt-1 break-words text-[23px] font-black leading-tight">{round.roundName}</h3>
+          <span className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide">{{aberto: "Lista aberta", lista_fechada: "Lista fechada", times_confirmados: "Times confirmados", em_andamento: "Em andamento", finalizado: "RODADA FINALIZADA"}[round.status]}</span>
+        </div>
+        <div className="space-y-3 p-4">
+          <div className="grid grid-cols-2 gap-2">
+            <InfoBlock icon={CalendarDays} label="Data" value={round.date ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${round.date}T12:00:00Z`)) : "A definir"} />
+            <InfoBlock icon={Clock3} label="Horário" value={round.time?.slice(0, 5) ?? "A definir"} />
           </div>
+          <p className="flex items-start gap-2 text-xs font-medium leading-relaxed text-zinc-600"><MapPin size={16} className="mt-0.5 shrink-0" /><span className="min-w-0 break-words">{round.address ?? "Endereço a definir"}</span></p>
+          <div className="flex flex-wrap items-baseline gap-x-2 rounded-xl bg-zinc-50 px-3 py-2"><span className="text-2xl font-black tabular-nums">{counts.fieldPlayers}</span><span className="text-xs font-bold text-zinc-700">participantes</span><span className="ml-auto text-xs text-zinc-600">{counts.substitutes} suplentes</span></div>
+          <OwnRegistration key={round.roundId} compact round={round} profile={profile} onUpdated={retry} />
+          <button onClick={onOpenRacha} className="min-h-11 w-full rounded-xl border border-zinc-200 text-xs font-black uppercase">Ver racha</button>
         </div>
-        <ProfileButton profile={profile} onClick={onOpenProfile} />
-      </header>
-
-      <div className="space-y-2 pb-1">
-        <p className="text-[13px] font-medium text-zinc-600">Olá, {firstName} · {getRoleLabel(profile.role)}</p>
-        <h2 className="text-[32px] font-black leading-[1.08] tracking-tight text-neutral-950">
-          Pronto pra quinta?
-        </h2>
-      </div>
-
-      <HomeEvaluationCard onOpenEvaluate={onOpenEvaluate} />
-      {!loading && !error && round && <OwnRegistration key={round.roundId} round={round} profile={profile} onUpdated={retry} />}
-
-      <RoundLoadStatus loading={loading} error={error} empty={!round} retry={retry} />
-      {!loading && !error && round && <RoundSummary round={round} />}
-      <Card className="space-y-4 rounded-[24px] border-t-[3px] border-red-600 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.06)]">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-red-600">Próximo Racha</p>
-          <span className="shrink-0 rounded-full bg-neutral-950 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
-            Quinta
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <InfoBlock icon={CalendarDays} label="Data" value={round?.date ? new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${round.date}T12:00:00Z`)) : "A definir"} />
-          <InfoBlock icon={Clock3} label="Horário" value={round?.time?.slice(0, 5) ?? "A definir"} />
-        </div>
-
-        <div className="flex min-w-0 items-start gap-2.5 rounded-[14px] bg-zinc-50 px-3 py-3 text-[13px] font-semibold leading-relaxed text-zinc-800">
-          <MapPin size={18} className="mt-0.5 shrink-0 text-red-600" />
-          <span className="min-w-0 break-words">{round?.address ?? "Endereço a definir"}</span>
-        </div>
-
-        <div className="h-px bg-zinc-100" />
-
-        <div className="grid grid-cols-2 gap-2">
-          <HomeCount icon={Users} value={counts.fieldPlayers} label="Participantes" />
-          <HomeCount icon={UserPlus} value={counts.substitutes} label="Suplentes" />
-        </div>
-
-        <button
-          onClick={onOpenRacha}
-          className="mt-1 h-14 w-full rounded-[16px] bg-red-600 text-sm font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98]"
-        >
-          Ver racha
-        </button>
       </Card>
-
-      <div className="flex items-center gap-3 rounded-[18px] bg-neutral-950 p-4 text-white shadow-sm">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-white/10 text-red-400">
-          <ClipboardList size={20} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-black">{participants.length} jogadores na lista</p>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-300">Confira os participantes e a organização da rodada em Ver Racha.</p>
-        </div>
+      <RoundProgress status={round.status} />
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={onOpenTeams} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-3 text-xs font-black ring-1 ring-black/5"><Users size={16} />VER TIMES</button>
+        <button onClick={onOpenResults} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-3 text-xs font-black ring-1 ring-black/5"><Trophy size={16} />VER RESULTADOS</button>
       </div>
-      {round && <button onClick={onOpenTeams} className="min-h-12 w-full rounded-[16px] bg-white px-4 text-sm font-black ring-1 ring-black/5">VER TIMES</button>}
-      {matches?.roundId === roundId && matches && matches.count > 0 && <button onClick={onOpenResults} className="min-h-12 w-full rounded-[16px] bg-white px-4 text-sm font-black ring-1 ring-black/5">VER RESULTADOS · {matches.count} partidas</button>}
-    </section>
-  );
+      {matches?.roundId === roundId && matches && matches.count > 0 && <p className="text-center text-xs text-zinc-600">{matches.count} partidas na rodada</p>}
+    </>}
+    <HomeEvaluationCard onOpenEvaluate={onOpenEvaluate} />
+  </section>;
 }
 
 function HomeEvaluationCard({ onOpenEvaluate }: { onOpenEvaluate: () => void }) {
@@ -221,18 +179,6 @@ function InfoBlock({ icon: Icon, label, value }: { icon: LucideIcon; label: stri
   );
 }
 
-function HomeCount({ icon: Icon, value, label }: { icon: LucideIcon; value: number; label: string }) {
-  return (
-    <div className="rounded-[16px] bg-zinc-50 p-2.5 text-center ring-1 ring-zinc-100">
-      <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-[9px] bg-white text-red-600 ring-1 ring-zinc-200">
-        <Icon size={17} />
-      </div>
-      <p className="mt-2 text-[26px] font-black leading-none tabular-nums text-neutral-950">{value}</p>
-      <p className="mt-1.5 text-[10px] font-semibold text-zinc-600">{label}</p>
-    </div>
-  );
-}
-
 function ProfileScreen({ profile }: { profile: Profile }) {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -246,8 +192,7 @@ function ProfileScreen({ profile }: { profile: Profile }) {
 
   return (
     <section className="space-y-4">
-      <PlayerPerformance profile={profile} />
-      <PlayerStatisticsCard playerId={profile.id} />
+      <PlayerPerformance profile={profile}><PlayerStatisticsCard playerId={profile.id} compact /></PlayerPerformance>
       <ProfilePhoto profile={profile} />
 
       <button
@@ -274,11 +219,11 @@ function BottomNav({ activeTab, onChange }: { activeTab: Tab; onChange: (tab: Ta
               key={tab.id}
               aria-current={isActive ? "page" : undefined}
               onClick={() => onChange(tab.id)}
-              className={`flex min-w-0 h-[66px] flex-col items-center justify-center gap-1 rounded-[16px] text-[10px] font-black transition hover:bg-zinc-100 active:scale-95 ${
-                isActive ? "bg-red-50 text-red-700 ring-1 ring-red-100" : "text-zinc-700"
+              className={`flex min-w-0 h-[60px] flex-col items-center justify-center gap-1 rounded-[16px] text-[10px] font-black transition active:scale-95 ${
+                isActive ? "bg-neutral-950 text-white shadow-sm" : "text-zinc-600"
               }`}
             >
-              <Icon size={23} strokeWidth={isActive ? 2.7 : 2.3} />
+              <Icon size={22} aria-hidden="true" strokeWidth={isActive ? 2.5 : 2} />
               <span>{tab.label}</span>
             </button>
           );

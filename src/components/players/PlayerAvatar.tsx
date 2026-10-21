@@ -6,12 +6,13 @@ import { useState } from "react";
 type PlayerAvatarProps = {
   name: string;
   avatarUrl?: string | null;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 };
 
 const sizes = {
   sm: "h-10 w-10 text-xs",
   md: "h-11 w-11 text-xs",
+  lg: "h-14 w-14 text-base",
 };
 
 export function PlayerAvatar({ name, avatarUrl, size = "md" }: PlayerAvatarProps) {
@@ -24,8 +25,8 @@ export function PlayerAvatar({ name, avatarUrl, size = "md" }: PlayerAvatarProps
         <Image
           src={avatarUrl}
           alt={name}
-          width={size === "sm" ? 40 : 44}
-          height={size === "sm" ? 40 : 44}
+          width={size === "sm" ? 40 : size === "lg" ? 56 : 44}
+          height={size === "sm" ? 40 : size === "lg" ? 56 : 44}
           onError={() => setFailedUrl(avatarUrl)}
           unoptimized
           className="h-full w-full object-cover"

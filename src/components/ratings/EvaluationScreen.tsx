@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Users } from "lucide-react";
+import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { attributes } from "@/lib/ratings/summary";
 import { getEvaluationState, saveEvaluation, type EvaluationPlayer, type EvaluationScores, type EvaluationState } from "@/lib/ratings/repository";
@@ -93,7 +95,7 @@ export function EvaluationScreen({ roundId }: { roundId?: string }) {
       const next = await getEvaluationState(roundId);
       setState(next);
       setSelected(null);
-      setMessage("Avaliação enviada.");
+      setMessage("Avaliação enviada ✓");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Nao foi possivel enviar a avaliacao.");
     } finally {
@@ -108,7 +110,7 @@ export function EvaluationScreen({ roundId }: { roundId?: string }) {
       <p className="mt-0.5 text-sm font-bold text-zinc-600">Notas de 1 a 5 para seus companheiros</p>
     </div>
 
-    {loading && <Status tone="neutral" text="Carregando avaliacoes..." />}
+    {loading && <LoadingCards label="Carregando avaliacoes..." />}
     {error && <div role="alert" className="rounded-[16px] bg-red-50 p-3 text-sm font-bold text-red-700 ring-1 ring-red-100"><p>{error}</p><button onClick={reload} className="mt-2 min-h-10 underline">Tentar novamente</button></div>}
     {message && <Status tone="success" text={message} />}
 
@@ -119,22 +121,21 @@ export function EvaluationScreen({ roundId }: { roundId?: string }) {
     {state && <Card className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-wide text-red-600">Avalie seu time</p>
           <h3 className="text-lg font-black">{state.roundName}</h3>
         </div>
         <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${state.open ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}>{state.open ? "Aberta" : "Fechada"}</span>
       </div>
       <p aria-live="polite" className="text-sm font-bold text-zinc-600">{state.players.filter(player => player.avaliado).length} de {state.players.length} companheiros avaliados</p>
       <div className="divide-y divide-zinc-100">
-        {state.players.map(player => <div key={player.jogador_id} className="flex min-h-20 items-center gap-3 py-3">
+        {state.players.map(player => <div key={player.jogador_id} className="flex min-h-16 items-center gap-3 py-2">
           <PlayerAvatar name={player.nome} avatarUrl={player.avatar_url} />
           <div className="min-w-0 flex-1">
             <p className="break-words text-sm font-black">{player.nome}</p>
-            <p className={`mt-1 text-xs font-bold ${player.avaliado ? "text-emerald-700" : "text-amber-700"}`}>Status: {player.avaliado ? "Avaliado ✓" : "Pendente"}</p>
+            <p className={`mt-1 text-xs font-bold ${player.avaliado ? "text-emerald-700" : "text-amber-700"}`}>{player.avaliado ? "Avaliado ✓" : "Pendente"}</p>
           </div>
           {(state.open || player.avaliado) && <button onClick={() => openPlayer(player)} disabled={saving || loading || Boolean(error) || (state.open && !state.canEvaluate)} aria-label={`${state.open ? player.avaliado ? "Editar avaliação de" : "Avaliar" : "Ver avaliação de"} ${player.nome}`} className="min-h-11 shrink-0 rounded-xl bg-neutral-950 px-3 text-xs font-black text-white disabled:opacity-50">{state.open ? player.avaliado ? "EDITAR" : "AVALIAR" : "VER"}</button>}
         </div>)}
-        {!state.players.length && <p className="py-3 text-sm font-bold text-zinc-500">Nenhum companheiro elegivel.</p>}
+        {!state.players.length && <EmptyState icon={Users} title="Nenhum companheiro elegível" description="Seus companheiros aparecem aqui após participarem de uma partida finalizada no mesmo time." />}
       </div>
     </Card>}
 
@@ -168,5 +169,5 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
 
 function Status({ text, tone }: { text: string; tone: "neutral" | "success" }) {
   const toneClass = tone === "success" ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-zinc-50 text-zinc-700 ring-zinc-100";
-  return <p className={`rounded-[16px] p-3 text-sm font-bold ring-1 ${toneClass}`}>{text}</p>;
+  return <p role={tone === "success" ? "status" : undefined} className={`rounded-[16px] p-3 text-sm font-bold ring-1 ${toneClass}`}>{text}</p>;
 }

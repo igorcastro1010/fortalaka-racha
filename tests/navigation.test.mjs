@@ -108,7 +108,7 @@ try {
   await click('Racha');await click('Reabrir lista');
   await waitFor(()=>button('Fechar lista'));
   await click('Resultados');
-  await waitFor(()=>document.body.textContent.includes('Nenhuma partida registrada.'));
+  await waitFor(()=>document.body.textContent.includes('Nenhuma partida ainda'));
   assert(!button('INICIAR PRIMEIRA PARTIDA'),'Fila antiga não habilita início com lista reaberta');
   assert(!button('Criar partida'));
   await click('Racha');await click('Fechar lista');
@@ -181,11 +181,11 @@ try {
   await receiveRating(raters[0].jogador_id,[4,5,3,4,5]);
   await click('Abrir meu perfil');
   await waitFor(()=>document.body.textContent.includes('A nota aparece com 2 respostas.'));
-  assert(!document.querySelector('svg polygon[stroke="#bef264"]'),'Uma resposta ainda não desenha radar');
+  assert(!document.querySelector('svg polygon[stroke="#f87171"]'),'Uma resposta ainda não desenha radar');
   await receiveRating(raters[1].jogador_id,[5,5,4,4,5]);
   await act(async()=>window.dispatchEvent(new window.Event('focus')));
   await waitFor(()=>document.querySelector('[aria-label="Nota geral: 88"]'));
-  assert(document.querySelector('svg polygon[stroke="#bef264"]'),'Duas respostas desenham radar');
+  assert(document.querySelector('svg polygon[stroke="#f87171"]'),'Duas respostas desenham radar');
   assert(document.querySelector('svg[aria-label*="Passe: 9 de 10"]'));
   await click('Resultados');await click('Ranking');
   await waitFor(()=>document.querySelector('article [aria-label="Nota media 88"]'));

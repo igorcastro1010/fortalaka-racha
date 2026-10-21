@@ -21,8 +21,9 @@ export function LogoMark({
         src="/fortalaka-escudo.jpeg"
         alt="Escudo oficial Fortalaka"
         fill
-        priority={priority}
-        sizes={size === "login" ? "144px" : size === "profile" ? "80px" : size === "loading" ? "96px" : "56px"}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : undefined}
+        sizes={size === "login" ? "144px" : size === "profile" ? "80px" : size === "loading" ? "96px" : size === "header" ? "48px" : "56px"}
         className={size === "login" || size === "loading" || size === "header" ? "object-cover" : "object-contain p-[5px]"}
       />
     </div>
