@@ -22,7 +22,7 @@ export function ResultsScreen({ profile }: { profile: Profile }) {
       <RoundLoadStatus loading={loading} error={error} empty={!round} retry={retry} />
       {!loading && !error && round && <>
         <RoundSummary round={round.status === "times_confirmados" && startedRound === round.roundId ? { ...round, status: "em_andamento" } : round} />
-        <MatchesPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} onRoundStarted={onRoundStarted} organizer={isOrganizer(profile) && profile.active} />
+        <MatchesPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} roundDate={round.date} onRoundStarted={onRoundStarted} organizer={isOrganizer(profile) && profile.active} />
       </>}
     </>}
   </section>;

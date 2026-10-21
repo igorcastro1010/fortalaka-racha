@@ -111,6 +111,7 @@ try {
   await waitFor(()=>document.body.textContent.includes('Nenhuma partida ainda'));
   assert(!button('INICIAR PRIMEIRA PARTIDA'),'Fila antiga não habilita início com lista reaberta');
   assert(!button('Criar partida'));
+  assert(!document.querySelector('section[aria-label="Resumo para compartilhar"]'),'Rodada aberta não oferece compartilhamento final');
   await click('Racha');await click('Fechar lista');
   await waitFor(()=>button('Reabrir lista'));
   await click('Times');await click('Confirmar times');
@@ -139,6 +140,18 @@ try {
   await waitFor(()=>document.querySelector('dialog')?.open);
   await click('FINALIZAR');
   await waitFor(()=>document.body.textContent.includes('RODADA FINALIZADA'));
+  await click('Resultados');
+  await waitFor(()=>document.querySelector('section[aria-label="Resumo para compartilhar"]'));
+  const shareLink=[...document.querySelectorAll('a')].find(a=>a.textContent.includes('COMPARTILHAR NO WHATSAPP'));
+  assert(shareLink,'Rodada finalizada oferece o link de compartilhamento');
+  const sharedText=new URL(shareLink.href).searchParams.get('text');
+  assert(sharedText.includes('Time 1 2 x 0 Time 2'));
+  assert(sharedText.includes('Conta teste — 1 gol'));
+  assert(sharedText.includes('*MAIS VITÓRIAS*'));
+  assert(button('COPIAR RESULTADO'));
+  await click('VER RESUMO');
+  assert([...document.querySelectorAll('dialog')].some(d=>d.open && d.textContent.includes(sharedText)));
+  await click('Fechar resumo');
   await click('Avaliação');
   await click('ABRIR AVALIAÇÕES');
   await waitFor(()=>document.body.textContent.includes('ABERTA'));
@@ -221,6 +234,9 @@ try {
   await act(async()=>document.querySelector('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})));
   await waitFor(()=>document.body.textContent.includes('Racha Fortalaka') && button('Fechar lista'));
   assert(document.body.textContent.includes('Quadra teste'));
+  await click('Resultados');
+  await waitFor(()=>document.body.textContent.includes('Nenhuma partida ainda'));
+  assert(!document.querySelector('section[aria-label="Resumo para compartilhar"]'),'Nova rodada não compartilha partidas da rodada antiga');
   console.log('OK: cinco abas; processos separados; partida → rodada → avaliações; roles; envio/edição sem duplicata; Ranking e Perfil acessíveis.');
 } finally {
   if(root)await testAct(async()=>root.unmount());

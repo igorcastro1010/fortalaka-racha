@@ -5,13 +5,15 @@ import { createMatch, createNextMatch, getRoundMatches, saveMatch, type Match, t
 import { Trophy } from "lucide-react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { RoundShareCard } from "@/components/results/RoundShareCard";
 
 const button = "min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-bold disabled:opacity-50";
 
-export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCountChange, onRoundStarted }: {
+export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null, onFinalizedCountChange, onRoundStarted }: {
   roundId: string;
   organizer: boolean;
   roundStatus: string;
+  roundDate?: string | null;
   onRoundStarted?: (roundId: string) => void;
   onFinalizedCountChange?: (roundId: string, count: number | null) => void;
 }) {
@@ -134,7 +136,9 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
     setDraft(current => current ? { ...current, [key]: Math.max(0, current[key] + delta) } : null);
   }
 
-  return <section className="flex flex-col gap-3 rounded-[22px] bg-white p-4 ring-1 ring-black/5">
+  return <>
+    {currentStatus === "finalizado" && !loading && !error && !busy && !draft && <RoundShareCard roundId={roundId} source={{ roundId, date: roundDate, partidas: state.partidas }} />}
+    <section className="flex flex-col gap-3 rounded-[22px] bg-white p-4 ring-1 ring-black/5">
     <div>
       <h3 className="text-xl font-black">Partidas</h3>
       <p className="mt-1 text-xs text-zinc-600">Historico e estatisticas desta rodada</p>
@@ -243,7 +247,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, onFinalizedCount
         <button disabled={busy} className={button} onClick={() => setDraft(null)}>Fechar edicao sem salvar</button>
       </div>
     </div>}
-  </section>;
+  </section></>;
 }
 
 function ScoreControl({ label, value, disabled, onMinus, onPlus }: { label: string; value: number; disabled: boolean; onMinus: () => void; onPlus: () => void }) {
