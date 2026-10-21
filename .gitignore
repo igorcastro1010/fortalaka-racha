@@ -40,6 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-graphify-out/
 
 .vercel
+
+# local development knowledge graph
+graphify-out/

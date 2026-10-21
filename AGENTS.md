@@ -22,6 +22,14 @@ Rules:
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 - A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.
 
+### RACHA FORTALAKA: local graph workflow
+
+- Keep `graphify-out/` local and ignored. Version the integration and documentation, not generated graphs.
+- If the graph is missing, run `graphify extract . --code-only` followed by `graphify cluster-only . --no-label`. After `git pull`, run `graphify update .`.
+- Prefer bounded queries (`--budget 1000`). Portuguese questions can match tests first; refine with an exact symbol such as `--seed drawTeams` or `--seed EvaluationArea`.
+- Keep extraction local: respect `.gitignore`, exclude environment files, credentials, dependencies and builds, and do not enable external semantic backends for routine updates. Graph output is not proof of runtime behavior or production database state.
+- See `docs/graphify.md` for the validated CLI version, installation on another PC and commands.
+
 ## Skills do RACHA FORTALAKA
 
 Consulte Graphify primeiro, conforme as regras acima. A skill instalada esta em `.codex/skills/graphify/SKILL.md`.
