@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { drawTeams, getTeamCount, hasCompleteTeams, swapPlayers } from '../src/lib/teams/draw.ts';
 
-for (const [count, sizes] of [[5,[5]],[15,[5,5,5]],[18,[5,5,4,4]],[4,[4]],[8,[4,4]],[10,[5,5]],[13,[5,4,4]],[20,[5,5,5,5]],[23,[5,5,5,4,4]]]) {
+for (const [count, sizes] of [[5,[5]],[6,[3,3]],[15,[5,5,5]],[18,[5,5,4,4]],[4,[4]],[8,[4,4]],[10,[5,5]],[13,[5,4,4]],[20,[5,5,5,5]],[23,[5,5,5,4,4]]]) {
   test(`${count} jogadores: equilíbrio, máximo 5, IDs únicos e fotos preservadas`, () => {
     const players=Array.from({length:count},(_,i)=>({id:`p${i}`,name:`Jogador ${i}`,avatarUrl:i===0?'https://example.invalid/foto.png':null}));
     const before=structuredClone(players); const draw=drawTeams(players);

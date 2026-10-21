@@ -73,6 +73,15 @@ await check('lista fechada bloqueia inscrição/saída; os cinco organizadores p
  await invalid(()=>db.query("select public.inscricao_rodada($1,'linha',true)",[round]),/lista está fechada/);
  for(const admin of organizers){await user(admin);assert.equal((await db.query("update public.racha_participantes set status='confirmado' where jogador_id=$1 and racha_id=$2 returning id",[players[0],round])).rows.length,1);}
 });
+await check('jogador não fecha/reabre lista, sorteia, confirma, altera placar ou encerra racha',async()=>{
+ await user(players[0]);
+ for(const state of ['lista_fechada','aberto','finalizado'])await invalid(()=>db.query('select public.alterar_estado_rodada($1,$2)',[round,state]),/Somente organizadores/);
+ await invalid(()=>db.query('select public.salvar_rascunho_times($1,0,$2)',[round,'[]']),/Somente organizadores/);
+ await invalid(()=>db.query('select public.confirmar_rascunho_times($1,0)',[round]),/Somente organizadores/);
+ await invalid(()=>db.query('select public.salvar_partida($1,0,0,0,$2,$3)',[randomUUID(),'finalizada','[]']),/Somente organizadores/);
+ await invalid(()=>db.query('select public.finalizar_rodada($1)',[round]),/Somente organizadores/);
+ assert.equal(await scalar('select estado from public.rachas where id=$1',[round]),'lista_fechada');
+});
 await check('20 participantes, incluindo tipo legado, sem posições; ajuste persiste e confirmação reutiliza IDs',async()=>{
  const participants=(await db.query('select * from public.racha_participantes where racha_id=$1 order by nome',[round])).rows;
  const lines=participants.filter(p=>p.status==='confirmado' && p.tipo!=='suplente');
@@ -87,6 +96,19 @@ await check('20 participantes, incluindo tipo legado, sem posições; ajuste per
  assert.equal(state.teams.length,4);assert(state.teams.every(t=>t.players.length===5 && !('goalkeeper' in t)));
  await user(players[0]);assert.equal((await scalar('select public.ler_times_rodada()')).teams.length,0);
  await user();await db.query('select public.confirmar_rascunho_times($1,$2)',[round,await roundVersion()]);
+ const persisted=await scalar('select public.ler_times_rodada()');
+ assert.deepEqual(persisted.teams.map(t=>t.players.map(p=>p.id).sort()),payload.map(t=>[...t.jogadores].sort()));
+ // Reabrir invalida a confirmação, mas mantém IDs e composição sem apagar dados.
+ await db.query("select public.alterar_estado_rodada($1,'aberto')",[round]);
+ const reopened=await scalar('select public.ler_times_rodada()');
+ assert.equal(reopened.status,'aberto');assert.equal(reopened.confirmed,false);
+ assert.deepEqual(reopened.teams,persisted.teams);
+ assert.equal(await scalar('select count(*) from public.times where racha_id=$1 and confirmado',[round]),0);
+ await invalid(next,/Confirme os times/);
+ await invalid(async()=>db.query('select public.salvar_rascunho_times($1,$2,$3)',[round,await roundVersion(),JSON.stringify(payload)]),/Feche a lista/);
+ await db.query("select public.alterar_estado_rodada($1,'lista_fechada')",[round]);
+ await db.query('select public.confirmar_rascunho_times($1,$2)',[round,await roundVersion()]);
+ assert.deepEqual((await scalar('select public.ler_times_rodada()')).teams,persisted.teams);
  teams=(await read()).fila.order;
  assert.equal(teams.length,4);
  await user(players[0]);assert.equal((await scalar('select public.ler_times_rodada()')).teams.length,4);
@@ -114,9 +136,18 @@ await check('empate tira os dois; nova partida segue a fila; correção recalcul
  await finish(id,2,1);const queue=(await read()).fila.order;assert.equal(new Set(queue).size,4);assert.deepEqual(new Set(queue),new Set(teams));
 });
 await check('encerrar preserva fila e histórico; novas partidas/sorteios bloqueados; abrir separado',async()=>{
- const before=await read();await db.query('select public.finalizar_rodada($1)',[round]);
+ async function preservedData(){
+   const result={};
+   for(const table of ['racha_participantes','times','time_jogadores','partidas','partida_jogadores','eventos_partida','fila_times']){
+     result[table]=await scalar(`select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text),'[]'::jsonb) from public.${table} t`);
+   }
+   return result;
+ }
+ const before=await read(),stored=await preservedData();
+ await db.query('select public.finalizar_rodada($1)',[round]);
  const r=await row('select estado,finalizada_at,avaliacoes_abertas from public.rachas where id=$1',[round]);
  assert.equal(r.estado,'finalizado');assert(r.finalizada_at);assert.equal(r.avaliacoes_abertas,false);
+ assert.deepEqual(await preservedData(),stored,'Finalizar preserva participantes, composições, placares, eventos e fila');
  assert.deepEqual((await read()).fila.order,before.fila.order);assert.equal((await read()).partidas.length,before.partidas.length);
  await invalid(next,/finalizado/);
  await invalid(()=>db.query('select public.criar_partida($1,$2,$3)',[round,teams[0],teams[1]]),/times confirmados/);
@@ -144,8 +175,8 @@ await check('encerrar preserva fila e histórico; novas partidas/sorteios bloque
  await user(b.jogador_id);assert.equal(Number((await row('select * from public.medias_jogador($1)',[b.jogador_id])).passe),9);
 
 });
-await check('sorteio de 5, 10, 13, 15, 18, 20 e 23 participantes e fila dinâmica; sem posições ou validações de goleiros',async()=>{
- for(const count of [5,10,13,15,18,20,23]){
+await check('sorteio de 5, 6, 10, 13, 15, 18, 20 e 23 participantes; vitória e empate com 2 a 5 times',async()=>{
+ for(const count of [5,6,10,13,15,18,20,23]){
    await user();const rid=await scalar("insert into public.rachas(nome,data) values('Dinâmico','2026-10-22') returning id");
    for(const id of players.slice(0,count)){await user(id);await db.query("select public.inscricao_rodada($1,'linha',true)",[rid]);}
    await user();await db.query("select public.alterar_estado_rodada($1,'lista_fechada')",[rid]);
@@ -156,10 +187,30 @@ await check('sorteio de 5, 10, 13, 15, 18, 20 e 23 participantes e fila dinâmic
    await db.query('select public.confirmar_rascunho_times($1,$2)',[rid,await scalar('select versao from public.rachas where id=$1',[rid])]);
    const before=await scalar('select public.ler_partidas_rodada($1)',[rid]);
    if(k===1){await invalid(()=>db.query('select public.criar_proxima_partida($1,$2)',[rid,before.fila.version]),/dois times/);continue;}
+   // Vence o segundo time: permanece em campo; o primeiro vai ao fim.
    const pid=await scalar('select public.criar_proxima_partida($1,$2)',[rid,before.fila.version]);
    const match=(await scalar('select public.ler_partidas_rodada($1)',[rid])).partidas.find(m=>m.id===pid);
-   await db.query('select public.salvar_partida($1,$2,0,0,$3,$4)',[pid,match.versao,'finalizada',JSON.stringify(match.jogadores)]);
-   assert.deepEqual((await scalar('select public.ler_partidas_rodada($1)',[rid])).fila.order,[...before.fila.order.slice(2),...before.fila.order.slice(0,2)]);
+   assert.equal(match.jogadores.length,data[0].jogadores.length+data[1].jogadores.length);
+   assert.equal(new Set(match.jogadores.map(p=>p.jogador_id)).size,match.jogadores.length);
+   await db.query('select public.salvar_partida($1,$2,0,2,$3,$4)',[pid,match.versao,'finalizada',JSON.stringify(match.jogadores)]);
+   const victory=[before.fila.order[1],...before.fila.order.slice(2),before.fila.order[0]];
+   const afterVictory=await scalar('select public.ler_partidas_rodada($1)',[rid]);
+   assert.deepEqual(afterVictory.fila.order,victory);
+   assert.deepEqual(await scalar('select public.ler_partidas_rodada($1)',[rid]),afterVictory,'Nova leitura mantém fila e resultados');
+   // Empate na próxima partida: os dois saem e vão ao fim da fila.
+   const tieId=await scalar('select public.criar_proxima_partida($1,$2)',[rid,afterVictory.fila.version]);
+   const tie=(await scalar('select public.ler_partidas_rodada($1)',[rid])).partidas.find(m=>m.id===tieId);
+   assert.equal(tie.timeAId,victory[0]);assert.equal(tie.timeBId,victory[1]);
+   await db.query('select public.salvar_partida($1,$2,1,1,$3,$4)',[tieId,tie.versao,'finalizada',JSON.stringify(tie.jogadores)]);
+   const afterTie=await scalar('select public.ler_partidas_rodada($1)',[rid]);
+   const expected=[...victory.slice(2),...victory.slice(0,2)];
+   assert.deepEqual(afterTie.fila.order,expected);
+   assert.equal(new Set(afterTie.fila.order).size,k);
+   assert.deepEqual(afterTie.partidas.map(m=>m.id),[pid,tieId],'Histórico mantém ordem de criação');
+   const nextId=await scalar('select public.criar_proxima_partida($1,$2)',[rid,afterTie.fila.version]);
+   const nextMatch=(await scalar('select public.ler_partidas_rodada($1)',[rid])).partidas.find(m=>m.id===nextId);
+   assert.equal(nextMatch.timeAId,expected[0]);assert.equal(nextMatch.timeBId,expected[1]);
+   console.log(`  ${count} jogadores / ${k} times: composição, vitória, empate e próximo confronto OK`);
  }
 });
 // Simula upgrade real: roda a versão anterior, cria uma rodada com goleiros já jogada e migra.

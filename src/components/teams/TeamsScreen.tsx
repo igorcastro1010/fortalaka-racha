@@ -202,7 +202,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       {roundState ? <>
       <RoundStatusBadge status={roundStatus} />
 
-      <Card className="order-[35] flex items-center justify-between gap-3">
+      <Card className="order-[5] flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-600">
             <Users size={19} />
@@ -378,7 +378,7 @@ function RoundStatusBadge({ status }: { status: RoundStatus }) {
   };
 
   return (
-    <div className="order-[30] rounded-[16px] bg-white p-3 ring-1 ring-black/5">
+    <div className="rounded-[16px] bg-white p-3 ring-1 ring-black/5">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-bold">{labels[status]}</p>
         <span className="rounded-full bg-red-50 px-2 py-1 text-[9px] font-bold uppercase text-red-700">
