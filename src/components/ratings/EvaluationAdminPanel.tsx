@@ -76,7 +76,7 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
     {!organizer && open && <button onClick={() => onOpenEvaluate(roundId)} disabled={Boolean(error)} className="min-h-12 w-full rounded-[16px] bg-red-600 px-3 text-sm font-black text-white transition hover:bg-red-700 active:scale-[0.98] disabled:opacity-50">AVALIAR MEU TIME</button>}
     {organizer && <div className="grid grid-cols-2 gap-2">
       <button disabled={busy || !progress || progress.abertas || roundStatus !== "finalizado"} onClick={() => toggle(true)} className="min-h-11 rounded-xl bg-red-600 px-3 text-xs font-black uppercase text-white disabled:opacity-50">ABRIR AVALIAÇÕES</button>
-      <button disabled={busy || !progress?.abertas} onClick={() => toggle(false)} className="min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-black uppercase disabled:opacity-50">Fechar</button>
+      <button disabled={busy || !progress?.abertas} onClick={() => toggle(false)} className="min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-black uppercase disabled:opacity-50">FECHAR AVALIAÇÕES</button>
     </div>}
   </section>;
 }

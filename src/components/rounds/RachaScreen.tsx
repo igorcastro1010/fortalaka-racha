@@ -101,8 +101,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
     const participants = round?.participants ?? [];
 
     return {
-      goalkeepers: participants.filter((participant) => participant.type === "goleiro" && participant.status === "confirmado").length,
-      fieldPlayers: participants.filter((participant) => participant.type === "linha" && participant.status === "confirmado").length,
+      fieldPlayers: participants.filter((participant) => participant.type !== "suplente" && participant.status === "confirmado").length,
       substitutes: participants.filter((participant) => participant.type === "suplente").length,
       unavailable: participants.filter((participant) => participant.status === "ausente" || participant.status === "removido").length,
     };
@@ -268,9 +267,8 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
 
       {round ? (
         <>
-          <Card className="grid grid-cols-4 gap-2 p-3">
-            <MiniCount label="Goleiros" value={counts.goalkeepers} />
-            <MiniCount label="Linha" value={counts.fieldPlayers} />
+          <Card className="grid grid-cols-3 gap-2 p-3">
+            <MiniCount label="Participantes" value={counts.fieldPlayers} />
             <MiniCount label="Suplentes" value={counts.substitutes} />
             <MiniCount label="Fora" value={counts.unavailable} />
           </Card>
@@ -297,8 +295,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
                   onChange={(event) => setSelectedType(event.target.value as RoundParticipant["type"])}
                   className="h-11 rounded-[16px] border border-zinc-200 bg-zinc-50 px-3 text-sm font-bold outline-none"
                 >
-                  <option value="linha">Linha</option>
-                  <option value="goleiro">Goleiro</option>
+                  <option value="linha">Participante</option>
                   <option value="suplente">Suplente</option>
                 </select>
                 <select
@@ -372,15 +369,8 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
           ) : null}
 
           <ParticipantSection
-            title="Goleiros"
-            participants={round.participants.filter((participant) => participant.status !== "removido" && participant.type === "goleiro")}
-            editable={organizer && round.status !== "finalizado"}
-            onUpdate={handleUpdateParticipant}
-            onRemove={handleRemoveParticipant}
-          />
-          <ParticipantSection
-            title="Linha"
-            participants={round.participants.filter((participant) => participant.status !== "removido" && participant.type === "linha")}
+            title="Participantes"
+            participants={round.participants.filter((participant) => participant.status !== "removido" && participant.type !== "suplente")}
             editable={organizer && round.status !== "finalizado"}
             onUpdate={handleUpdateParticipant}
             onRemove={handleRemoveParticipant}
@@ -426,7 +416,7 @@ function ParticipantSection({
               <PlayerAvatar name={participant.name} avatarUrl={participant.avatarUrl} />
               <div className={`min-w-0 flex-1 ${editable ? "pr-11" : ""}`}>
               <p className="break-words text-sm font-black">{participant.name}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-zinc-600"><span>{getParticipantStatusLabel(participant.status)}</span><span>{participant.type === "goleiro" ? "Goleiro" : participant.type === "suplente" ? "Suplente" : "Linha"}</span></div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-zinc-600"><span>{getParticipantStatusLabel(participant.status)}</span><span>{participant.type === "suplente" ? "Suplente" : "Participante"}</span></div>
               </div>
             </div>
             {editable ? (
@@ -435,12 +425,11 @@ function ParticipantSection({
                 <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl bg-zinc-50 p-3">
                 <select
                   aria-label={`Categoria de ${participant.name}`}
-                  value={participant.type}
+                  value={participant.type === "suplente" ? "suplente" : "linha"}
                   onChange={(event) => onUpdate(participant, "type", event.target.value)}
                   className="h-9 rounded-[13px] border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"
                 >
-                  <option value="linha">Linha</option>
-                  <option value="goleiro">Goleiro</option>
+                  <option value="linha">Participante</option>
                   <option value="suplente">Suplente</option>
                 </select>
                 <select

@@ -20,7 +20,7 @@ create table storage.objects(id uuid primary key default gen_random_uuid(),bucke
 alter table storage.objects enable row level security;
 create function storage.foldername(text) returns text[] language sql immutable as $$select string_to_array($1,'/')$$;
 grant usage on schema storage to authenticated,anon;grant select,insert,update,delete on storage.objects to authenticated;`);
-for(const path of ['supabase/schema.sql','supabase/sorteio-times.sql','supabase/validacao-sorteio-avatars.sql','supabase/partidas-estatisticas.sql','supabase/avaliacoes.sql','supabase/finalizar-rodada.sql','supabase/entrada-avaliacoes.sql','supabase/fluxo-principal.sql'])await db.exec(readFileSync(path,'utf8'));
+for(const path of ['supabase/schema.sql','supabase/sorteio-times.sql','supabase/validacao-sorteio-avatars.sql','supabase/partidas-estatisticas.sql','supabase/avaliacoes.sql','supabase/finalizar-rodada.sql','supabase/entrada-avaliacoes.sql','supabase/fluxo-principal.sql','supabase/fluxo-sem-posicoes.sql'])await db.exec(readFileSync(path,'utf8'));
 const organizer=randomUUID(),viewer=randomUUID();const ids=Array.from({length:14},()=>randomUUID());
 for(const [i,id] of [organizer,viewer,...ids].entries())await db.query('insert into auth.users values($1,$2,$3)',[id,'test@example.invalid',JSON.stringify({name:i<2?'Conta teste':`Pessoa ${i-2}`})]);
 await db.query("update public.profiles set role='organizador' where id=$1",[organizer]);
@@ -101,6 +101,8 @@ createServer(async(req,res)=>{
   const parts=[];for await(const chunk of req)parts.push(chunk);const input=JSON.parse(Buffer.concat(parts).toString());const job=queue.then(()=>api(input));queue=job.catch(()=>{});
   res.setHeader('Content-Type','application/json');res.end(JSON.stringify(await job));return;
  }
+ const assetUrl=new URL(req.url??'/','http://127.0.0.1:3011');
+ if(assetUrl.pathname==='/fortalaka-escudo.jpeg'||(assetUrl.pathname==='/_next/image'&&assetUrl.searchParams.get('url')==='/fortalaka-escudo.jpeg')){res.setHeader('Content-Type','image/jpeg');res.end(readFileSync(resolve('public/fortalaka-escudo.jpeg')));return;}
  if(req.url==='/photo.png'){res.setHeader('Content-Type','image/png');res.end(photo);return;}
  if(req.url?.startsWith('/avatar/')){const image=uploaded.get(req.url.slice(8));if(image){res.setHeader('Content-Type',image.type);res.end(image.bytes);return;}}
  if(req.url?.endsWith('.png')){res.statusCode=404;res.end('missing');return;}

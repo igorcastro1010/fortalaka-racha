@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { assignGoalkeepers, changeGoalkeeper, drawTeams, getTeamCount, hasCompleteTeams, swapPlayers } from '../src/lib/teams/draw.ts';
+import { drawTeams, getTeamCount, hasCompleteTeams, swapPlayers } from '../src/lib/teams/draw.ts';
 
-for (const [count, sizes] of [[4,[4]],[8,[4,4]],[10,[5,5]],[13,[5,4,4]],[20,[5,5,5,5]],[23,[5,5,5,4,4]]]) {
+for (const [count, sizes] of [[5,[5]],[15,[5,5,5]],[18,[5,5,4,4]],[4,[4]],[8,[4,4]],[10,[5,5]],[13,[5,4,4]],[20,[5,5,5,5]],[23,[5,5,5,4,4]]]) {
   test(`${count} jogadores: equilíbrio, máximo 5, IDs únicos e fotos preservadas`, () => {
     const players=Array.from({length:count},(_,i)=>({id:`p${i}`,name:`Jogador ${i}`,avatarUrl:i===0?'https://example.invalid/foto.png':null}));
     const before=structuredClone(players); const draw=drawTeams(players);
@@ -26,19 +26,4 @@ test('rejeita sorteio vazio, duplicatas e composição inválida',()=>{
   assert.equal(hasCompleteTeams({teams:[{id:'t1',number:1,name:'Time',players:Array.from({length:6},(_,i)=>({id:String(i),name:String(i)}))}]}),false);
   const draw=drawTeams(Array.from({length:8},(_,i)=>({id:String(i),name:String(i)})));draw.teams[0].players[0]=draw.teams[1].players[0];
   assert.equal(hasCompleteTeams(draw),false);
-});
-
-
-test('goleiros ficam separados; troca e ajuste da linha preservam associação sem duplicar',()=>{
-  const original=drawTeams(Array.from({length:10},(_,i)=>({id:`p${i}`,name:`Jogador ${i}`})));
-  const keepers=[{id:'g1',name:'Goleiro 1'},{id:'g2',name:'Goleiro 2'}];
-  const draw=assignGoalkeepers(original,keepers);
-  assert(draw.teams.every(t=>t.players.length===5));
-  assert(draw.teams.every(t=>!t.players.some(p=>p.id.startsWith('g'))));
-  const swapped=changeGoalkeeper(draw,draw.teams[0].id,keepers[1]);
-  assert.deepEqual(swapped.teams.map(t=>t.goalkeeper.id),['g2','g1']);
-  assert.deepEqual(draw.teams.map(t=>t.goalkeeper.id),['g1','g2']);
-  const adjusted=swapPlayers(swapped,swapped.teams[0].players[0].id,swapped.teams[1].players[0].id);
-  assert.deepEqual(adjusted.teams.map(t=>t.goalkeeper.id),['g2','g1']);
-  assert.equal(assignGoalkeepers(original,[]).teams[0].goalkeeper,null);
 });

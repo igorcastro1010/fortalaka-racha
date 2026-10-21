@@ -10,7 +10,6 @@ export type DrawTeam = {
   name: string;
   number: number;
   players: TeamPlayer[];
-  goalkeeper?: TeamPlayer | null;
 };
 
 export type TeamDraw = {
@@ -25,7 +24,7 @@ export function getTeamCount(playerCount: number) {
 
 export function drawTeams(players: TeamPlayer[]): TeamDraw {
   if (!players.length) {
-    throw new Error("Nenhum jogador de linha disponível para sorteio.");
+    throw new Error("Nenhum participante disponível para sorteio.");
   }
   if (new Set(players.map((p) => p.id)).size !== players.length) {
     throw new Error("Existem jogadores repetidos na lista do sorteio.");
@@ -77,15 +76,6 @@ export function swapPlayers(draw: TeamDraw, fromPlayerId: string, toPlayerId: st
   nextTeams[to.teamIndex].players[to.playerIndex] = fromPlayer;
 
   return { teams: nextTeams };
-}
-
-export function assignGoalkeepers(draw: TeamDraw, goalkeepers: TeamPlayer[]): TeamDraw {
-  return { teams: draw.teams.map((team, index) => ({ ...team, goalkeeper: goalkeepers[index] ?? null })) };
-}
-
-export function changeGoalkeeper(draw: TeamDraw, teamId: string, goalkeeper: TeamPlayer | null): TeamDraw {
-  const previous = draw.teams.find(team => team.id === teamId)?.goalkeeper ?? null;
-  return { teams: draw.teams.map(team => ({ ...team, goalkeeper: team.id === teamId ? goalkeeper : goalkeeper && team.goalkeeper?.id === goalkeeper.id ? previous : team.goalkeeper })) };
 }
 
 export function hasCompleteTeams(draw: TeamDraw) {

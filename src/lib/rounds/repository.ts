@@ -192,7 +192,7 @@ export async function removeRoundParticipant(supabase: SupabaseClient, participa
   }
 }
 
-export async function setOwnRegistration(roundId: string, type: "linha" | "goleiro" | null, join: boolean) {
-  const { error } = await createClient().rpc("inscricao_rodada", { p_racha: roundId, p_tipo: type, p_entrar: join });
+export async function setOwnRegistration(roundId: string, join: boolean) {
+  const { error } = await createClient().rpc("inscricao_rodada", { p_racha: roundId, p_tipo: "linha", p_entrar: join });
   if (error) throw new Error(error.code === "PGRST202" ? "Aplique fluxo-principal.sql no Supabase para liberar inscrições." : error.message);
 }

@@ -6,7 +6,6 @@ import {
   Clock3,
   Home,
   MapPin,
-  Shield,
   Star,
   Trophy,
   UserPlus,
@@ -55,7 +54,7 @@ export function FortalakaApp({ profile }: { profile: Profile }) {
       <div className="mx-auto min-h-screen w-full max-w-[430px] bg-[#f3f3f4] shadow-2xl shadow-black/35">
         <div className="min-h-screen px-4 pb-[calc(104px+env(safe-area-inset-bottom))] pt-[calc(16px+env(safe-area-inset-top))]">
           {activeTab !== "home" && <AppHeader profile={profile} onOpenProfile={() => navigate("profile")} />}
-          {activeTab === "home" && <HomeScreen profile={profile} onOpenProfile={() => navigate("profile")} onOpenRacha={() => navigate("racha")} onOpenEvaluate={() => navigate("evaluate")} onOpenResults={() => navigate("results")} />}
+          {activeTab === "home" && <HomeScreen profile={profile} onOpenProfile={() => navigate("profile")} onOpenRacha={() => navigate("racha")} onOpenEvaluate={() => navigate("evaluate")} onOpenResults={() => navigate("results")} onOpenTeams={() => navigate("teams")} />}
           {activeTab === "racha" && <RachaScreen profile={profile} onOpenResults={() => navigate("results")} />}
           {activeTab === "teams" && <TeamsScreen profile={profile} />}
           {activeTab === "results" && <ResultsScreen profile={profile} />}
@@ -87,7 +86,7 @@ function ProfileButton({ profile, onClick }: { profile: Profile; onClick: () => 
   return <button onClick={onClick} aria-label="Abrir meu perfil" className="shrink-0 rounded-full p-1 ring-1 ring-black/5 focus-visible:outline-2 focus-visible:outline-red-600"><PlayerAvatar name={profile.name} avatarUrl={profile.avatar_url} /></button>;
 }
 
-function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpenProfile }: { profile: Profile; onOpenRacha: () => void; onOpenEvaluate: () => void; onOpenResults: () => void; onOpenProfile: () => void }) {
+function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpenTeams, onOpenProfile }: { profile: Profile; onOpenRacha: () => void; onOpenEvaluate: () => void; onOpenResults: () => void; onOpenTeams: () => void; onOpenProfile: () => void }) {
   const { round, loading, error, retry } = useCurrentRound();
   const [matches, setMatches] = useState<{ roundId: string; count: number } | null>(null);
   const roundId = round?.roundId;
@@ -101,8 +100,7 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
   }, [roundId]);
   const participants = round?.participants.filter(player => player.status === "confirmado") ?? [];
   const counts = {
-    goalkeepers: participants.filter(player => player.type === "goleiro" && player.status === "confirmado").length,
-    fieldPlayers: participants.filter(player => player.type === "linha" && player.status === "confirmado").length,
+    fieldPlayers: participants.filter(player => player.type !== "suplente" && player.status === "confirmado").length,
     substitutes: participants.filter(player => player.type === "suplente").length,
   };
   const displayName = getDisplayName(profile);
@@ -155,9 +153,8 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
 
         <div className="h-px bg-zinc-100" />
 
-        <div className="grid grid-cols-3 gap-2">
-          <HomeCount icon={Shield} value={counts.goalkeepers} label="Goleiros" />
-          <HomeCount icon={Users} value={counts.fieldPlayers} label="Linha" />
+        <div className="grid grid-cols-2 gap-2">
+          <HomeCount icon={Users} value={counts.fieldPlayers} label="Participantes" />
           <HomeCount icon={UserPlus} value={counts.substitutes} label="Suplentes" />
         </div>
 
@@ -178,6 +175,7 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
           <p className="mt-1 text-xs leading-relaxed text-zinc-300">Confira os participantes e a organização da rodada em Ver Racha.</p>
         </div>
       </div>
+      {round && <button onClick={onOpenTeams} className="min-h-12 w-full rounded-[16px] bg-white px-4 text-sm font-black ring-1 ring-black/5">VER TIMES</button>}
       {matches?.roundId === roundId && matches && matches.count > 0 && <button onClick={onOpenResults} className="min-h-12 w-full rounded-[16px] bg-white px-4 text-sm font-black ring-1 ring-black/5">VER RESULTADOS · {matches.count} partidas</button>}
     </section>
   );

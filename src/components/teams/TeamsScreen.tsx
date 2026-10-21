@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
-import { assignGoalkeepers, changeGoalkeeper, drawTeams, getTeamCount, hasCompleteTeams, swapPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
+import { drawTeams, getTeamCount, hasCompleteTeams, swapPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
 import { confirmTeams, getCurrentRoundTeamsState, saveDraftTeams, type RoundStatus, type RoundTeamsState } from "@/lib/teams/repository";
 
 type TeamsScreenProps = {
@@ -57,7 +57,6 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     };
   }, []);
 
-  const goalkeepersToShow = roundState?.goalkeepers ?? [];
   const fieldPlayersToUse = roundState?.fieldPlayers ?? [];
   const roundStatus = roundState?.status ?? "aberto";
   const confirmed = ["times_confirmados", "em_andamento", "finalizado"].includes(roundStatus) || Boolean(roundState?.confirmed);
@@ -92,7 +91,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     }
 
     if (!hasPlayersToDraw) {
-      setError("Nenhum jogador de linha disponível para sorteio.");
+      setError("Nenhum participante disponível para sorteio.");
       return;
     }
 
@@ -103,7 +102,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     setIsSaving(true);
 
     try {
-      const nextDraw = assignGoalkeepers(drawTeams(fieldPlayersToUse), goalkeepersToShow);
+      const nextDraw = drawTeams(fieldPlayersToUse);
       const supabase = createClient();
       await saveDraftTeams(supabase, roundState.roundId, nextDraw.teams, roundState.version);
       await reloadPersistedTeams();
@@ -191,18 +190,6 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     }
   }
 
-  async function handleGoalkeeper(teamId: string, keeperId: string) {
-    if (!organizer || isSaving || !listClosed || !draw || !roundState) return;
-    setIsSaving(true); setError("");
-    try {
-      const next = changeGoalkeeper(draw, teamId, goalkeepersToShow.find(player => player.id === keeperId) ?? null);
-      await saveDraftTeams(createClient(), roundState.roundId, next.teams, roundState.version);
-      await reloadPersistedTeams();
-      setMessage("Goleiro atualizado.");
-    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível ajustar o goleiro."); }
-    finally { setIsSaving(false); }
-  }
-
   return (
     <section className="flex flex-col gap-3">
       <div>
@@ -215,27 +202,13 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       {roundState ? <>
       <RoundStatusBadge status={roundStatus} />
 
-      <Card className="order-5 space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-xs font-bold text-zinc-700">Goleiros fixos · {goalkeepersToShow.length}</h3>
-          </div>
-        </div>
-        <div className="grid gap-2">
-          {!goalkeepersToShow.length && <p className="text-xs text-zinc-500">Nenhum goleiro definido</p>}
-          {goalkeepersToShow.map((goalkeeper) => (
-            <PlayerPill key={goalkeeper.id} player={goalkeeper} />
-          ))}
-        </div>
-      </Card>
-
       <Card className="order-[35] flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-600">
             <Users size={19} />
           </div>
           <div>
-            <p className="text-sm font-black">{confirmedPlayersCount} jogadores de linha</p>
+            <p className="text-sm font-black">{confirmedPlayersCount} participantes</p>
             <p className="text-xs font-bold text-zinc-600">{getTeamsToFormLabel(teamsToFormCount)}</p>
           </div>
         </div>
@@ -266,8 +239,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
         finally { setIsLoading(false); }
       }}>Tentar novamente</button></> : null}
       {message ? <Feedback tone="success" text={message} /> : null}
-      {listClosed && !hasPlayersToDraw ? <Feedback tone="neutral" text="Nenhum jogador de linha disponível para sorteio." /> : null}
-      {draw && goalkeepersToShow.length !== draw.teams.length && <Feedback tone="neutral" text="A quantidade de goleiros não corresponde aos times. Ajuste os goleiros abaixo; isso não bloqueia o sorteio da linha." />}
+      {listClosed && !hasPlayersToDraw ? <Feedback tone="neutral" text="Nenhum participante disponível para sorteio." /> : null}
       {adjustMode ? <Feedback tone="neutral" text="Toque em um jogador e depois em outro jogador de outro time para trocar." /> : null}
 
       {isLoading ? <Feedback tone="neutral" text="Carregando times..." /> : null}
@@ -288,9 +260,6 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
               selectedPlayerId={selectedPlayerId}
               adjustMode={adjustMode && organizer && listClosed && !isSaving}
               onPlayerClick={handlePlayerClick}
-              goalkeepers={goalkeepersToShow}
-              canAdjustGoalkeeper={organizer && listClosed && !isSaving}
-              onGoalkeeper={handleGoalkeeper}
             />
           ))}
         </div>
@@ -367,17 +336,11 @@ function TeamCard({
   selectedPlayerId,
   adjustMode,
   onPlayerClick,
-  goalkeepers,
-  canAdjustGoalkeeper,
-  onGoalkeeper,
 }: {
   team: DrawTeam;
   selectedPlayerId: string | null;
   adjustMode: boolean;
   onPlayerClick: (player: TeamPlayer) => void;
-  goalkeepers: TeamPlayer[];
-  canAdjustGoalkeeper: boolean;
-  onGoalkeeper: (teamId: string, keeperId: string) => void;
 }) {
   return (
     <Card className="space-y-2 border-t-2 border-red-600">
@@ -389,11 +352,6 @@ function TeamCard({
         <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700">
           {team.name}
         </span>
-      </div>
-      <div className="rounded-xl bg-zinc-50 p-2">
-        <p className="mb-1 text-[10px] font-black uppercase text-red-700">Goleiro fixo</p>
-        {team.goalkeeper ? <PlayerPill player={team.goalkeeper} /> : <p className="text-xs text-zinc-500">Sem goleiro associado</p>}
-        {canAdjustGoalkeeper && <label className="mt-2 block text-xs font-bold">Ajustar goleiro de {team.name}<select value={team.goalkeeper?.id ?? ""} onChange={event => onGoalkeeper(team.id, event.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-2"><option value="">Sem goleiro</option>{goalkeepers.map(player => <option key={player.id} value={player.id}>{player.name}</option>)}</select></label>}
       </div>
       <div className="divide-y divide-zinc-100">
         {team.players.map((player) => (
