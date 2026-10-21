@@ -29,3 +29,11 @@ Use as skills locais conforme a tarefa, combinando-as quando necessario:
 - Backend, Supabase e regras de negocio: `.agents/skills/fortalaka-backend/SKILL.md`.
 - Frontend, design e UX: `.agents/skills/fortalaka-ui/SKILL.md`.
 - Antes de finalizar tarefas: `.agents/skills/fortalaka-release/SKILL.md`.
+
+## Diagnóstico de bugs
+
+Fluxo: bug reportado → Graphify query → Playwright MCP reproduz → Chrome DevTools MCP inspeciona console/network/performance → identificar causa → abrir somente os arquivos necessários e corrigir → Playwright testa novamente → build/lint e testes pertinentes → commit → push, respeitando o pedido atual e `fortalaka-release`.
+
+- MCPs locais: `playwright` e `chrome-devtools`; configuração no Codex deste PC, sem credenciais no Git. Reinicie a sessão do Codex se os novos servidores ainda não aparecerem como ferramentas.
+- Prefira localhost quando disponível. Em produção, faça apenas navegação segura; sem login autorizado, limite o teste às páginas públicas. Não altere rodadas reais nem cadastre dados falsos para diagnóstico.
+- Use perfis isolados; mantenha sessões, cookies, traces e saídas do navegador fora do repositório. Graphify permanece local e ignorado; a integração existente está em `.codex/skills/graphify/`.
