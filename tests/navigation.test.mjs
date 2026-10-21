@@ -173,6 +173,23 @@ try {
   await click('Passe: 5 de 5');
   await click('ENVIAR AVALIAÇÃO');
   await waitFor(()=>document.body.textContent.includes('1 de 4 companheiros avaliados') && !button('ENVIAR AVALIAÇÃO'));
+  const raters=players.filter(p=>p.time_id===ownTeam && p.jogador_id!==playerId).slice(0,2);
+  async function receiveRating(actorId,scores){
+    const result=await originalFetch('http://127.0.0.1:3011/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'rpc',role:'jogador',actorId,name:'salvar_avaliacao',args:{p_racha:evaluation.roundId,p_avaliado:playerId,p_passe:scores[0],p_chute:scores[1],p_velocidade:scores[2],p_defesa:scores[3],p_fisico:scores[4]}})}).then(r=>r.json());
+    assert.equal(result.error,null);
+  }
+  await receiveRating(raters[0].jogador_id,[4,5,3,4,5]);
+  await click('Abrir meu perfil');
+  await waitFor(()=>document.body.textContent.includes('A nota aparece com 2 respostas.'));
+  assert(!document.querySelector('svg polygon[stroke="#bef264"]'),'Uma resposta ainda não desenha radar');
+  await receiveRating(raters[1].jogador_id,[5,5,4,4,5]);
+  await act(async()=>window.dispatchEvent(new window.Event('focus')));
+  await waitFor(()=>document.querySelector('[aria-label="Nota geral: 88"]'));
+  assert(document.querySelector('svg polygon[stroke="#bef264"]'),'Duas respostas desenham radar');
+  assert(document.querySelector('svg[aria-label*="Passe: 9 de 10"]'));
+  await click('Resultados');await click('Ranking');
+  await waitFor(()=>document.querySelector('article [aria-label="Nota media 88"]'));
+  assert(document.querySelector('article').querySelector('[aria-label="Nota media 88"]'),'Maior overall aparece primeiro');
   await click('Abrir meu perfil');
   await waitFor(()=>button('Sair da conta'));
   await mount('jogador');await click('Avaliação');await click('AVALIAR MEU TIME');
@@ -182,6 +199,15 @@ try {
   await mount('jogador');await click('Avaliação');
   await waitFor(()=>document.body.textContent.includes('Avaliações fechadas'));
   assert(!button('AVALIAR MEU TIME'));
+  await click('VER MINHAS AVALIAÇÕES');
+  await waitFor(()=>document.body.textContent.includes('1 de 4 companheiros avaliados'));
+  const viewOwn=[...document.querySelectorAll('button')].find(e=>e.getAttribute('aria-label')?.startsWith('Ver avaliação de '));
+  assert(viewOwn,'Avaliações enviadas continuam acessíveis após fechar');
+  await act(async()=>viewOwn.click());
+  assert(button('ENVIAR AVALIAÇÃO').disabled,'Consulta fechada não permite enviar');
+  assert(button('Passe: 5 de 5').disabled);
+  assert.equal(button('Passe: 5 de 5').getAttribute('aria-pressed'),'true','Consulta carrega a nota enviada');
+  assert(![...document.querySelectorAll('button')].some(e=>e.textContent==='EDITAR'));
   await mount('organizador');await click('Racha');
   await waitFor(()=>document.querySelector('summary') && document.body.textContent.includes('CRIAR PRÓXIMA RODADA'));
   assert(!button('FINALIZAR RACHA'));

@@ -73,6 +73,7 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
     {message && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
     {organizer && roundStatus !== "finalizado" && <p className="text-sm text-zinc-600">Finalize pelo menos uma partida e encerre a rodada antes de abrir avaliações.</p>}
     {!organizer && open === false && <p className="text-sm font-bold text-zinc-600">Avaliações fechadas</p>}
+    {!organizer && open === false && completed > 0 && <button onClick={() => onOpenEvaluate(roundId)} disabled={Boolean(error)} className="min-h-12 w-full rounded-[16px] border border-zinc-200 bg-white px-3 text-sm font-black disabled:opacity-50">VER MINHAS AVALIAÇÕES</button>}
     {!organizer && open && <button onClick={() => onOpenEvaluate(roundId)} disabled={Boolean(error)} className="min-h-12 w-full rounded-[16px] bg-red-600 px-3 text-sm font-black text-white transition hover:bg-red-700 active:scale-[0.98] disabled:opacity-50">AVALIAR MEU TIME</button>}
     {organizer && <div className="grid grid-cols-2 gap-2">
       <button disabled={busy || !progress || progress.abertas || roundStatus !== "finalizado"} onClick={() => toggle(true)} className="min-h-11 rounded-xl bg-red-600 px-3 text-xs font-black uppercase text-white disabled:opacity-50">ABRIR AVALIAÇÕES</button>

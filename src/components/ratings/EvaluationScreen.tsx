@@ -142,7 +142,7 @@ export function EvaluationScreen({ roundId }: { roundId?: string }) {
       <div className="flex items-center gap-3">
         <PlayerAvatar name={selected.nome} avatarUrl={selected.avatar_url} />
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-wide text-red-600">{selected.avaliado ? "Editar avaliacao" : "Nova avaliacao"}</p>
+          <p className="text-[10px] font-black uppercase tracking-wide text-red-600">{!state?.open ? "Avaliação enviada" : selected.avaliado ? "Editar avaliacao" : "Nova avaliacao"}</p>
           <h3 className="break-words text-xl font-black">{selected.nome}</h3>
         </div>
       </div>
