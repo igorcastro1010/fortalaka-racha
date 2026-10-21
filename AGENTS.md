@@ -21,3 +21,11 @@ Rules:
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 - A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.
+
+## Skills do RACHA FORTALAKA
+
+Consulte Graphify primeiro, conforme as regras acima. A skill instalada esta em `.codex/skills/graphify/SKILL.md`.
+Use as skills locais conforme a tarefa, combinando-as quando necessario:
+- Backend, Supabase e regras de negocio: `.agents/skills/fortalaka-backend/SKILL.md`.
+- Frontend, design e UX: `.agents/skills/fortalaka-ui/SKILL.md`.
+- Antes de finalizar tarefas: `.agents/skills/fortalaka-release/SKILL.md`.
