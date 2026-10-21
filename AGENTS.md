@@ -7,3 +7,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Skills do RACHA FORTALAKA
+
+Para tarefas deste projeto:
+1. Consulte Graphify primeiro, conforme o fluxo instalado.
+2. Use [fortalaka-backend](.agents/skills/fortalaka-backend/SKILL.md) para backend, Supabase e regras de negócio.
+3. Use [fortalaka-ui](.agents/skills/fortalaka-ui/SKILL.md) para frontend, design e UX.
+4. Use [fortalaka-release](.agents/skills/fortalaka-release/SKILL.md) antes de finalizar tarefas, respeitando as restrições atuais do usuário.
