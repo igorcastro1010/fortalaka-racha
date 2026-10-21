@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DrawTeam, TeamPlayer } from "@/lib/teams/draw";
+import { getCurrentRoundDetails } from "@/lib/rounds/repository";
 
 export type RoundParticipant = TeamPlayer & {
   jogadorId: string | null;
@@ -29,9 +30,18 @@ function checkError(error: { message: string; code?: string } | null) {
 }
 
 export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promise<RoundTeamsState | null> {
+  const round = await getCurrentRoundDetails(supabase);
+  if (!round) return null;
   const { data, error } = await supabase.rpc("ler_times_rodada", {});
   checkError(error);
-  return data as RoundTeamsState | null;
+  const state = data as RoundTeamsState | null;
+  if (!state || state.roundId !== round.roundId || state.status !== round.status) {
+    throw new Error("A rodada mudou durante a consulta. Atualize os times e tente novamente.");
+  }
+  return {
+    ...state,
+    fieldPlayers: round.participants.filter(player => player.status === "confirmado" && player.type !== "suplente"),
+  };
 }
 
 export async function saveDraftTeams(supabase: SupabaseClient, roundId: string, teams: DrawTeam[], version: number) {
