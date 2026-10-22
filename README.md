@@ -1,48 +1,54 @@
-<p align="center"><img src="assets/github-cover.svg" alt="Fortalaka Racha" width="100%"></p>
+<p align="center"><img src="assets/github-cover.svg" alt="Racha Fortalaka" width="100%"></p>
 
-> **Fortalaka Racha** · Projeto web de futebol amador.
->
-> Next.js · TypeScript
+# Racha Fortalaka
 
-[Documentação](#documentação) · [Arquivos](https://github.com/igorcastro1010/fortalaka-racha) · [Mais projetos](https://github.com/igorcastro1010)
+Gestão de futebol amador: da inscrição na rodada ao sorteio dos times, resultados e avaliações dos jogadores.
 
----
+**Next.js · React · TypeScript · Tailwind CSS · Supabase**
+
+[**⚽ Acessar o aplicativo**](https://fortalaka-racha.vercel.app) · [Instalação](docs/guia-instalacao.md) · [Fluxo da rodada](docs/fluxo-principal.md) · [Mais projetos](https://github.com/igorcastro1010)
+
+[![Verificações](https://github.com/igorcastro1010/fortalaka-racha/actions/workflows/ci.yml/badge.svg)](https://github.com/igorcastro1010/fortalaka-racha/actions/workflows/ci.yml)
+
+## Visão do aplicativo
+
+![Tela pública de acesso do Racha Fortalaka](assets/app-preview.png)
+
+Tela de acesso capturada em 22/10/2026. As áreas de gestão exigem autenticação; o link não fornece conta de demonstração.
+
+## O que o projeto faz
+
+- **Rodadas e inscrições:** data, horário, endereço e inscrição como jogador de linha ou goleiro.
+- **Times:** sorteio e confirmação de composições, com tratamento separado dos goleiros.
+- **Partidas e fila:** placares, gols, assistências, participação e histórico.
+- **Resultados e ranking:** estatísticas derivadas de partidas finalizadas, sem edição direta dos totais no perfil.
+- **Avaliações:** notas entre companheiros elegíveis e abertura controlada pelo organizador.
+- **Permissões:** Supabase Auth, RLS e funções do banco para as operações administrativas.
+
+## Começar localmente
+
+Requer Node.js 24 e um projeto Supabase configurado. Instale as dependências e copie o modelo de ambiente:
+
+```powershell
+npm ci
+Copy-Item .env.example .env.local
+npm run dev
+```
+
+Preencha as duas variáveis de `.env.local` com a URL e a chave pública do seu projeto. Abra [localhost:3000](http://localhost:3000). O guia de [instalação](docs/guia-instalacao.md) explica banco, scripts e verificações.
 
 ## Documentação
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+| Tema | Guia |
+| --- | --- |
+| Ambiente e banco | [Instalação](docs/guia-instalacao.md) |
+| Jornada do organizador e do jogador | [Fluxo principal](docs/fluxo-principal.md) |
+| Estatísticas históricas | [Partidas e estatísticas](docs/partidas-estatisticas.md) |
+| Encerramento da rodada | [Finalizar rodada](docs/finalizar-rodada.md) |
+| Sorteio | [Instalação do sorteio](docs/instalacao-sorteio-times.md) |
 
-## Getting Started
+**Banco de dados:** os scripts SQL precisam ser aplicados separadamente. A presença do código no GitHub e o deploy do frontend não confirmam a instalação das migrações no Supabase.
 
-First, run the development server:
+## Verificações automáticas
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+O workflow executa lint, testes existentes de ordenação do ranking e build. Esses testes não substituem as suítes SQL, os testes de navegação ou a validação do banco remoto. Clique no badge para consultar o resultado real da execução.
