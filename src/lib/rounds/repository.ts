@@ -193,6 +193,11 @@ export async function removeRoundParticipant(supabase: SupabaseClient, participa
 }
 
 export async function setOwnRegistration(roundId: string, join: boolean) {
-  const { error } = await createClient().rpc("inscricao_rodada", { p_racha: roundId, p_tipo: "linha", p_entrar: join });
-  if (error) throw new Error(error.code === "PGRST202" ? "Aplique fluxo-principal.sql no Supabase para liberar inscrições." : error.message);
+  try {
+    const { error } = await createClient().rpc("inscricao_rodada", { p_racha: roundId, p_tipo: "linha", p_entrar: join });
+    if (error) throw error;
+  } catch (error) {
+    console.error("Falha ao atualizar inscrição da rodada", error);
+    throw new Error(join ? "Não foi possível entrar na lista. Tente novamente." : "Não foi possível sair da lista. Tente novamente.");
+  }
 }
