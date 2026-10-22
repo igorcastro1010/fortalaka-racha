@@ -54,7 +54,7 @@ export function RoundShareCard({ roundId, source, summary: providedSummary, comp
     <div className="flex items-center gap-2"><Share2 size={18} aria-hidden="true" /><h3 className="text-sm font-black uppercase tracking-wide">Resumo para compartilhar</h3></div>
     {!compact && <dl className="grid grid-cols-2 gap-2">{[
       ["Partidas finalizadas", String(summary.matches.length)], ["Participantes em campo", String(summary.participantCount)],
-      ["Artilharia", leaderLabel(summary.goals, "Sem gols registrados")], ["Assistências", leaderLabel(summary.assists, "Sem assistências registradas")],
+      ["Artilharia", leaderLabel(summary.topScorers, "Sem gols registrados")], ["Assistências", leaderLabel(summary.assists, "Sem assistências registradas")],
     ].map(([label, value]) => <div key={label} className="min-w-0 rounded-xl bg-zinc-50 p-3"><dt className="text-[10px] font-bold text-zinc-600">{label}</dt><dd className="mt-1 break-words text-sm font-black">{value}</dd></div>)}</dl>}
     <p className="text-[11px] leading-relaxed text-zinc-500">Somente partidas finalizadas e eventos registrados nesta rodada.</p>
     {!hasMatches && <p className="text-sm text-zinc-600">Nenhuma partida finalizada para compartilhar.</p>}

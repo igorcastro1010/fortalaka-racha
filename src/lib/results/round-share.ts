@@ -3,7 +3,7 @@ import type { Match, PlayerStatistics } from "../matches/repository";
 /** Snapshot da RPC ler_partidas_rodada, identificado pelo p_racha usado na leitura. */
 export type RoundShareSource = { roundId: string; date: string | null; partidas: readonly Match[] };
 type PlayerTotal = { id: string; name: string; avatarUrl: string | null; goals: number; assists: number; wins: number };
-export type RoundLeader = { id: string; name: string; value: number; place: number };
+export type RoundLeader = { id: string; name: string; value: number; place: number; avatarUrl?: string | null };
 
 function line(value: string) { return value.replace(/\s+/g, " ").trim(); }
 function count(value: number) { return Number.isSafeInteger(value) && value > 0 ? value : 0; }
@@ -11,14 +11,13 @@ function timestamp(match: Match) {
   const time = Date.parse(match.createdAt ?? match.finalizadaAt ?? "");
   return Number.isNaN(time) ? Infinity : time;
 }
-function rankLeaders(players: { id: string; name: string; value: number }[]): RoundLeader[] {
-  // Empates mantêm a mesma posição e incluem todos os empatados no TOP 3.
+function rankLeaders(players: { id: string; name: string; value: number; avatarUrl?: string | null }[], maxRows?: number): RoundLeader[] {
   const sorted = players.filter(player => player.value > 0).sort((a, b) => b.value - a.value);
   let place = 0;
   return sorted.map((player, index) => {
     if (index === 0 || player.value !== sorted[index - 1].value) place = index + 1;
     return { ...player, place };
-  }).filter(player => player.place <= 3);
+  }).filter((player, index) => maxRows === undefined ? player.place <= 3 : index < maxRows);
 }
 function leaders(players: PlayerTotal[], field: "goals" | "assists" | "wins"): RoundLeader[] {
   return rankLeaders(players.map(player => ({ id: player.id, name: player.name, value: player[field] })));
@@ -48,8 +47,9 @@ export function getRoundShareSummary(roundId: string, source: RoundShareSource) 
     }
   }
   const players = [...totals.values()];
+  const topScorers = rankLeaders(players.map(player => ({ id: player.id, name: player.name, avatarUrl: player.avatarUrl, value: player.goals })), 5);
   const totalGoals = matches.reduce((total, match) => total + count(match.placarA) + count(match.placarB), 0);
-  return { roundId, date: source.date, matches, players, totalGoals, averageGoals: matches.length ? totalGoals / matches.length : null, participantCount: players.length, goals: leaders(players, "goals"), assists: leaders(players, "assists"), wins: leaders(players, "wins") };
+  return { roundId, date: source.date, matches, players, totalGoals, averageGoals: matches.length ? totalGoals / matches.length : null, participantCount: players.length, topScorers, goals: topScorers, assists: leaders(players, "assists"), wins: leaders(players, "wins") };
 }
 
 export type RoundShareSummary = ReturnType<typeof getRoundShareSummary>;
@@ -85,13 +85,13 @@ export function buildRoundShareTextFromSummary(summary: RoundShareSummary): stri
   else sections.push("Racha finalizado.");
   const medals = ["🥇", "🥈", "🥉"];
   for (const [title, players, unit] of [
-    ["⚽ *ARTILHEIROS*", summary.goals, "gols"],
+    ["⚽ *ARTILHEIROS*", summary.topScorers, "gols"],
     ["🎯 *ASSISTÊNCIAS*", summary.assists, "assistências"],
     ["🏆 *MAIS VITÓRIAS*", summary.wins, "vitórias"],
   ] as const) {
     if (players.length) sections.push(title + "\n" + players.map(player => {
       const suffix = player.value === 1 ? { gols: "gol", assistências: "assistência", vitórias: "vitória" }[unit] : unit;
-      return `${medals[player.place - 1]} ${player.name} — ${player.value} ${suffix}`;
+      return `${medals[player.place - 1] ?? `${player.place}º`} ${player.name} — ${player.value} ${suffix}`;
     }).join("\n"));
   }
   sections.push("❤️⚽ FORTALAKA");

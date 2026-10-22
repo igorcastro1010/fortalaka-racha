@@ -31,11 +31,45 @@ test('vitórias contam participação por partida; empate não dá vitória',()=
   assert.deepEqual(summary(games).wins.map(p=>[p.name,p.value,p.place]),[['Igão',1,1],['PH',1,1]]);
   assert.equal(summary(games).participantCount,2);
 });
-test('TOP 3 inclui empates, preserva ordem estável e não inventa desempate',()=>{
+test('TOP 5 mantém a posição e ordem estável dos empatados sem desempate',()=>{
   const games=[match('1',{jogadores:[player('Zeca','a',4),player('Ana','a',4),player('Jack','b',2),player('PH','b',2),player('Outro','a',1)]})];
-  assert.deepEqual(summary(games).goals.map(p=>[p.name,p.place]),[['Zeca',1],['Ana',1],['Jack',3],['PH',3]]);
+  assert.deepEqual(summary(games).topScorers.map(p=>[p.name,p.place]),[['Zeca',1],['Ana',1],['Jack',3],['PH',3],['Outro',5]]);
   assert(text(games).includes('🥇 Ana — 4 gols')); assert(text(games).includes('🥉 PH — 2 gols'));
-  assert(!text(games).includes('Outro — 1 gol'));
+  assert(text(games).includes('5º Outro — 1 gol'));
+});
+
+test('artilharia aceita um ou três jogadores, preserva avatar e plural correto',()=>{
+  for (const size of [1,3]) {
+    const jogadores=Array.from({length:size},(_,index)=>({...player(`Pessoa ${index}`,'a',index+1),avatar_url:`https://example.invalid/${index}.png`}));
+    const games=[match('1',{jogadores})];
+    const result=summary(games);
+    assert.equal(result.topScorers.length,size);
+    assert.deepEqual(result.topScorers.map(row=>row.value),jogadores.map(row=>row.gols).reverse());
+    assert.equal(result.topScorers[0].avatarUrl,jogadores[size-1].avatar_url);
+    assert(text(games).includes('Pessoa 0 — 1 gol'));
+    if(size>1)assert(text(games).includes('Pessoa 1 — 2 gols'));
+  }
+});
+
+test('limita em cinco inclusive empate no corte, mantendo a ordem da fonte',()=>{
+  const jogadores=['Zeca','Ana','Jack','PH','Igão','Lobo','Nicolas'].map(id=>player(id,'a',2));
+  const data=summary([match('1',{jogadores})]);
+  assert.deepEqual(data.topScorers.map(row=>row.name),['Zeca','Ana','Jack','PH','Igão']);
+  assert(data.topScorers.every(row=>row.place===1));
+  assert.equal(data.goals,data.topScorers);
+  assert.deepEqual(jogadores.map(row=>row.nome),['Zeca','Ana','Jack','PH','Igão','Lobo','Nicolas']);
+});
+
+test('WhatsApp formata exatamente os mesmos cinco artilheiros do resumo',()=>{
+  const games=[match('1',{jogadores:Array.from({length:7},(_,index)=>player(`Pessoa ${index}`,'a',7-index))})];
+  const data=summary(games);
+  const message=buildRoundShareTextFromSummary(data);
+  const section=message.split('⚽ *ARTILHEIROS*\n')[1].split('\n\n')[0];
+  assert.equal(section.split('\n').length,5);
+  for(const row of data.topScorers)assert(section.includes(`${row.name} — ${row.value} gols`));
+  assert(section.includes('4º Pessoa 3'));assert(section.includes('5º Pessoa 4'));
+  assert(!section.includes('Pessoa 5'));assert(!section.includes('Pessoa 6'));assert(!message.includes('undefined'));
+  assert.equal(new URL(getWhatsAppShareUrl(message)).searchParams.get('text'),message);
 });
 test('sem gols não há artilharia, mesmo com gols no placar',()=>{
   assert(!text([match('1',{jogadores:[player('PH','a')]})]).includes('*ARTILHEIROS*'));

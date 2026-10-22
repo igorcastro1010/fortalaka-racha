@@ -10,12 +10,13 @@ import { RoundShareCard } from "./RoundShareCard";
 const singularUnits: Record<string, string> = { gols: "gol", assistências: "assistência", vitórias: "vitória" };
 const card = "rounded-[22px] bg-white p-4 ring-1 ring-black/5";
 
-function Leaders({ title, rows, unit }: { title: string; rows: RoundLeader[]; unit: string }) {
+function Leaders({ title, rows, unit, showAvatars = false }: { title: string; rows: RoundLeader[]; unit: string; showAvatars?: boolean }) {
   if (!rows.length) return null;
   return <section aria-label={title} className={card}>
     <h3 className="text-xs font-black uppercase tracking-wider">{title}</h3>
-    <ol className="mt-3 divide-y divide-zinc-100">{rows.map(player => <li key={player.id} className="flex min-h-12 items-center gap-3 py-2">
-      <span aria-label={`${player.place}º lugar`} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${player.place === 1 ? "bg-red-600 text-white" : "bg-zinc-100 text-zinc-700"}`}>{player.place}º</span>
+    <ol className="mt-3 divide-y divide-zinc-100">{rows.map(player => <li key={player.id} className={`flex min-h-12 items-center py-2 ${showAvatars ? "gap-2" : "gap-3"}`}>
+      <span aria-label={`${player.place}º lugar`} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${player.place === 1 ? "bg-red-600 text-white" : showAvatars && player.place === 2 ? "bg-neutral-950 text-white" : showAvatars && player.place === 3 ? "bg-zinc-200 text-zinc-900" : showAvatars ? "bg-zinc-50 text-zinc-500" : "bg-zinc-100 text-zinc-700"}`}>{player.place}º</span>
+      {showAvatars && <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} size="sm" />}
       <span className="min-w-0 flex-1 break-words text-sm font-bold">{player.name}</span>
       <span className="shrink-0 text-right"><strong className="block text-lg font-black tabular-nums">{player.value}</strong><span className="text-[10px] font-semibold text-zinc-500">{player.value === 1 ? (singularUnits[unit] ?? unit) : unit}</span></span>
     </li>)}</ol>
@@ -66,7 +67,7 @@ export function PostRoundSummary({ roundId, date, matches }: { roundId: string; 
         ].map(([label, value]) => <div key={label} className="rounded-xl bg-zinc-50 p-3"><dd className="text-2xl font-black tabular-nums">{value}</dd><dt className="mt-1 text-[10px] font-bold text-zinc-600">{label}</dt></div>)}</dl>
         <p className="mt-3 text-[10px] leading-relaxed text-zinc-500">Gols totais pelo placar. Participantes únicos em campo nas partidas finalizadas. Artilharia e assistências pelos eventos registrados.</p>
       </section>
-      <Leaders title="Artilharia" rows={summary.goals} unit="gols" />
+      <Leaders title="Artilharia do racha" rows={summary.topScorers} unit="gols" showAvatars />
       <Leaders title="Assistências" rows={summary.assists} unit="assistências" />
       <Leaders title="Mais vitórias" rows={summary.wins} unit="vitórias" />
       {ratingLeaders.length > 0 && <div className="space-y-2"><Leaders title="Maiores notas" rows={ratingLeaders} unit="overall /100" /><p className="px-1 text-[10px] leading-relaxed text-zinc-500">Overall histórico dos participantes desta rodada, com pelo menos 2 avaliações. Não representa uma nota exclusiva desta rodada.</p></div>}

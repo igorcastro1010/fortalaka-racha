@@ -157,7 +157,7 @@ try {
   assert(postSummary,'Resumo visível somente após finalizar rodada');
   const numbers=postSummary.querySelector('section[aria-label="Números do racha"]');
   assert.deepEqual([...numbers.querySelectorAll('dd')].map(el=>el.textContent),['10','1','2','2,0']);
-  assert(postSummary.querySelector('section[aria-label="Artilharia"]'));
+  assert(postSummary.querySelector('section[aria-label="Artilharia do racha"]'));
   assert(!postSummary.querySelector('section[aria-label="Assistências"]'),'Oculta assistências sem eventos');
   assert(!postSummary.querySelector('section[aria-label="Maiores notas"]'),'Oculta notas insuficientes');
   assert(postSummary.querySelector('section[aria-label="Resultados da rodada"]').textContent.includes('2 × 0'));

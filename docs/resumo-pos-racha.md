@@ -10,7 +10,8 @@ Disponível em Resultados somente quando a rodada está finalizada e a leitura d
 - Gols totais e média: placares dessas partidas. Sem jogos, a média é `null`.
 - Artilharia e assistências: eventos individuais registrados. Não precisam somar o placar, conforme a regra existente que admite gol sem autor.
 - Vitórias: participação na partida e pertencimento ao time vencedor. Empates não somam vitórias.
-- TOP 3: posições compartilhadas nos empates, incluindo todos os empatados na terceira posição. Nenhuma fórmula de MVP foi criada.
+- Artilharia: `summary.topScorers` traz no máximo cinco jogadores com gols, em ordem decrescente e estável nos empates; posições empatadas continuam compartilhadas. Nome e avatar vêm da mesma fonte. Tela e WhatsApp consomem esse mesmo ranking; `goals` permanece como alias compatível. Sem gols atribuídos, a seção fica oculta.
+- Assistências, vitórias e notas mantêm o TOP 3 com posições compartilhadas, incluindo todos os empatados na terceira posição. Nenhuma fórmula de MVP foi criada.
 - Maiores notas: overall **histórico** dos participantes, fornecido pela RPC existente `ler_estatisticas_jogadores`, com pelo menos duas respostas e nota válida. A legenda informa explicitamente que não é uma nota exclusiva da rodada. Não são usados gols, assistências ou vitórias globais no resumo.
 
 O componente faz uma única leitura agregada de notas por montagem da rodada, sem N+1 ou consulta individual. Não consulta avaliadores. Ao atualizar as partidas, o resumo é remontado com os dados persistidos e as notas são relidas.
@@ -24,7 +25,8 @@ O compartilhamento existente continua com Web Share, cancelamento silencioso, fa
 ## Validação local
 
 - Build de produção e lint: aprovados.
-- 20 testes unitários de resumo/WhatsApp: aprovados, incluindo mensagem literal preservada, placares versus eventos, média sem divisão por zero, exclusões, empates e privacidade das notas.
+- 23 testes unitários de resumo/WhatsApp: aprovados, incluindo limite de cinco, 1/3/mais de 5 jogadores, singular/plural, ordem estável, mesma lista no WhatsApp, placares versus eventos, exclusões de outras rodadas/partidas não finalizadas e privacidade das notas.
+- `node tests/post-round-summary.test.mjs <node_modules com esbuild e playwright>`: componente real com dados sintéticos locais; Playwright valida 360/375/390/430 px, nomes longos, avatares, alinhamento, ausência de overflow, zero gols oculto e ranking compartilhado. Requer build prévio e Chromium instalado pelo Playwright; capturas ficam no diretório temporário do sistema.
 - Navegação com componentes reais e PostgreSQL isolado: aprovada, incluindo resumo somente após finalizar, números, seções vazias, nota 88 após duas respostas, nova rodada sem resumo antigo e compartilhamento preservado.
 - Sete cenários PostgreSQL de estatísticas/RLS, dez do fluxo sem posições, doze testes de sorteio e teste do repositório de participantes: aprovados.
 - Playwright MCP: rodada local finalizada com 10 participantes, 1 partida, 1 gol, média 1,0, artilharia, assistência, vitórias empatadas e overall 88. Dados sintéticos apenas no banco local.
