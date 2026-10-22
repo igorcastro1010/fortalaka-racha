@@ -1,3 +1,15 @@
+<p align="center"><img src="assets/github-cover.svg" alt="Fortalaka Racha" width="100%"></p>
+
+> **Fortalaka Racha** · Projeto web de futebol amador.
+>
+> Next.js · TypeScript
+
+[Documentação](#documentação) · [Arquivos](https://github.com/igorcastro1010/fortalaka-racha) · [Mais projetos](https://github.com/igorcastro1010)
+
+---
+
+## Documentação
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
