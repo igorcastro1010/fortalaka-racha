@@ -146,6 +146,12 @@ try {
   assert.equal(document.querySelectorAll('article').length,1);
   await click('Ranking');
   await waitFor(()=>document.body.textContent.includes('Classificação por overall'));
+  await click('Gols');
+  assert.equal(button('Gols').getAttribute('aria-pressed'),'true');
+  await click('Partidas');
+  await click('Ranking');
+  await waitFor(()=>button('Gols')?.getAttribute('aria-pressed')==='true');
+  await click('Geral');
   await click('Racha');
   await click('FINALIZAR RACHA');
   await waitFor(()=>document.querySelector('dialog')?.open);

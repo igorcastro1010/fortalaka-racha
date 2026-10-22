@@ -6,9 +6,11 @@ import { RankingScreen } from "@/components/players/StatisticsViews";
 import { MatchesPanel } from "@/components/rounds/MatchesPanel";
 import { RoundLoadStatus, RoundSummary } from "@/components/rounds/RoundSummary";
 import { useCurrentRound } from "@/components/rounds/useCurrentRound";
+import type { RankingSort } from "@/lib/players/ranking";
 
 export function ResultsScreen({ profile }: { profile: Profile }) {
   const [view, setView] = useState<"matches" | "ranking">("matches");
+  const [rankingSort, setRankingSort] = useState<RankingSort>("geral");
   const [startedRound, setStartedRound] = useState<string | null>(null);
   const onRoundStarted = useCallback((id: string) => setStartedRound(id), []);
   const { round, loading, error, retry } = useCurrentRound();
@@ -18,7 +20,7 @@ export function ResultsScreen({ profile }: { profile: Profile }) {
     <nav aria-label="Áreas de Resultados" className="grid grid-cols-2 gap-2 rounded-[16px] bg-zinc-200/60 p-1">
       {([{ id: "matches", label: "Partidas" }, { id: "ranking", label: "Ranking" }] as const).map(tab => <button key={tab.id} aria-current={view === tab.id ? "page" : undefined} onClick={() => setView(tab.id)} className={`min-h-11 rounded-xl text-sm font-black ${view === tab.id ? "bg-neutral-950 text-white shadow-sm" : "text-zinc-600"}`}>{tab.label}</button>)}
     </nav>
-    {view === "ranking" ? <RankingScreen /> : <>
+    {view === "ranking" ? <RankingScreen sort={rankingSort} onSortChange={setRankingSort} /> : <>
       <RoundLoadStatus loading={loading} error={error} empty={!round} retry={retry} />
       {!loading && !error && round && <>
         <RoundSummary round={round.status === "times_confirmados" && startedRound === round.roundId ? { ...round, status: "em_andamento" } : round} />
