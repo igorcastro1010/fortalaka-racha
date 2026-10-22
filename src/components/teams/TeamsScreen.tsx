@@ -259,6 +259,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
             <TeamCard
               key={team.id}
               team={team}
+              currentPlayerId={profile.id}
               selectedPlayerId={selectedPlayerId}
               adjustMode={adjustMode && organizer && listClosed && !isSaving}
               onPlayerClick={handlePlayerClick}
@@ -332,11 +333,13 @@ function OrganizerControls({
 
 function TeamCard({
   team,
+  currentPlayerId,
   selectedPlayerId,
   adjustMode,
   onPlayerClick,
 }: {
   team: DrawTeam;
+  currentPlayerId: string;
   selectedPlayerId: string | null;
   adjustMode: boolean;
   onPlayerClick: (player: TeamPlayer) => void;
@@ -357,6 +360,7 @@ function TeamCard({
           <PlayerPill
             key={player.id}
             player={player}
+            isCurrentPlayer={player.jogadorId === currentPlayerId}
             selected={selectedPlayerId === player.id}
             clickable={adjustMode}
             onClick={() => onPlayerClick(player)}
@@ -386,11 +390,13 @@ function RoundStatusBadge({ status }: { status: RoundStatus }) {
 
 function PlayerPill({
   player,
+  isCurrentPlayer = false,
   selected = false,
   clickable = false,
   onClick,
 }: {
   player: TeamPlayer;
+  isCurrentPlayer?: boolean;
   selected?: boolean;
   clickable?: boolean;
   onClick?: () => void;
@@ -401,11 +407,12 @@ function PlayerPill({
       onClick={onClick}
       disabled={!clickable}
       className={`flex min-h-11 w-full items-center gap-2.5 rounded-lg py-1 text-left transition ${
-        selected ? "bg-red-50 ring-2 ring-red-500" : "bg-transparent"
-      } ${clickable ? "active:scale-[0.99]" : "cursor-default"}`}
+        isCurrentPlayer ? "bg-emerald-100 px-2" : selected ? "bg-red-50" : "bg-transparent"
+      } ${selected ? "ring-2 ring-red-500" : ""} ${clickable ? "active:scale-[0.99]" : "cursor-default"}`}
     >
       <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} size="sm" />
       <span className="min-w-0 flex-1 break-words text-sm font-bold leading-snug text-neutral-950">{player.name}</span>
+      {isCurrentPlayer && <span className="shrink-0 text-xs font-bold text-emerald-800">Você</span>}
     </button>
   );
 }
