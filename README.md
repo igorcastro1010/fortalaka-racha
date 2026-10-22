@@ -10,11 +10,21 @@ Gestão de futebol amador: da inscrição na rodada ao sorteio dos times, result
 
 [![Verificações](https://github.com/igorcastro1010/fortalaka-racha/actions/workflows/ci.yml/badge.svg)](https://github.com/igorcastro1010/fortalaka-racha/actions/workflows/ci.yml)
 
-## Visão do aplicativo
+## Funcionalidades em tela
 
-![Tela pública de acesso do Racha Fortalaka](assets/app-preview.png)
+Capturas de demonstração local com dados fictícios, preparadas em 22/10/2026. Não representam dados de produção. [Como foram produzidas](docs/capturas-demonstracao.md).
 
-Tela de acesso capturada em 22/10/2026. As áreas de gestão exigem autenticação; o link não fornece conta de demonstração.
+### Placar e partidas
+
+![Placar e partida com dados fictícios](assets/app-preview.png)
+
+### Times confirmados
+
+![Sorteio e composição dos times com participantes fictícios](assets/times-demo.png)
+
+### Ranking
+
+![Ranking no ambiente local de demonstração](assets/ranking-demo.png)
 
 ## O que o projeto faz
 
