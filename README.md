@@ -16,7 +16,7 @@ Capturas de demonstração local com dados fictícios, preparadas em 22/10/2026.
 
 ### Placar e partidas
 
-![Placar e partida com dados fictícios](assets/app-preview.png)
+![Placar e partida com dados fictícios](assets/funcionalidades-demo.png)
 
 ### Times confirmados
 
