@@ -113,7 +113,7 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
 
   return <section className="space-y-4">
     <AppHeader profile={profile} onOpenProfile={onOpenProfile} />
-    <div><p className="text-xs font-medium text-zinc-600">Olá, {firstName}</p><h2 className="mt-1 text-[28px] font-black leading-tight tracking-tight">Seu próximo jogo.</h2></div>
+    <div className="space-y-1"><p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Olá, {firstName}</p><h2 className="text-[32px] font-black leading-[0.9] tracking-tighter text-neutral-950">Seu próximo jogo.</h2></div>
     <RoundLoadStatus loading={loading && !round} error={error} empty={!round} retry={retry} />
     {organizer && !error && <OrganizerPanel profile={profile} round={round} loading={loading}
       matches={currentMatches?.data ?? null} matchesError={currentMatches?.error ?? ""} onRefresh={retry}
@@ -121,9 +121,9 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
     {!error && round && <>
       <Card className="overflow-hidden !p-0">
         <div className="bg-neutral-950 p-4 text-white">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Próximo Racha</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Próximo Racha</p>
           <h3 className="mt-1 break-words text-[23px] font-black leading-tight">{round.roundName}</h3>
-          <span className="mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide">{{aberto: "Lista aberta", lista_fechada: "Lista fechada", times_confirmados: "Times confirmados", em_andamento: "Em andamento", finalizado: "RODADA FINALIZADA"}[round.status]}</span>
+          <span className="mt-3 inline-flex rounded-full bg-red-600 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-sm">{{aberto: "Lista aberta", lista_fechada: "Lista fechada", times_confirmados: "Times confirmados", em_andamento: "Em andamento", finalizado: "RODADA FINALIZADA"}[round.status]}</span>
         </div>
         <div className="space-y-3 p-4">
           <div className="grid grid-cols-2 gap-2">
@@ -131,14 +131,14 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
             <InfoBlock icon={Clock3} label="Horário" value={round.time?.slice(0, 5) ?? "A definir"} />
           </div>
           <p className="flex items-start gap-2 text-xs font-medium leading-relaxed text-zinc-600"><MapPin size={16} className="mt-0.5 shrink-0" /><span className="min-w-0 break-words">{round.address ?? "Endereço a definir"}</span></p>
-          <div className="flex flex-wrap items-baseline gap-x-2 rounded-xl bg-zinc-50 px-3 py-2"><span className="text-2xl font-black tabular-nums">{counts.confirmed}</span><span className="text-xs font-bold text-zinc-700">participantes</span><span className="ml-auto text-xs text-zinc-600">{counts.substitutes} suplentes</span></div>
+          <div className="flex flex-wrap items-baseline gap-x-2 rounded-2xl bg-zinc-100/50 px-4 py-3"><span className="text-3xl font-black tabular-nums text-red-600">{counts.confirmed}</span><span className="text-xs font-bold text-zinc-700">participantes</span><span className="ml-auto text-xs text-zinc-600">{counts.substitutes} suplentes</span></div>
           <OwnRegistration key={round.roundId} compact round={round} profile={profile} onUpdated={retry} />
-          <button onClick={onOpenRacha} className="min-h-11 w-full rounded-xl border border-zinc-200 text-xs font-black uppercase">Ver racha</button>
+          <button onClick={onOpenRacha} className="min-h-12 w-full rounded-2xl bg-neutral-950 text-xs font-black uppercase text-white transition active:scale-95">Ver racha</button>
         </div>
       </Card>
       {!organizer && <RoundProgress status={round.status} />}
       <div className="grid grid-cols-2 gap-2">
-        <button onClick={onOpenTeams} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-3 text-xs font-black ring-1 ring-black/5"><Users size={16} />VER TIMES</button>
+        <button onClick={onOpenTeams} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-3 text-xs font-black ring-1 ring-black/[0.03] shadow-sm transition active:scale-95"><Users size={16} />VER TIMES</button>
         <button onClick={onOpenResults} className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-3 text-xs font-black ring-1 ring-black/5"><Trophy size={16} />VER RESULTADOS</button>
       </div>
       {currentMatches?.data && currentMatches.data.partidas.length > 0 && <p className="text-center text-xs text-zinc-600">{currentMatches.data.partidas.length} partidas na rodada</p>}
@@ -162,7 +162,7 @@ function HomeEvaluationCard({ onOpenEvaluate }: { onOpenEvaluate: () => void }) 
 
   if (!state?.open) return null;
 
-  return <button onClick={onOpenEvaluate} className="flex w-full items-center gap-3 rounded-[18px] bg-neutral-950 p-4 text-left text-white shadow-sm transition active:scale-[0.98]">
+  return <button onClick={onOpenEvaluate} className="flex w-full items-center gap-3 rounded-2xl bg-neutral-950 p-5 text-left text-white shadow-lg transition active:scale-[0.98]">
     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-red-600 text-white">
       <Star size={21} />
     </div>
@@ -175,13 +175,13 @@ function HomeEvaluationCard({ onOpenEvaluate }: { onOpenEvaluate: () => void }) 
 
 function InfoBlock({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-[16px] border border-zinc-100 bg-zinc-50 px-2.5 py-3">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-white text-red-600 ring-1 ring-zinc-200">
+    <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-zinc-100 bg-white px-3 py-3 shadow-sm ring-1 ring-black/[0.02]">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-600 text-white ring-1 ring-red-600">
         <Icon size={16} />
       </div>
       <div className="min-w-0">
-        <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-zinc-600">{label}</p>
-        <p className="mt-0.5 whitespace-nowrap text-[13px] font-black tabular-nums text-neutral-950">{value}</p>
+        <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{label}</p>
+        <p className="mt-0.5 whitespace-nowrap text-[14px] font-black tabular-nums text-neutral-950">{value}</p>
       </div>
     </div>
   );
@@ -206,7 +206,7 @@ function ProfileScreen({ profile }: { profile: Profile }) {
       <button
         onClick={handleSignOut}
         disabled={isSigningOut}
-        className="h-12 w-full rounded-[16px] border border-red-200 bg-white text-xs font-bold uppercase tracking-wide text-red-600 transition hover:bg-red-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+        className="h-12 w-full rounded-2xl border border-red-100 bg-white text-xs font-black uppercase tracking-wider text-red-600 shadow-sm transition hover:bg-red-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
       >
         {isSigningOut ? "Saindo..." : "Sair da conta"}
       </button>
@@ -242,7 +242,7 @@ function BottomNav({ activeTab, onChange }: { activeTab: Tab; onChange: (tab: Ta
 }
 
 function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-[22px] bg-white p-4 shadow-[0_8px_22px_rgba(0,0,0,0.035)] ring-1 ring-black/5 ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.03] ${className}`}>{children}</div>;
 }
 
 function getDisplayName(profile: Profile) {

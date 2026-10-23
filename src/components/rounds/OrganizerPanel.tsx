@@ -23,10 +23,10 @@ type Props = {
 
 export function OrganizerPanel(props: Props) {
   if (!isOrganizer(props.profile) || !props.profile.active) return null;
-  if (!props.round) return <section aria-label="Painel do Organizador" className="rounded-[22px] bg-white p-4 ring-1 ring-black/5">
-    <h3 className="text-xs font-black uppercase tracking-wide">Painel do Organizador</h3>
+  if (!props.round) return <section aria-label="Painel do Organizador" className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.03]">
+    <h3 className="text-xs font-black uppercase tracking-wider text-whiter text-neutral-950">Painel do Organizador</h3>
     <p role="status" className="mt-3 text-sm text-zinc-600">{props.loading ? "Carregando rodada..." : "Nenhuma rodada disponível."}</p>
-    {!props.loading && <button onClick={() => props.onNavigate("racha")} className="mt-3 min-h-11 w-full rounded-xl bg-neutral-950 text-xs font-black text-white">CRIAR RODADA</button>}
+    {!props.loading && <button onClick={() => props.onNavigate("racha")} className="mt-3 min-h-11 w-full rounded-2xl bg-neutral-950 text-xs font-black uppercase tracking-wide text-white shadow-md transition active:scale-95">CRIAR RODADA</button>}
   </section>;
   return <OrganizerRoundPanel key={props.round.roundId} {...props} round={props.round} />;
 }
@@ -60,7 +60,7 @@ function OrganizerRoundPanel({ round, matches, matchesError, loading, onRefresh,
     { label: "Resultados", destination: "results" }, { label: "Avaliações", destination: "evaluate" },
   ] as const;
 
-  return <section aria-label="Painel do Organizador" aria-busy={pending} className="overflow-hidden rounded-[22px] bg-white ring-1 ring-black/5">
+  return <section aria-label="Painel do Organizador" aria-busy={pending} className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.03]">
     <div className="flex items-center gap-2 bg-neutral-950 px-4 py-3 text-white">
       <ShieldCheck size={17} className="shrink-0 text-red-400" aria-hidden="true" />
       <div className="min-w-0 flex-1"><h3 className="text-xs font-black uppercase tracking-wide">Painel do Organizador</h3><p className="mt-1 text-[10px] font-bold text-zinc-400">{dateLabel(round.date)}</p></div>
@@ -70,19 +70,19 @@ function OrganizerRoundPanel({ round, matches, matchesError, loading, onRefresh,
       <dl aria-label="Indicadores da rodada" className="grid grid-cols-2 gap-1.5">{[
         ["Participantes", String(view.confirmed)], ["Times", view.teamCount === null ? "—" : String(view.teamCount)],
         ["Partidas", view.matchCount === null ? "—" : String(view.matchCount)], ["Avaliações", view.evaluationStatus ?? "—"],
-      ].map(([label, value]) => <div key={label} className="flex min-w-0 items-center justify-between gap-2 rounded-xl bg-zinc-50 px-3 py-2"><dt className="min-w-0 break-words text-[10px] font-black uppercase text-zinc-500">{label}</dt><dd className={`shrink-0 font-black tabular-nums ${label === "Avaliações" ? "text-[9px]" : "text-xl"}`}>{value}</dd></div>)}</dl>
+      ].map(([label, value]) => <div key={label} className="flex min-w-0 items-center justify-between gap-2 rounded-2xl bg-zinc-100/50 px-3 py-2"><dt className="min-w-0 break-words text-[9px] font-black uppercase tracking-widest text-zinc-500">{label}</dt><dd className={`shrink-0 font-black tabular-nums ${label === "Avaliações" ? "text-[9px]" : "text-2xl font-black tabular-nums text-neutral-950"}`}>{value}</dd></div>)}</dl>
       <RoundProgress status={round.status} evaluationsCompleted={view.evaluationsCompleted} />
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-bold text-zinc-600"><span>LISTA {view.listStatus}</span><span>TIMES {view.teamsStatus ?? "—"}</span><span>RACHA {view.rachaStatus}</span></div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-black uppercase tracking-wider text-zinc-500"><span>LISTA {view.listStatus}</span><span>TIMES {view.teamsStatus ?? "—"}</span><span>RACHA {view.rachaStatus}</span></div>
       {(view.substitutes > 0 || view.absent > 0) && <p className="text-[10px] text-zinc-500">{view.substitutes} {view.substitutes === 1 ? "suplente" : "suplentes"} · {view.absent} {view.absent === 1 ? "ausente" : "ausentes"}</p>}
-      <p role="status" className="rounded-xl border-l-2 border-red-600 bg-red-50 px-3 py-2 text-xs font-bold leading-relaxed text-zinc-800">{view.alert}</p>
-      {view.finalized !== null && <p className="text-[11px] font-semibold text-zinc-600">{view.finalized} {view.finalized === 1 ? "partida finalizada" : "partidas finalizadas"}{data?.evaluations && ` · ${data.evaluations.respondentes} de ${data.evaluations.total} jogadores responderam`}</p>}
+      <p role="status" className="rounded-2xl border-l-4 border-red-600 bg-red-50 px-3 py-2 text-xs font-black leading-relaxed text-red-700">{view.alert}</p>
+      {view.finalized !== null && <p className="text-xs font-bold text-zinc-500">{view.finalized} {view.finalized === 1 ? "partida finalizada" : "partidas finalizadas"}{data?.evaluations && ` · ${data.evaluations.respondentes} de ${data.evaluations.total} jogadores responderam`}</p>}
       {view.currentMatch && <p className="break-words rounded-xl bg-neutral-950 p-3 text-center text-xs font-black text-white"><span className="mb-1 block text-[9px] tracking-wider text-red-400">EM CAMPO</span>{view.currentMatch.timeA} {view.currentMatch.placarA} × {view.currentMatch.placarB} {view.currentMatch.timeB}</p>}
       {view.waiting.length > 0 && <p className="break-words text-[10px] text-zinc-500">{round.status === "finalizado" ? "Fila preservada" : "Fila"}: {view.waiting.join(" → ")}</p>}
       {pending && <p className="text-[10px] text-zinc-500">Atualizando indicadores...</p>}
       {errors.length > 0 && <p role="alert" className="rounded-xl bg-zinc-100 p-2 text-xs text-zinc-700">{errors.join(" ")} Use Atualizar painel para tentar novamente.</p>}
-      <button onClick={() => onNavigate(view.primary.destination)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-3 text-xs font-black text-white transition hover:bg-red-700 active:scale-[0.98]">{view.primary.label}<ArrowRight size={16} aria-hidden="true" /></button>
+      <button onClick={() => onNavigate(view.primary.destination)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-red-600 px-3 text-xs font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-95">{view.primary.label}<ArrowRight size={16} aria-hidden="true" /></button>
       {view.primary.label === "ABRIR AVALIAÇÕES" && <p className="text-center text-[10px] text-zinc-500">Confirme a abertura na aba Avaliação.</p>}
-      <nav aria-label="Atalhos do organizador" className="grid grid-cols-4 gap-1">{shortcuts.map(link => <button key={link.destination} onClick={() => onNavigate(link.destination)} className="min-h-11 min-w-0 rounded-lg text-[10px] font-bold text-zinc-600 hover:bg-zinc-100">{link.label}</button>)}</nav>
+      <nav aria-label="Atalhos do organizador" className="grid grid-cols-4 gap-1">{shortcuts.map(link => <button key={link.destination} onClick={() => onNavigate(link.destination)} className="min-h-11 min-w-0 rounded-xl text-[10px] font-black uppercase tracking-wider text-zinc-500 hover:bg-zinc-100 transition">{link.label}</button>)}</nav>
     </div>
   </section>;
 }

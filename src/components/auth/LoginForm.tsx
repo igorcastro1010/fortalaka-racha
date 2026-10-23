@@ -92,18 +92,18 @@ export function LoginForm({ initialError }: { initialError?: string }) {
         <div className="flex w-full flex-col items-center">
           <section className="flex w-full flex-col items-center text-center">
             <LogoMark size="profile" priority />
-            <h1 className="mt-4 text-[36px] font-black uppercase leading-[0.92] tracking-normal">
+            <h1 className="mt-4 text-[40px] font-black uppercase leading-[0.9] tracking-tighter">
               Racha Fortalaka
             </h1>
             <div className="mt-3 h-1 w-12 rounded-full bg-red-600" />
           </section>
 
-          <form onSubmit={handleLogin} className="mt-6 w-full rounded-[24px] bg-white p-4 text-left text-neutral-950 shadow-xl shadow-black/25">
+          <form onSubmit={handleLogin} className="mt-6 w-full rounded-[28px] bg-white p-6 text-left text-neutral-950 shadow-sm ring-1 ring-black/[0.03]">
             <label className="text-sm font-bold" htmlFor="email">
               E-mail
             </label>
             <input
-              className="mt-2 h-[52px] w-full rounded-[18px] border border-zinc-200 bg-zinc-50 px-4 text-base font-semibold outline-none transition focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-100 disabled:cursor-not-allowed disabled:opacity-70"
+              className="mt-2 h-[56px] w-full rounded-[20px] border border-zinc-200 bg-zinc-50 px-4 text-base font-bold outline-none transition focus:border-red-600 focus:bg-white focus:ring-4 focus:ring-red-100/50 disabled:cursor-not-allowed disabled:opacity-70"
               id="email"
               name="email"
               autoComplete="username"
@@ -117,7 +117,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
             <label className="mt-4 block text-sm font-bold" htmlFor="password">
               Senha
             </label>
-            <div className="mt-2 flex h-[52px] items-center gap-3 rounded-[18px] border border-zinc-200 bg-zinc-50 px-4 transition focus-within:border-red-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-red-100">
+            <div className="mt-2 flex h-[56px] items-center gap-3 rounded-[20px] border border-zinc-200 bg-zinc-50 px-4 transition focus-within:border-red-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-red-100/50">
               <Lock className="text-zinc-400" size={19} />
               <input
                 className="h-full min-w-0 flex-1 bg-transparent text-base font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-70"
@@ -146,7 +146,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
             ) : null}
 
             <button
-              className="mt-5 h-[52px] w-full rounded-[18px] bg-red-600 text-base font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-75 disabled:active:scale-100"
+              className="mt-5 h-[56px] w-full rounded-[20px] bg-red-600 text-base font-black uppercase tracking-wider text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-75 disabled:active:scale-100"
               disabled={isLoading || isSendingReset}
             >
               {isLoading ? "Entrando..." : "Entrar"}

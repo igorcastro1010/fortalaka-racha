@@ -16,9 +16,9 @@ export function ResultsScreen({ profile }: { profile: Profile }) {
   const { round, loading, error, retry } = useCurrentRound();
 
   return <section className="space-y-3.5">
-    <div><h2 className="text-[29px] font-black leading-tight">Resultados</h2><p className="mt-1 text-sm font-bold text-zinc-600">Partidas, placares e desempenho</p></div>
-    <nav aria-label="Áreas de Resultados" className="grid grid-cols-2 gap-2 rounded-[16px] bg-zinc-200/60 p-1">
-      {([{ id: "matches", label: "Partidas" }, { id: "ranking", label: "Ranking" }] as const).map(tab => <button key={tab.id} aria-current={view === tab.id ? "page" : undefined} onClick={() => setView(tab.id)} className={`min-h-11 rounded-xl text-sm font-black ${view === tab.id ? "bg-neutral-950 text-white shadow-sm" : "text-zinc-600"}`}>{tab.label}</button>)}
+    <div><h2 className="text-[32px] font-black leading-[0.9] tracking-tighter">Resultados</h2><p className="mt-1 text-xs font-black uppercase tracking-wider text-zinc-500">Partidas, placares e desempenho</p></div>
+    <nav aria-label="Áreas de Resultados" className="grid grid-cols-2 gap-2 rounded-2xl bg-zinc-100 p-1">
+      {([{ id: "matches", label: "Partidas" }, { id: "ranking", label: "Ranking" }] as const).map(tab => <button key={tab.id} aria-current={view === tab.id ? "page" : undefined} onClick={() => setView(tab.id)} className={`min-h-11 rounded-xl text-sm font-black transition active:scale-95 ${view === tab.id ? "bg-neutral-950 text-white shadow-md" : "text-zinc-500"}`}>{tab.label}</button>)}
     </nav>
     {view === "ranking" ? <RankingScreen sort={rankingSort} onSortChange={setRankingSort} /> : <>
       <RoundLoadStatus loading={loading} error={error} empty={!round} retry={retry} />

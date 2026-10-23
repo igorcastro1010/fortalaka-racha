@@ -132,13 +132,13 @@ export function ResetPasswordForm() {
         <div className="flex w-full flex-col items-center">
           <section className="flex w-full flex-col items-center text-center">
             <LogoMark size="login" priority />
-            <h1 className="mt-6 text-[44px] font-black uppercase leading-[0.92] tracking-normal">
+            <h1 className="mt-6 text-[40px] font-black uppercase leading-[0.9] tracking-tighter">
               Racha Fortalaka
             </h1>
-            <div className="mt-5 h-1.5 w-24 rounded-full bg-red-600" />
+            <div className="mt-5 h-1 w-12 rounded-full bg-red-600" />
           </section>
 
-          <div className="mt-10 w-full rounded-[24px] bg-white p-4 text-left text-neutral-950 shadow-xl shadow-black/25">
+          <div className="mt-10 w-full rounded-[28px] bg-white p-6 text-left text-neutral-950 shadow-sm ring-1 ring-black/[0.03]">
             {recoveryState === "checking" ? (
               <StatusBlock title="Validando link..." body="Aguarde um instante." />
             ) : null}
@@ -152,7 +152,7 @@ export function ResetPasswordForm() {
                 />
                 <button
                   onClick={() => router.replace("/login")}
-                  className="mt-5 h-[52px] w-full rounded-[18px] bg-red-600 text-base font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98]"
+                  className="mt-5 h-[56px] w-full rounded-[20px] bg-red-600 text-lg font-black tracking-tight uppercase tracking-wider text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98]"
                 >
                   Voltar para o login
                 </button>
@@ -165,7 +165,7 @@ export function ResetPasswordForm() {
 
             {recoveryState === "ready" ? (
               <form onSubmit={handleSubmit}>
-                <label className="text-sm font-bold" htmlFor="new-password">
+                <label className="text-sm font-black uppercase tracking-wider text-zinc-500" htmlFor="new-password">
                   Nova senha
                 </label>
                 <PasswordInput
@@ -176,7 +176,7 @@ export function ResetPasswordForm() {
                   placeholder="Digite a nova senha"
                 />
 
-                <label className="mt-4 block text-sm font-bold" htmlFor="confirm-password">
+                <label className="mt-4 block text-sm font-black uppercase tracking-wider text-zinc-500" htmlFor="confirm-password">
                   Confirmar nova senha
                 </label>
                 <PasswordInput
@@ -194,7 +194,7 @@ export function ResetPasswordForm() {
                 ) : null}
 
                 <button
-                  className="mt-5 h-[52px] w-full rounded-[18px] bg-red-600 text-base font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-75 disabled:active:scale-100"
+                  className="mt-5 h-[56px] w-full rounded-[20px] bg-red-600 text-base font-black uppercase tracking-wider text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-75 disabled:active:scale-100"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? "Alterando..." : "Alterar senha"}
@@ -222,10 +222,10 @@ function PasswordInput({
   placeholder: string;
 }) {
   return (
-    <div className="mt-2 flex h-[52px] items-center gap-3 rounded-[18px] border border-zinc-200 bg-zinc-50 px-4 transition focus-within:border-red-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-red-100">
+    <div className="mt-2 flex h-[52px] items-center gap-3 rounded-[20px] border border-zinc-200 bg-zinc-50 px-4 transition focus-within:border-red-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-red-100/50">
       <Lock className="text-zinc-400" size={19} />
       <input
-        className="h-full min-w-0 flex-1 bg-transparent text-base font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-70"
+        className="h-full min-w-0 flex-1 bg-transparent text-base font-bold outline-none disabled:cursor-not-allowed disabled:opacity-70"
         id={id}
         name={id}
         autoComplete="new-password"
@@ -256,7 +256,7 @@ function StatusBlock({
   }[tone];
 
   return (
-    <div className={`rounded-[18px] p-4 ${toneClass}`}>
+    <div className={`rounded-2xl p-4 ${toneClass} ring-1 ring-black/[0.03]`}>
       <p className="text-base font-black">{title}</p>
       <p className="mt-1 text-sm font-bold">{body}</p>
     </div>

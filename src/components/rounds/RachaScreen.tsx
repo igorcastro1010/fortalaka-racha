@@ -250,8 +250,8 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
   return (
     <section className="space-y-3.5">
       <div>
-        <h2 className="text-[29px] font-black leading-tight tracking-normal">Racha</h2>
-        <p className="mt-0.5 text-sm font-bold text-zinc-600">
+        <h2 className="text-[32px] font-black leading-[0.9] tracking-tighter">Racha</h2>
+        <p className="mt-0.5 text-xs font-black uppercase tracking-wider text-zinc-500">
           {round ? getStatusLabel(round.status) : "Crie a rodada para gerenciar a lista"}
         </p>
       </div>
@@ -275,7 +275,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
           </Card>
 
           {organizer && round.status !== "finalizado" ? (
-            <details className="rounded-[18px] border border-zinc-200 bg-white px-3 py-1">
+            <details className="rounded-2xl border border-zinc-100 bg-white px-4 py-2 shadow-sm ring-1 ring-black/[0.02]">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 text-sm font-bold text-neutral-950 [&::-webkit-details-marker]:hidden"><Plus size={18} /> Adicionar jogador</summary>
               <div className="mt-4 space-y-3">
               <select
@@ -312,7 +312,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
               <button
                 onClick={handleAddParticipant}
                 disabled={isSaving || !selectedProfileId}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-[18px] bg-red-600 text-sm font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-[20px] bg-red-600 text-base font-black uppercase tracking-wider text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Plus size={18} />
                 Adicionar
@@ -327,7 +327,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
                 <button
                   onClick={handleCloseList}
                   disabled={isSaving}
-                  className="h-12 rounded-[18px] bg-neutral-950 text-sm font-black uppercase tracking-wide text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-12 rounded-2xl bg-neutral-950 text-sm font-black uppercase tracking-wider text-white shadow-md transition hover:bg-neutral-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Fechar lista
                 </button>
@@ -336,7 +336,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
                 <button
                   onClick={handleReopenList}
                   disabled={isSaving}
-                  className="h-11 rounded-[16px] border border-zinc-200 bg-white text-xs font-black uppercase text-neutral-950 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-12 rounded-2xl border border-zinc-100 bg-white text-xs font-black uppercase text-neutral-950 shadow-sm transition hover:bg-zinc-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Reabrir lista
                 </button>
@@ -358,11 +358,11 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
                 onClick={requestFinish}
                 disabled={!profile.active || isSaving || !["times_confirmados", "em_andamento"].includes(round.status) || finalizedMatchCount === null || finalizedMatchCount < 1}
                 aria-describedby="finish-round-status"
-                className="h-12 w-full rounded-[18px] bg-neutral-950 text-sm font-black text-white transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-zinc-200 disabled:active:scale-100"
+                className="h-12 w-full rounded-2xl bg-neutral-950 text-sm font-black uppercase tracking-wide text-white shadow-md transition hover:bg-neutral-800 active:scale-95 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-zinc-200 disabled:active:scale-100"
               >
                 FINALIZAR RACHA
               </button>
-              <p id="finish-round-status" aria-live="polite" className="mt-3 text-sm font-bold text-zinc-600">
+              <p id="finish-round-status" aria-live="polite" className="mt-3 text-xs font-black uppercase tracking-wider text-zinc-500">
                 {finalizedMatchCount === null ? "Verificando partidas da rodada..." : finalizedMatchCount === 0 ? "Finalize pelo menos uma partida antes de encerrar a rodada." : !["times_confirmados", "em_andamento"].includes(round.status) ? "Confirme os times antes de finalizar a rodada." : `${finalizedMatchCount} partidas finalizadas`}
               </p>
               {onOpenResults && <button onClick={onOpenResults} className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 text-xs font-black">IR PARA RESULTADOS</button>}
@@ -405,7 +405,7 @@ function ParticipantSection({
   return (
     <Card>
       <div className="mb-2.5 flex items-center justify-between">
-        <h3 className="text-lg font-black">{title}</h3>
+        <h3 className="text-2xl font-black text-red-600">{title}</h3>
         <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black text-zinc-700">
           {participants.length}
         </span>
@@ -417,18 +417,18 @@ function ParticipantSection({
               <PlayerAvatar name={participant.name} avatarUrl={participant.avatarUrl} />
               <div className={`min-w-0 flex-1 ${editable ? "pr-11" : ""}`}>
               <p className="break-words text-sm font-black">{participant.name}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-zinc-600"><span>{getParticipantStatusLabel(participant.status)}</span><span>{participant.type === "suplente" ? "Suplente" : "Participante"}</span></div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-zinc-500"><span>{getParticipantStatusLabel(participant.status)}</span><span>{participant.type === "suplente" ? "Suplente" : "Participante"}</span></div>
               </div>
             </div>
             {editable ? (
               <details className="relative -mt-11">
                 <summary aria-label={`Editar ${participant.name}`} className="ml-auto flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden"><MoreVertical size={19} /></summary>
-                <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl bg-zinc-50 p-3">
+                <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl bg-zinc-100/50 p-4">
                 <select
                   aria-label={`Categoria de ${participant.name}`}
                   value={participant.type === "suplente" ? "suplente" : "linha"}
                   onChange={(event) => onUpdate(participant, "type", event.target.value)}
-                  className="h-11 rounded-[13px] border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"
+                  className="h-12 rounded-[16px] border border-zinc-200 bg-zinc-50 px-3 text-xs font-bold outline-none transition focus:ring-4 focus:ring-red-100"
                 >
                   <option value="linha">Participante</option>
                   <option value="suplente">Suplente</option>
@@ -443,7 +443,7 @@ function ParticipantSection({
                   <option value="ausente">Ausente</option>
                   <option value="removido">Removido</option>
                 </select>
-                <button onClick={() => onRemove(participant)} className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white text-xs font-bold text-red-600"><Trash2 size={15} /> Remover da rodada</button>
+                <button onClick={() => onRemove(participant)} className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-100 bg-white text-xs font-black text-red-600 transition hover:bg-red-50"><Trash2 size={15} /> Remover da rodada</button>
               </div>
               </details>
             ) : null}
@@ -459,15 +459,15 @@ function ParticipantSection({
 
 function MiniCount({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-[14px] bg-zinc-50 px-2 py-2 text-center ring-1 ring-zinc-100">
+    <div className="rounded-2xl bg-white px-3 py-3 text-center shadow-sm ring-1 ring-black/[0.03]">
       <p className="text-lg font-black">{value}</p>
-      <p className="truncate text-[10px] font-bold text-zinc-600">{label}</p>
+      <p className="truncate text-[10px] font-black uppercase tracking-widest text-zinc-500">{label}</p>
     </div>
   );
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-[22px] bg-white p-4 shadow-[0_8px_22px_rgba(0,0,0,0.035)] ring-1 ring-black/5 ${className}`}>{children}</div>;
+  return <div className={`rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-black/[0.03] ${className}`}>{children}</div>;
 }
 
 function Feedback({ text, tone }: { text: string; tone: "error" | "success" | "neutral" }) {

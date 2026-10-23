@@ -107,21 +107,21 @@ export function SignupForm({ initialError }: { initialError?: string }) {
         <div className="flex w-full flex-col items-center">
           <section className="flex w-full flex-col items-center text-center">
             <LogoMark size="login" priority />
-            <h1 className="mt-6 text-[44px] font-black uppercase leading-[0.92] tracking-normal">
+            <h1 className="mt-6 text-[40px] font-black uppercase leading-[0.9] tracking-tighter">
               Racha Fortalaka
             </h1>
-            <div className="mt-5 h-1.5 w-24 rounded-full bg-red-600" />
+            <div className="mt-5 h-1 w-12 rounded-full bg-red-600" />
           </section>
 
-          <div className="mt-10 w-full rounded-[24px] bg-white p-4 text-left text-neutral-950 shadow-xl shadow-black/25">
+          <div className="mt-10 w-full rounded-[28px] bg-white p-6 text-left text-neutral-950 shadow-sm ring-1 ring-black/[0.03]">
             {message ? (
               <div>
-                <p className="rounded-[16px] bg-emerald-50 px-3 py-3 text-sm font-bold text-emerald-700">
+                <p className="rounded-[16px] bg-emerald-50 px-3 py-3 text-sm font-black uppercase tracking-wider text-zinc-500 text-emerald-700">
                   {message}
                 </p>
                 <Link
                   href="/login"
-                  className="mt-5 flex h-[52px] w-full items-center justify-center rounded-[18px] bg-red-600 text-base font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98]"
+                  className="mt-5 flex h-[52px] w-full items-center justify-center rounded-[20px] bg-red-600 text-base font-black uppercase tracking-wider text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98]"
                 >
                   Voltar para o login
                 </Link>
@@ -185,13 +185,13 @@ export function SignupForm({ initialError }: { initialError?: string }) {
                 />
 
                 {error ? (
-                  <p className="mt-4 rounded-[16px] bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+                  <p className="mt-4 rounded-2xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700 ring-1 ring-red-100">
                     {error}
                   </p>
                 ) : null}
 
                 <button
-                  className="mt-5 h-[52px] w-full rounded-[18px] bg-red-600 text-base font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-75 disabled:active:scale-100"
+                  className="mt-5 h-[56px] w-full rounded-[20px] bg-red-600 text-base font-black uppercase tracking-wider text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-75 disabled:active:scale-100"
                   disabled={isLoading}
                 >
                   {isLoading ? "Criando conta..." : "Criar conta"}
@@ -232,10 +232,10 @@ function TextInput({
   disabled: boolean;
 }) {
   return (
-    <div className="mt-2 flex h-[52px] items-center gap-3 rounded-[18px] border border-zinc-200 bg-zinc-50 px-4 transition focus-within:border-red-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-red-100">
+    <div className="mt-2 flex h-[52px] items-center gap-3 rounded-[20px] border border-zinc-200 bg-zinc-50 px-4 transition focus-within:border-red-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-red-100/50">
       <Icon className="text-zinc-400" size={19} />
       <input
-        className="h-full min-w-0 flex-1 bg-transparent text-base font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-70"
+        className="h-full min-w-0 flex-1 bg-transparent text-base font-bold outline-none disabled:cursor-not-allowed disabled:opacity-70"
         id={id}
         name={id}
         autoComplete={autoComplete}

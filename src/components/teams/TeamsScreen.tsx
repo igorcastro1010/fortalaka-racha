@@ -194,8 +194,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   return (
     <section className="flex flex-col gap-3">
       <div>
-        <h2 className="text-[29px] font-black leading-tight tracking-normal">Times</h2>
-        <p className="mt-0.5 text-sm font-bold text-zinc-600">
+        <h2 className="text-[32px] font-black leading-[0.9] tracking-tighter">Times</h2>
+        <p className="mt-0.5 text-xs font-black uppercase tracking-wider text-zinc-500">
           Sorteio da rodada
         </p>
       </div>
@@ -205,12 +205,12 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
       <Card className="order-[5] flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-600">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white shadow-sm">
             <Users size={19} />
           </div>
           <div>
-            <p className="text-sm font-black">{confirmedPlayersCount} participantes</p>
-            <p className="text-xs font-bold text-zinc-600">{getTeamsToFormLabel(teamsToFormCount)}</p>
+            <p className="text-xl font-black tracking-tight text-neutral-950">{confirmedPlayersCount} participantes</p>
+            <p className="text-xs font-black uppercase tracking-widest text-zinc-500">{getTeamsToFormLabel(teamsToFormCount)}</p>
           </div>
         </div>
       </Card>
@@ -306,7 +306,7 @@ function OrganizerControls({
       <button
         onClick={onDraw}
         disabled={(!listClosed && !confirmed) || finalized || !canDraw || isSaving}
-        className="flex h-12 items-center justify-center gap-2 rounded-[18px] bg-red-600 text-sm font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-red-600 text-sm font-black uppercase tracking-wider text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {hasDraw ? <RefreshCw size={18} /> : <Shuffle size={18} />}
         {hasDraw ? "Sortear novamente" : "Sortear times"}
@@ -315,14 +315,14 @@ function OrganizerControls({
         <button
           onClick={onToggleAdjust}
           disabled={!hasDraw || !listClosed || finalized || isSaving}
-          className="order-2 h-11 rounded-[14px] border border-zinc-200 bg-white text-xs font-bold uppercase text-zinc-700 transition hover:bg-zinc-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          className="order-2 h-11 rounded-2xl border border-zinc-100 bg-white text-xs font-black uppercase text-neutral-950 shadow-sm transition hover:bg-zinc-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {adjustMode ? "Concluir ajuste" : "Ajustar times"}
         </button>
         <button
           onClick={onConfirm}
           disabled={!hasDraw || !listClosed || isSaving || finalized}
-          className="h-11 rounded-[16px] bg-neutral-950 text-xs font-black uppercase text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-11 rounded-2xl bg-neutral-950 text-xs font-black uppercase text-white shadow-md transition hover:bg-neutral-800 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSaving ? "Salvando..." : "Confirmar times"}
         </button>
@@ -349,9 +349,9 @@ function TeamCard({
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="break-words text-lg font-black">{team.name}</h3>
-          <p className="text-xs font-bold text-zinc-600">{team.players.length} jogadores</p>
+          <p className="text-xs font-black uppercase tracking-wider text-zinc-500">{team.players.length} jogadores</p>
         </div>
-        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black text-zinc-700">
+        <span className="rounded-full bg-neutral-950 px-3 py-1 text-xs font-black text-white">
           #{String(team.number).padStart(2, "0")}
         </span>
       </div>
@@ -381,7 +381,7 @@ function RoundStatusBadge({ status }: { status: RoundStatus }) {
   };
 
   return (
-    <div className="flex items-center gap-2 rounded-[16px] bg-white p-3 ring-1 ring-black/5">
+    <div className="flex items-center gap-2 rounded-2xl bg-white p-3 ring-1 ring-black/[0.03] shadow-sm">
       <Users size={16} aria-hidden="true" className="text-zinc-500" />
       <p className="text-xs font-bold">{labels[status]}</p>
     </div>
@@ -407,11 +407,11 @@ function PlayerPill({
       onClick={onClick}
       disabled={!clickable}
       className={`flex min-h-11 w-full items-center gap-2.5 rounded-lg py-1 text-left transition ${
-        isCurrentPlayer ? "bg-emerald-100 px-2" : selected ? "bg-red-50" : "bg-transparent"
+        isCurrentPlayer ? "bg-emerald-50 px-2 ring-1 ring-emerald-200" : selected ? "bg-red-50 ring-2 ring-red-500" : "bg-transparent"
       } ${selected ? "ring-2 ring-red-500" : ""} ${clickable ? "active:scale-[0.99]" : "cursor-default"}`}
     >
       <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} size="sm" />
-      <span className="min-w-0 flex-1 break-words text-sm font-bold leading-snug text-neutral-950">{player.name}</span>
+      <span className="min-w-0 flex-1 break-words text-sm font-black leading-snug text-neutral-950">{player.name}</span>
       {isCurrentPlayer && <span className="shrink-0 text-xs font-bold text-emerald-800">Você</span>}
     </button>
   );
@@ -424,11 +424,11 @@ function Feedback({ text, tone }: { text: string; tone: "error" | "success" | "n
     neutral: "bg-zinc-50 text-zinc-700 ring-zinc-100",
   }[tone];
 
-  return <p role={tone === "error" ? "alert" : tone === "success" ? "status" : undefined} className={`rounded-[16px] p-3 text-sm font-bold ring-1 ${toneClass}`}>{text}</p>;
+  return <p role={tone === "error" ? "alert" : tone === "success" ? "status" : undefined} className={`rounded-2xl p-3 text-sm font-bold ring-1 ${toneClass}`}>{text}</p>;
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-[18px] bg-white p-3 shadow-[0_8px_22px_rgba(0,0,0,0.035)] ring-1 ring-black/5 ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.03] ${className}`}>{children}</div>;
 }
 
 function getTeamsToFormLabel(teamCount: number) {
