@@ -20,13 +20,13 @@ export function RoundForm({ round, onSaved }: { round?: RoundDetails; onSaved: (
         if (error) throw error;
       } else await createRound(client, { name: "Racha Fortalaka", date, time, address: address.trim() });
       await onSaved();
-    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível salvar a rodada."); }
+    } catch (e) { console.error("Salvar rodada", e); setError("Não foi possível salvar a rodada. Tente novamente."); }
     finally { setBusy(false); }
   }
-  return <form onSubmit={save} className="space-y-3 rounded-[22px] bg-white p-4 ring-1 ring-black/5">
+  return <form onSubmit={save} className="space-y-4 py-4">
     <h3 className="text-lg font-black">{round ? "Editar rodada" : "Criar rodada"}</h3>
-    {[{ label: "Data", type: "date", value: date, change: setDate }, { label: "Horário", type: "time", value: time, change: setTime }, { label: "Endereço", type: "text", value: address, change: setAddress }].map(field => <label key={field.label} className="block text-xs font-bold">{field.label}<input required disabled={busy} type={field.type} value={field.value} onChange={event => field.change(event.target.value)} className="mt-1 min-h-12 w-full min-w-0 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm" /></label>)}
+    {[{ label: "Data", type: "date", value: date, change: setDate }, { label: "Horário", type: "time", value: time, change: setTime }, { label: "Endereço", type: "text", value: address, change: setAddress }].map(field => <label key={field.label} className="block text-sm font-bold">{field.label}<input required disabled={busy} type={field.type} value={field.value} onChange={event => field.change(event.target.value)} className="fk-field mt-2 min-w-0" /></label>)}
     {error && <p role="alert" className="text-sm font-bold text-red-700">{error}</p>}
-    <button disabled={busy} className="min-h-12 w-full rounded-xl bg-red-600 text-sm font-black text-white disabled:opacity-50">{busy ? "SALVANDO..." : round ? "SALVAR RODADA" : "CRIAR RODADA"}</button>
+    <button disabled={busy} className="fk-primary w-full">{busy ? "SALVANDO..." : round ? "SALVAR RODADA" : "CRIAR RODADA"}</button>
   </form>;
 }

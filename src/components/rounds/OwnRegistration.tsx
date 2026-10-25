@@ -27,11 +27,11 @@ export function OwnRegistration({ round, profile, onUpdated, compact = false }: 
     } finally { submitting.current = false; setBusy(false); }
   }
 
-  return <section aria-busy={busy} className={compact ? "space-y-2 border-t border-zinc-100 pt-3" : "space-y-2 rounded-[20px] bg-white p-4 ring-1 ring-black/5"}>
+  return <section aria-busy={busy} className={compact ? "space-y-3 border-t border-zinc-200 pt-4" : "fk-section space-y-3"}>
     {!compact && <h3 className="text-xs font-bold text-zinc-500">Sua inscrição</h3>}
     <p className="flex items-center gap-2 text-xs font-black text-neutral-950">{registration && <CheckCircle2 size={17} aria-hidden="true" />}{registration ? "VOCÊ ESTÁ NA LISTA" : "Você ainda não está na lista."}</p>
     {message && <p role="status" className="text-xs font-bold text-zinc-700">{message}</p>}
     {error && <p role="alert" className="text-sm font-bold text-red-700">{error}</p>}
-    {canChange ? registration ? <button disabled={busy} onClick={() => submit(false)} className="min-h-12 w-full rounded-xl border border-zinc-200 text-xs font-black disabled:opacity-50">{busy ? "SAINDO..." : "SAIR DA LISTA"}</button> : <button disabled={busy} onClick={() => submit(true)} className="min-h-12 w-full rounded-xl bg-red-600 text-xs font-black text-white disabled:opacity-50">{busy ? "ENTRANDO..." : "ENTRAR NA LISTA"}</button> : <p className="text-xs text-zinc-500">{round.status === "finalizado" ? "Racha finalizado. Inscrições preservadas." : "Lista fechada para inscrições e saídas."}</p>}
+    {canChange ? registration ? <button disabled={busy} onClick={() => submit(false)} className="fk-secondary w-full">{busy ? "SAINDO..." : "SAIR DA LISTA"}</button> : <button disabled={busy} onClick={() => submit(true)} className="fk-primary w-full">{busy ? "ENTRANDO..." : "ENTRAR NA LISTA"}</button> : <p className="text-sm text-zinc-600">{round.status === "finalizado" ? "Racha finalizado. Inscrições preservadas." : "Lista fechada para inscrições e saídas."}</p>}
   </section>;
 }

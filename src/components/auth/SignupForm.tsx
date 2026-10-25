@@ -5,7 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { LogoMark } from "@/components/brand/LogoMark";
+import { AuthShell } from "@/components/auth/AuthShell";
 import { createClient } from "@/lib/supabase/client";
 
 export function SignupForm({ initialError }: { initialError?: string }) {
@@ -102,113 +102,99 @@ export function SignupForm({ initialError }: { initialError?: string }) {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-[430px] items-center bg-[linear-gradient(160deg,#111_0%,#18181b_54%,#050505_100%)] px-5 py-[calc(24px+env(safe-area-inset-top))] pb-[calc(18px+env(safe-area-inset-bottom))]">
-        <div className="flex w-full flex-col items-center">
-          <section className="flex w-full flex-col items-center text-center">
-            <LogoMark size="login" priority />
-            <h1 className="mt-6 text-[44px] font-black uppercase leading-[0.92] tracking-normal">
-              Racha Fortalaka
-            </h1>
-            <div className="mt-5 h-1.5 w-24 rounded-full bg-red-600" />
-          </section>
-
-          <div className="mt-10 w-full rounded-[24px] bg-white p-4 text-left text-neutral-950 shadow-xl shadow-black/25">
-            {message ? (
-              <div>
-                <p className="rounded-[16px] bg-emerald-50 px-3 py-3 text-sm font-bold text-emerald-700">
-                  {message}
-                </p>
-                <Link
-                  href="/login"
-                  className="mt-5 flex h-[52px] w-full items-center justify-center rounded-[18px] bg-red-600 text-base font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98]"
-                >
-                  Voltar para o login
-                </Link>
-              </div>
-            ) : (
-              <form onSubmit={handleSignup}>
-                <label className="text-sm font-bold" htmlFor="signup-name">
-                  Nome
-                </label>
-                <TextInput
-                  id="signup-name"
-                  autoComplete="name"
-                  icon={User}
-                  placeholder="Seu nome"
-                  type="text"
-                  value={name}
-                  onChange={setName}
-                  disabled={isLoading}
-                />
-
-                <label className="mt-4 block text-sm font-bold" htmlFor="signup-email">
-                  E-mail
-                </label>
-                <TextInput
-                  id="signup-email"
-                  autoComplete="email"
-                  icon={Mail}
-                  placeholder="voce@email.com"
-                  type="email"
-                  value={email}
-                  onChange={setEmail}
-                  disabled={isLoading}
-                />
-
-                <label className="mt-4 block text-sm font-bold" htmlFor="signup-password">
-                  Senha
-                </label>
-                <TextInput
-                  id="signup-password"
-                  autoComplete="new-password"
-                  icon={Lock}
-                  placeholder="Digite sua senha"
-                  type="password"
-                  value={password}
-                  onChange={setPassword}
-                  disabled={isLoading}
-                />
-
-                <label className="mt-4 block text-sm font-bold" htmlFor="signup-confirm-password">
-                  Confirmar senha
-                </label>
-                <TextInput
-                  id="signup-confirm-password"
-                  autoComplete="new-password"
-                  icon={Lock}
-                  placeholder="Confirme sua senha"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={setConfirmPassword}
-                  disabled={isLoading}
-                />
-
-                {error ? (
-                  <p className="mt-4 rounded-[16px] bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
-                    {error}
-                  </p>
-                ) : null}
-
-                <button
-                  className="mt-5 h-[52px] w-full rounded-[18px] bg-red-600 text-base font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-75 disabled:active:scale-100"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Criando conta..." : "Criar conta"}
-                </button>
-
-                <p className="mt-5 text-center text-sm font-bold text-zinc-600">
-                  Ja tenho uma conta{" "}
-                  <Link className="font-black text-red-600 transition hover:text-red-700" href="/login">
-                    Entrar
-                  </Link>
-                </p>
-              </form>
-            )}
-          </div>
+    <AuthShell title="Crie sua conta">
+      {message ? (
+        <div>
+          <p role="status" className="border-l-2 border-emerald-500 pl-3 text-sm leading-relaxed text-emerald-700">
+            {message}
+          </p>
+          <Link
+            href="/login"
+            className="fk-primary mt-6 flex min-h-11 w-full items-center justify-center rounded-md bg-red-600 px-4 py-3 text-sm font-bold tracking-normal text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-500"
+          >
+            Voltar para o login
+          </Link>
         </div>
-      </div>
-    </main>
+      ) : (
+        <form onSubmit={handleSignup} aria-busy={isLoading}>
+          <label className="text-sm font-bold" htmlFor="signup-name">
+            Nome
+          </label>
+          <TextInput
+            id="signup-name"
+            autoComplete="name"
+            icon={User}
+            placeholder="Seu nome"
+            type="text"
+            value={name}
+            onChange={setName}
+            disabled={isLoading}
+          />
+
+          <label className="mt-4 block text-sm font-bold" htmlFor="signup-email">
+            E-mail
+          </label>
+          <TextInput
+            id="signup-email"
+            autoComplete="email"
+            icon={Mail}
+            placeholder="voce@email.com"
+            type="email"
+            value={email}
+            onChange={setEmail}
+            disabled={isLoading}
+          />
+
+          <label className="mt-4 block text-sm font-bold" htmlFor="signup-password">
+            Senha
+          </label>
+          <TextInput
+            id="signup-password"
+            autoComplete="new-password"
+            icon={Lock}
+            placeholder="Pelo menos 6 caracteres"
+            type="password"
+            value={password}
+            onChange={setPassword}
+            disabled={isLoading}
+          />
+
+          <label className="mt-4 block text-sm font-bold" htmlFor="signup-confirm-password">
+            Confirmar senha
+          </label>
+          <TextInput
+            id="signup-confirm-password"
+            autoComplete="new-password"
+            icon={Lock}
+            placeholder="Confirme sua senha"
+            type="password"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            disabled={isLoading}
+          />
+
+          {error ? (
+            <p role="alert" className="mt-4 border-l-2 border-red-500 pl-3 text-sm leading-relaxed text-red-700">
+              {error}
+            </p>
+          ) : null}
+
+          <button
+            className="fk-primary mt-6 min-h-11 w-full rounded-md bg-red-600 px-4 py-3 text-sm font-bold tracking-normal text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isLoading}
+          >
+            {isLoading ? "Criando conta..." : "Criar conta"}
+          </button>
+
+          <p className="mt-4 flex flex-wrap items-center justify-center gap-x-1 border-t border-neutral-200 pt-3 text-center text-sm text-neutral-600">
+            Ja tenho uma conta{" "}
+            <Link className="inline-flex min-h-11 items-center rounded-sm px-1 font-bold text-neutral-950 underline decoration-red-500 underline-offset-4 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-red-500" href="/login">
+              Entrar
+            </Link>
+          </p>
+        </form>
+      )}
+    </AuthShell>
   );
 }
 
@@ -232,10 +218,10 @@ function TextInput({
   disabled: boolean;
 }) {
   return (
-    <div className="mt-2 flex h-[52px] items-center gap-3 rounded-[18px] border border-zinc-200 bg-zinc-50 px-4 transition focus-within:border-red-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-red-100">
-      <Icon className="text-zinc-400" size={19} />
+    <div className="fk-field mt-2 flex h-12! min-h-12! items-center gap-3 rounded-md border border-neutral-400 bg-white px-3 py-0! focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-500">
+      <Icon className="shrink-0 text-neutral-500" size={18} aria-hidden="true" />
       <input
-        className="h-full min-w-0 flex-1 bg-transparent text-base font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-70"
+        className="h-full min-w-0 flex-1 bg-transparent text-base text-neutral-950 outline-none placeholder:text-neutral-500 disabled:cursor-not-allowed disabled:opacity-70"
         id={id}
         name={id}
         autoComplete={autoComplete}

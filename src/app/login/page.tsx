@@ -6,7 +6,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export default async function LoginPage() {
   if (!isSupabaseConfigured()) {
-    return <LoginForm initialError="Configure as variaveis do Supabase para entrar." />;
+    return <LoginForm initialError="O acesso esta indisponivel no momento. Tente novamente mais tarde." />;
   }
 
   const { user, profile } = await getCurrentUserProfile();

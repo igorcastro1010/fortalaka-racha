@@ -3,6 +3,7 @@
 import { MoreVertical, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { ViewTabs } from "@/components/ui/ViewTabs";
 import { getRoundMatches } from "@/lib/matches/repository";
 import { RoundForm } from "./RoundForm";
 import { OwnRegistration } from "./OwnRegistration";
@@ -23,6 +24,7 @@ import { updateRoundStatus, type RoundParticipant } from "@/lib/teams/repository
 
 export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOpenResults?: () => void }) {
   const organizer = isOrganizer(profile) && profile.active;
+  const [view, setView] = useState<"lista" | "gestao">("lista");
   const [round, setRound] = useState<RoundDetails | null>(null);
   const [profiles, setProfiles] = useState<PlayerProfileOption[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState("");
@@ -232,7 +234,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
       const count = matches.partidas.filter(match => match.status === "finalizada").length;
       onFinalizedCountChange(round.roundId, count);
       if (count > 0) setConfirmFinish(true);
-    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível verificar as partidas."); }
+    } catch (e) { console.error("Verificação de partidas", e); setError("Não foi possível verificar as partidas."); }
     finally { setIsSaving(false); }
   }
   async function finishRound() {
@@ -244,7 +246,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
       setConfirmFinish(false);
       await loadRound();
       setMessage("Rodada finalizada. As avaliações poderão ser abertas.");
-    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível finalizar a rodada."); }
+    } catch (e) { console.error("Finalização da rodada", e); setError("Não foi possível finalizar a rodada. Tente novamente."); }
     finally { setIsSaving(false); }
   }
   return (
@@ -263,8 +265,9 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
       {!isLoading && !round && organizer && <RoundForm onSaved={loadRound} />}
       {!isLoading && !round && !organizer && <Feedback tone="neutral" text="Nenhuma rodada cadastrada. Aguarde um organizador." />}
       {round && <RoundSummary round={round} />}
+      {organizer && <ViewTabs label="Áreas do racha" value={view} onChange={setView} items={[{ id: "lista", label: "Lista" }, { id: "gestao", label: "Gestão" }]} />}
       {round && <OwnRegistration key={round.roundId} round={round} profile={profile} onUpdated={loadRound} />}
-      {round && organizer && <details className="rounded-xl border border-zinc-200 bg-white p-3"><summary className="min-h-11 cursor-pointer content-center text-xs font-black">{round.status === "finalizado" ? "CRIAR PRÓXIMA RODADA" : "EDITAR DADOS DA RODADA"}</summary><RoundForm key={`${round.roundId}-${round.status}`} round={round.status === "finalizado" ? undefined : round} onSaved={loadRound} /></details>}
+      {round && organizer && view === "gestao" && <details className="border-y border-zinc-200 py-2"><summary className="min-h-11 cursor-pointer content-center text-sm font-bold">{round.status === "finalizado" ? "CRIAR PRÓXIMA RODADA" : "EDITAR DADOS DA RODADA"}</summary><RoundForm key={`${round.roundId}-${round.status}`} round={round.status === "finalizado" ? undefined : round} onSaved={loadRound} /></details>}
 
       {round ? (
         <>
@@ -274,14 +277,14 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
             <MiniCount label="Fora" value={counts.unavailable} />
           </Card>
 
-          {organizer && round.status !== "finalizado" ? (
-            <details className="rounded-[18px] border border-zinc-200 bg-white px-3 py-1">
+          {organizer && view === "gestao" && round.status !== "finalizado" ? (
+            <details className="border-y border-zinc-200 py-1">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 text-sm font-bold text-neutral-950 [&::-webkit-details-marker]:hidden"><Plus size={18} /> Adicionar jogador</summary>
               <div className="mt-4 space-y-3">
               <select
                 value={selectedProfileId}
                 onChange={(event) => setSelectedProfileId(event.target.value)}
-                className="h-12 w-full rounded-[16px] border border-zinc-200 bg-zinc-50 px-3 text-sm font-bold outline-none"
+                className="h-12 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-bold outline-none"
               >
                 <option value="">Selecionar jogador cadastrado</option>
                 {availableProfiles.map((player) => (
@@ -294,7 +297,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
                 <select
                   value={selectedType}
                   onChange={(event) => setSelectedType(event.target.value as RoundParticipant["type"])}
-                  className="h-11 rounded-[16px] border border-zinc-200 bg-zinc-50 px-3 text-sm font-bold outline-none"
+                  className="h-11 rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-bold outline-none"
                 >
                   <option value="linha">Participante</option>
                   <option value="suplente">Suplente</option>
@@ -302,7 +305,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
                 <select
                   value={selectedStatus}
                   onChange={(event) => setSelectedStatus(event.target.value as RoundParticipant["status"])}
-                  className="h-11 rounded-[16px] border border-zinc-200 bg-zinc-50 px-3 text-sm font-bold outline-none"
+                  className="h-11 rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-bold outline-none"
                 >
                   <option value="confirmado">Confirmado</option>
                   <option value="ausente">Ausente</option>
@@ -312,7 +315,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
               <button
                 onClick={handleAddParticipant}
                 disabled={isSaving || !selectedProfileId}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-[18px] bg-red-600 text-sm font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-red-600 text-sm font-black uppercase tracking-normal text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Plus size={18} />
                 Adicionar
@@ -321,13 +324,13 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
             </details>
           ) : null}
 
-          {organizer ? (
+          {organizer && view === "gestao" ? (
             <div className="grid gap-2">
               {round.status === "aberto" ? (
                 <button
                   onClick={handleCloseList}
                   disabled={isSaving}
-                  className="h-12 rounded-[18px] bg-neutral-950 text-sm font-black uppercase tracking-wide text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-12 rounded-lg bg-neutral-950 text-sm font-black uppercase tracking-normal text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Fechar lista
                 </button>
@@ -336,7 +339,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
                 <button
                   onClick={handleReopenList}
                   disabled={isSaving}
-                  className="h-11 rounded-[16px] border border-zinc-200 bg-white text-xs font-black uppercase text-neutral-950 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-11 rounded-lg border border-zinc-200 bg-white text-xs font-black uppercase text-neutral-950 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Reabrir lista
                 </button>
@@ -344,42 +347,42 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
             </div>
           ) : null}
 
-          <dialog ref={finishDialog} onCancel={event => { event.preventDefault(); if (!isSaving) setConfirmFinish(false); }} aria-labelledby="finish-title" aria-describedby="finish-description" className="fixed inset-0 m-auto w-[calc(100%-32px)] max-w-sm rounded-2xl bg-white p-5 shadow-2xl backdrop:bg-black/50">
+          <dialog ref={finishDialog} onCancel={event => { event.preventDefault(); if (!isSaving) setConfirmFinish(false); }} aria-labelledby="finish-title" aria-describedby="finish-description" className="fk-sheet bg-white shadow-2xl">
             <h3 id="finish-title" className="text-xl font-black">Finalizar o racha?</h3>
             <p id="finish-description" className="mt-3 text-sm text-zinc-600">Todas as partidas serão preservadas e novas partidas não poderão ser criadas.</p>
             <div className="mt-5 grid grid-cols-2 gap-2">
-              <button autoFocus disabled={isSaving} onClick={() => setConfirmFinish(false)} className="min-h-11 rounded-xl border border-zinc-200 font-bold disabled:opacity-60">CANCELAR</button>
-              <button disabled={isSaving} onClick={finishRound} className="min-h-11 rounded-xl bg-red-600 font-bold text-white disabled:opacity-60">FINALIZAR</button>
+              <button autoFocus disabled={isSaving} onClick={() => setConfirmFinish(false)} className="min-h-11 rounded-lg border border-zinc-200 font-bold disabled:opacity-60">CANCELAR</button>
+              <button disabled={isSaving} onClick={finishRound} className="min-h-11 rounded-lg bg-red-600 font-bold text-white disabled:opacity-60">FINALIZAR</button>
             </div>
           </dialog>
-          {organizer && round.status !== "finalizado" ? (
+          {organizer && view === "gestao" && round.status !== "finalizado" ? (
             <Card>
               <button
                 onClick={requestFinish}
                 disabled={!profile.active || isSaving || !["times_confirmados", "em_andamento"].includes(round.status) || finalizedMatchCount === null || finalizedMatchCount < 1}
                 aria-describedby="finish-round-status"
-                className="h-12 w-full rounded-[18px] bg-neutral-950 text-sm font-black text-white transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-zinc-200 disabled:active:scale-100"
+                className="h-12 w-full rounded-lg bg-neutral-950 text-sm font-black text-white transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500 disabled:hover:bg-zinc-200 disabled:active:scale-100"
               >
                 FINALIZAR RACHA
               </button>
               <p id="finish-round-status" aria-live="polite" className="mt-3 text-sm font-bold text-zinc-600">
                 {finalizedMatchCount === null ? "Verificando partidas da rodada..." : finalizedMatchCount === 0 ? "Finalize pelo menos uma partida antes de encerrar a rodada." : !["times_confirmados", "em_andamento"].includes(round.status) ? "Confirme os times antes de finalizar a rodada." : `${finalizedMatchCount} partidas finalizadas`}
               </p>
-              {onOpenResults && <button onClick={onOpenResults} className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 text-xs font-black">IR PARA RESULTADOS</button>}
+              {onOpenResults && <button onClick={onOpenResults} className="mt-2 min-h-11 w-full rounded-lg border border-zinc-200 text-xs font-black">IR PARA RESULTADOS</button>}
             </Card>
           ) : null}
 
           <ParticipantSection
             title="Participantes"
             participants={round.participants.filter((participant) => participant.status !== "removido" && participant.type !== "suplente")}
-            editable={organizer && round.status !== "finalizado"}
+            editable={organizer && view === "gestao" && round.status !== "finalizado"}
             onUpdate={handleUpdateParticipant}
             onRemove={handleRemoveParticipant}
           />
           <ParticipantSection
             title="Suplentes"
             participants={round.participants.filter((participant) => participant.status !== "removido" && participant.type === "suplente")}
-            editable={organizer && round.status !== "finalizado"}
+            editable={organizer && view === "gestao" && round.status !== "finalizado"}
             onUpdate={handleUpdateParticipant}
             onRemove={handleRemoveParticipant}
           />
@@ -422,13 +425,13 @@ function ParticipantSection({
             </div>
             {editable ? (
               <details className="relative -mt-11">
-                <summary aria-label={`Editar ${participant.name}`} className="ml-auto flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden"><MoreVertical size={19} /></summary>
-                <div className="mt-2 grid grid-cols-2 gap-2 rounded-xl bg-zinc-50 p-3">
+                <summary aria-label={`Editar ${participant.name}`} className="ml-auto flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 [&::-webkit-details-marker]:hidden"><MoreVertical size={19} /></summary>
+                <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg bg-zinc-50 p-3">
                 <select
                   aria-label={`Categoria de ${participant.name}`}
                   value={participant.type === "suplente" ? "suplente" : "linha"}
                   onChange={(event) => onUpdate(participant, "type", event.target.value)}
-                  className="h-11 rounded-[13px] border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"
+                  className="h-11 rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"
                 >
                   <option value="linha">Participante</option>
                   <option value="suplente">Suplente</option>
@@ -437,7 +440,7 @@ function ParticipantSection({
                   aria-label={`Presença de ${participant.name}`}
                   value={participant.status}
                   onChange={(event) => onUpdate(participant, "status", event.target.value)}
-                  className="h-11 rounded-[13px] border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"
+                  className="h-11 rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"
                 >
                   <option value="confirmado">Confirmado</option>
                   <option value="ausente">Ausente</option>
@@ -459,15 +462,15 @@ function ParticipantSection({
 
 function MiniCount({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-[14px] bg-zinc-50 px-2 py-2 text-center ring-1 ring-zinc-100">
-      <p className="text-lg font-black">{value}</p>
-      <p className="truncate text-[10px] font-bold text-zinc-600">{label}</p>
+    <div className="min-w-0 px-1 py-2 text-center">
+      <p className="text-2xl font-black tabular-nums">{value}</p>
+      <p className="text-xs text-zinc-600">{label}</p>
     </div>
   );
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-[22px] bg-white p-4 shadow-[0_8px_22px_rgba(0,0,0,0.035)] ring-1 ring-black/5 ${className}`}>{children}</div>;
+  return <div className={`fk-section ${className}`}>{children}</div>;
 }
 
 function Feedback({ text, tone }: { text: string; tone: "error" | "success" | "neutral" }) {
@@ -477,7 +480,7 @@ function Feedback({ text, tone }: { text: string; tone: "error" | "success" | "n
     neutral: "bg-zinc-50 text-zinc-700 ring-zinc-100",
   }[tone];
 
-  return <p role={tone === "error" ? "alert" : tone === "success" ? "status" : undefined} className={`rounded-[16px] p-3 text-sm font-bold ring-1 ${toneClass}`}>{text}</p>;
+  return <p role={tone === "error" ? "alert" : tone === "success" ? "status" : undefined} className={`rounded-lg p-3 text-sm font-semibold ring-1 ${toneClass}`}>{text}</p>;
 }
 
 function getStatusLabel(status: string) {

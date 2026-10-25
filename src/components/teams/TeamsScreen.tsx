@@ -4,6 +4,7 @@ import { RefreshCw, Shuffle, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { ViewTabs } from "@/components/ui/ViewTabs";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
 import { drawTeams, getTeamCount, hasCompleteTeams, swapPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
@@ -15,6 +16,7 @@ type TeamsScreenProps = {
 
 export function TeamsScreen({ profile }: TeamsScreenProps) {
   const organizer = isOrganizer(profile) && profile.active;
+  const [view, setView] = useState<"times" | "ajustes">("times");
   const [roundState, setRoundState] = useState<RoundTeamsState | null>(null);
   const [draw, setDraw] = useState<TeamDraw | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -111,7 +113,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       setSelectedPlayerId(null);
       setMessage("Times sorteados e salvos como rascunho.");
     } catch (drawError) {
-      setError(drawError instanceof Error ? drawError.message : "Não foi possível salvar o sorteio. Tente novamente.");
+      console.error("Sorteio de times", drawError);
+      setError("Não foi possível salvar o sorteio. Tente novamente.");
     } finally {
       setIsSaving(false);
     }
@@ -185,7 +188,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       setSelectedPlayerId(null);
       setMessage("Times confirmados com sucesso.");
     } catch (confirmError) {
-      setError(confirmError instanceof Error ? confirmError.message : "Nao foi possivel confirmar os times.");
+      console.error("Confirmação de times", confirmError);
+      setError("Não foi possível confirmar os times. Tente novamente.");
     } finally {
       setIsSaving(false);
     }
@@ -200,12 +204,14 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
         </p>
       </div>
 
+      {organizer && <ViewTabs label="Áreas dos times" value={view} onChange={setView} items={[{ id: "times", label: "Times" }, { id: "ajustes", label: "Ajustes" }]} />}
+
       {roundState ? <>
       <RoundStatusBadge status={roundStatus} />
 
       <Card className="order-[5] flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-600">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600">
             <Users size={19} />
           </div>
           <div>
@@ -216,7 +222,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       </Card>
       </> : null}
 
-      {organizer && !isLoading && !error && roundState ? (
+      {organizer && view === "ajustes" && !isLoading && !error && roundState ? (
         <OrganizerControls
           hasDraw={Boolean(draw)}
           confirmed={confirmed}
@@ -234,14 +240,14 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
         />
       ) : null}
 
-      {error ? <><Feedback tone="error" text={error} /><button className="w-full rounded-xl border border-zinc-300 bg-white p-3 font-bold" disabled={isLoading || isSaving} onClick={async () => {
+      {error ? <><Feedback tone="error" text={error} /><button className="w-full rounded-lg border border-zinc-300 bg-white p-3 font-bold" disabled={isLoading || isSaving} onClick={async () => {
         setIsLoading(true); setError("");
         try { await reloadPersistedTeams(); } catch { setError("Não foi possível carregar os times desta rodada."); }
         finally { setIsLoading(false); }
       }}>Tentar novamente</button></> : null}
       {message ? <Feedback tone="success" text={message} /> : null}
       {listClosed && !hasPlayersToDraw ? <Feedback tone="neutral" text="Nenhum participante disponível para sorteio." /> : null}
-      {adjustMode ? <Feedback tone="neutral" text="Toque em um jogador e depois em outro jogador de outro time para trocar." /> : null}
+      {adjustMode && view === "ajustes" ? <Feedback tone="neutral" text="Toque em um jogador e depois em outro jogador de outro time para trocar." /> : null}
 
       {isLoading ? <LoadingCards label="Carregando times..." /> : null}
 
@@ -254,14 +260,14 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
       {canShowTeams && draw ? (
         <div className="order-10 space-y-3">
-          <p className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-zinc-600">Composição dos times<span className="rounded-full bg-zinc-100 px-3 py-1">{confirmed ? "Confirmado" : "Rascunho"}</span></p>
+          <p className="flex items-center justify-between text-[10px] font-black uppercase tracking-normal text-zinc-600">Composição dos times<span className="rounded-full bg-zinc-100 px-3 py-1">{confirmed ? "Confirmado" : "Rascunho"}</span></p>
           {draw.teams.map((team) => (
             <TeamCard
               key={team.id}
               team={team}
               currentPlayerId={profile.id}
               selectedPlayerId={selectedPlayerId}
-              adjustMode={adjustMode && organizer && listClosed && !isSaving}
+              adjustMode={view === "ajustes" && adjustMode && organizer && listClosed && !isSaving}
               onPlayerClick={handlePlayerClick}
             />
           ))}
@@ -306,7 +312,7 @@ function OrganizerControls({
       <button
         onClick={onDraw}
         disabled={(!listClosed && !confirmed) || finalized || !canDraw || isSaving}
-        className="flex h-12 items-center justify-center gap-2 rounded-[18px] bg-red-600 text-sm font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex h-12 items-center justify-center gap-2 rounded-lg bg-red-600 text-sm font-black uppercase tracking-normal text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {hasDraw ? <RefreshCw size={18} /> : <Shuffle size={18} />}
         {hasDraw ? "Sortear novamente" : "Sortear times"}
@@ -315,14 +321,14 @@ function OrganizerControls({
         <button
           onClick={onToggleAdjust}
           disabled={!hasDraw || !listClosed || finalized || isSaving}
-          className="order-2 h-11 rounded-[14px] border border-zinc-200 bg-white text-xs font-bold uppercase text-zinc-700 transition hover:bg-zinc-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          className="order-2 h-11 rounded-lg border border-zinc-200 bg-white text-xs font-bold uppercase text-zinc-700 transition hover:bg-zinc-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {adjustMode ? "Concluir ajuste" : "Ajustar times"}
         </button>
         <button
           onClick={onConfirm}
           disabled={!hasDraw || !listClosed || isSaving || finalized}
-          className="h-11 rounded-[16px] bg-neutral-950 text-xs font-black uppercase text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-11 rounded-lg bg-neutral-950 text-xs font-black uppercase text-white shadow-sm transition hover:bg-neutral-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSaving ? "Salvando..." : "Confirmar times"}
         </button>
@@ -381,7 +387,7 @@ function RoundStatusBadge({ status }: { status: RoundStatus }) {
   };
 
   return (
-    <div className="flex items-center gap-2 rounded-[16px] bg-white p-3 ring-1 ring-black/5">
+    <div className="flex items-center gap-2 py-2">
       <Users size={16} aria-hidden="true" className="text-zinc-500" />
       <p className="text-xs font-bold">{labels[status]}</p>
     </div>
@@ -424,11 +430,11 @@ function Feedback({ text, tone }: { text: string; tone: "error" | "success" | "n
     neutral: "bg-zinc-50 text-zinc-700 ring-zinc-100",
   }[tone];
 
-  return <p role={tone === "error" ? "alert" : tone === "success" ? "status" : undefined} className={`rounded-[16px] p-3 text-sm font-bold ring-1 ${toneClass}`}>{text}</p>;
+  return <p role={tone === "error" ? "alert" : tone === "success" ? "status" : undefined} className={`rounded-lg p-3 text-sm font-semibold ring-1 ${toneClass}`}>{text}</p>;
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-[18px] bg-white p-3 shadow-[0_8px_22px_rgba(0,0,0,0.035)] ring-1 ring-black/5 ${className}`}>{children}</div>;
+  return <div className={`fk-section ${className}`}>{children}</div>;
 }
 
 function getTeamsToFormLabel(teamCount: number) {

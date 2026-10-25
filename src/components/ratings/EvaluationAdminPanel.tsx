@@ -5,9 +5,11 @@ import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { useEffect, useRef, useState } from "react";
 import { getEvaluationProgress, getEvaluationState, setRoundEvaluationsOpen, type EvaluationProgress, type EvaluationState } from "@/lib/ratings/repository";
 
-export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEvaluate }: { roundId: string; organizer: boolean; roundStatus: string; onOpenEvaluate: (roundId: string) => void }) {
+export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEvaluate, onUpdated, personalState, personalLoading = true, personalError = "" }: { roundId: string; organizer: boolean; roundStatus: string; onOpenEvaluate: (roundId: string) => void; onUpdated?: () => void; personalState?: EvaluationState | null; personalLoading?: boolean; personalError?: string }) {
   const [progress, setProgress] = useState<EvaluationProgress | null>(null);
-  const [personal, setPersonal] = useState<EvaluationState | null>(null);
+  const [loadedPersonal, setPersonal] = useState<EvaluationState | null>(null);
+  const personal = personalState === undefined ? loadedPersonal : personalState;
+  const sharedPersonal = personalState !== undefined;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -15,6 +17,7 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
   const busyRef = useRef(false);
 
   useEffect(() => {
+    if (!organizer && sharedPersonal) return;
     let active = true;
     async function refresh() {
       if (busyRef.current) return;
@@ -28,7 +31,8 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
           if (active && currentRequest === readSequence.current) { setPersonal(data); setError(""); }
         }
       } catch (e) {
-        if (active && currentRequest === readSequence.current) setError(e instanceof Error ? e.message : "Não foi possível carregar as avaliações.");
+        console.error("Progresso de avaliações", e);
+        if (active && currentRequest === readSequence.current) setError("Não foi possível carregar as avaliações. Tente novamente.");
       }
     }
     const onFocus = () => { void refresh(); };
@@ -36,7 +40,7 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
     window.addEventListener("focus", onFocus);
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 15000);
     return () => { active = false; window.removeEventListener("focus", onFocus); window.clearInterval(timer); };
-  }, [roundId, roundStatus, organizer]);
+  }, [roundId, roundStatus, organizer, sharedPersonal]);
 
   const open = organizer ? progress?.abertas : personal?.open;
   const completed = personal?.players.filter(player => player.avaliado).length ?? 0;
@@ -53,32 +57,38 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
     try {
       const data = await setRoundEvaluationsOpen(roundId, open);
       setProgress(data);
+      onUpdated?.();
       setMessage(open ? "Avaliacoes abertas." : "Avaliacoes fechadas.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nao foi possivel alterar avaliacoes.");
+      console.error("Alterar avaliações", e);
+      setError("Não foi possível alterar as avaliações. Tente novamente.");
     } finally {
       busyRef.current = false;
       setBusy(false);
     }
   }
 
-  return <section className="space-y-3 rounded-[22px] bg-white p-4 ring-1 ring-black/5">
+  return <section className="fk-panel min-w-0 space-y-4">
     <div className="flex items-start justify-between gap-3">
-      <div>
-        <h3 className="text-xl font-black">Avaliações</h3>
+      <div className="min-w-0">
+        <h3 className="text-xl font-black">Progresso da rodada</h3>
       </div>
-      <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${open ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}>{open === undefined ? "Carregando" : open ? "ABERTA" : "FECHADA"}</span>
+      <span className={`shrink-0 px-2 py-1 text-xs font-bold uppercase ${open ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-600"}`}>{open === undefined ? "Carregando" : open ? "ABERTA" : "FECHADA"}</span>
     </div>
-    {organizer && progress ? <p className="rounded-xl bg-zinc-50 p-3 text-sm font-bold text-zinc-800">{progress.respondentes} de {progress.total} jogadores responderam</p> : !organizer && personal ? <p className="rounded-xl bg-zinc-50 p-3 text-sm font-bold text-zinc-800">{completed} de {personal.players.length} companheiros avaliados</p> : <LoadingCards label="Carregando progresso..." />}
+    {organizer && progress ? <p className="text-base font-bold tabular-nums text-zinc-800">{progress.respondentes} de {progress.total} jogadores responderam</p> : !organizer && personal ? <p className="text-base font-bold tabular-nums text-zinc-800">{completed} de {personal.players.length} companheiros avaliados</p> : !organizer && personalError ? <p role="alert" className="text-sm text-red-700">{personalError}</p> : !organizer && !personalLoading ? <EmptyState title="Nenhuma avaliação disponível" description="O progresso aparece quando houver uma rodada disponível para avaliar." /> : !error && <LoadingCards label="Carregando progresso..." />}
+    {(progress || personal) && <progress aria-label="Progresso das avaliações" value={organizer ? progress?.respondentes ?? 0 : completed} max={Math.max(1, organizer ? progress?.total ?? 0 : personal?.players.length ?? 0)} className="h-1.5 w-full accent-red-700" />}
     {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p>}
     {message && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
     {organizer && roundStatus !== "finalizado" && <EmptyState icon={Star} title="As avaliações ainda não estão abertas." description="Finalize pelo menos uma partida e encerre a rodada antes de abrir avaliações." />}
     {!organizer && open === false && <p className="text-sm font-bold text-zinc-600">Avaliações fechadas</p>}
-    {!organizer && open === false && completed > 0 && <button onClick={() => onOpenEvaluate(roundId)} disabled={Boolean(error)} className="min-h-12 w-full rounded-[16px] border border-zinc-200 bg-white px-3 text-sm font-black disabled:opacity-50">VER MINHAS AVALIAÇÕES</button>}
-    {!organizer && open && <button onClick={() => onOpenEvaluate(roundId)} disabled={Boolean(error)} className="min-h-12 w-full rounded-[16px] bg-red-600 px-3 text-sm font-black text-white transition hover:bg-red-700 active:scale-[0.98] disabled:opacity-50">AVALIAR MEU TIME</button>}
-    {organizer && <div className="grid grid-cols-2 gap-2">
-      <button disabled={busy || !progress || progress.abertas || roundStatus !== "finalizado"} onClick={() => toggle(true)} className="min-h-11 rounded-xl bg-red-600 px-3 text-xs font-black uppercase text-white disabled:opacity-50">ABRIR AVALIAÇÕES</button>
-      <button disabled={busy || !progress?.abertas} onClick={() => toggle(false)} className="min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-black uppercase disabled:opacity-50">FECHAR AVALIAÇÕES</button>
-    </div>}
+    {!organizer && open === false && completed > 0 && <button onClick={() => onOpenEvaluate(roundId)} disabled={Boolean(error)} className="fk-secondary min-h-12 w-full rounded-lg border border-zinc-300 px-3 text-sm font-black disabled:opacity-50">VER MINHAS AVALIAÇÕES</button>}
+    {!organizer && open && <button onClick={() => onOpenEvaluate(roundId)} disabled={Boolean(error)} className="fk-primary min-h-12 w-full rounded-lg bg-red-700 px-3 text-sm font-black text-white hover:bg-red-800 disabled:opacity-50">AVALIAR MEU TIME</button>}
+    {organizer && <details className="border-t border-zinc-200 pt-2">
+      <summary className="min-h-12 cursor-pointer content-center text-sm font-bold focus-visible:outline-2 focus-visible:outline-red-600">Gerenciar avaliações</summary>
+      <div className="grid grid-cols-2 gap-2 pt-2">
+        <button disabled={busy || !progress || progress.abertas || roundStatus !== "finalizado"} onClick={() => toggle(true)} className="fk-primary min-h-12 rounded-lg bg-red-700 px-3 text-xs font-black uppercase text-white disabled:opacity-50">ABRIR AVALIAÇÕES</button>
+        <button disabled={busy || !progress?.abertas} onClick={() => toggle(false)} className="fk-secondary min-h-12 rounded-lg border border-zinc-300 px-3 text-xs font-black uppercase disabled:opacity-50">FECHAR AVALIAÇÕES</button>
+      </div>
+    </details>}
   </section>;
 }

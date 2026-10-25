@@ -7,9 +7,11 @@ import { MatchesPanel } from "@/components/rounds/MatchesPanel";
 import { RoundLoadStatus, RoundSummary } from "@/components/rounds/RoundSummary";
 import { useCurrentRound } from "@/components/rounds/useCurrentRound";
 import type { RankingSort } from "@/lib/players/ranking";
+import { ViewTabs } from "@/components/ui/ViewTabs";
 
 export function ResultsScreen({ profile }: { profile: Profile }) {
   const [view, setView] = useState<"matches" | "ranking">("matches");
+  const [rankingVisited, setRankingVisited] = useState(false);
   const [rankingSort, setRankingSort] = useState<RankingSort>("geral");
   const [startedRound, setStartedRound] = useState<string | null>(null);
   const onRoundStarted = useCallback((id: string) => setStartedRound(id), []);
@@ -17,15 +19,14 @@ export function ResultsScreen({ profile }: { profile: Profile }) {
 
   return <section className="space-y-3.5">
     <div><h2 className="text-[29px] font-black leading-tight">Resultados</h2><p className="mt-1 text-sm font-bold text-zinc-600">Partidas, placares e desempenho</p></div>
-    <nav aria-label="Áreas de Resultados" className="grid grid-cols-2 gap-2 rounded-[16px] bg-zinc-200/60 p-1">
-      {([{ id: "matches", label: "Partidas" }, { id: "ranking", label: "Ranking" }] as const).map(tab => <button key={tab.id} aria-current={view === tab.id ? "page" : undefined} onClick={() => setView(tab.id)} className={`min-h-11 rounded-xl text-sm font-black ${view === tab.id ? "bg-neutral-950 text-white shadow-sm" : "text-zinc-600"}`}>{tab.label}</button>)}
-    </nav>
-    {view === "ranking" ? <RankingScreen sort={rankingSort} onSortChange={setRankingSort} /> : <>
+    <ViewTabs label="Áreas de Resultados" value={view} onChange={next => { setView(next); if (next === "ranking") setRankingVisited(true); }} items={[{ id: "matches", label: "Partidas" }, { id: "ranking", label: "Ranking" }]} />
+    {rankingVisited && <div hidden={view !== "ranking"}><RankingScreen sort={rankingSort} onSortChange={setRankingSort} /></div>}
+    <div hidden={view !== "matches"} className="space-y-4">
       <RoundLoadStatus loading={loading} error={error} empty={!round} retry={retry} />
       {!loading && !error && round && <>
         <RoundSummary round={round.status === "times_confirmados" && startedRound === round.roundId ? { ...round, status: "em_andamento" } : round} />
         <MatchesPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} roundDate={round.date} onRoundStarted={onRoundStarted} organizer={isOrganizer(profile) && profile.active} />
       </>}
-    </>}
+    </div>
   </section>;
 }

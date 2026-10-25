@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
 import { PlayerAvatar } from "./PlayerAvatar";
+import { Camera } from "lucide-react";
 
 export function ProfilePhoto({ profile }: { profile: Profile }) {
   const [url, setUrl] = useState<string | null>(profile.avatar_url ?? null);
@@ -44,19 +45,20 @@ export function ProfilePhoto({ profile }: { profile: Profile }) {
       if (uploaded) {
         try { await client.storage.from("avatars").remove([path]); } catch { /* Preserve o erro original do salvamento. */ }
       }
-      setError(e instanceof Error ? e.message : "Não foi possível salvar sua foto.");
+      console.error("Foto do perfil", e);
+      setError("Não foi possível salvar sua foto. Tente novamente.");
     } finally { setBusy(false); }
   }
 
-  return <section className="rounded-[22px] bg-white p-4 ring-1 ring-black/5">
+  return <section className="fk-section min-w-0 border-t border-zinc-200 py-5">
     <div className="flex items-center gap-3"><PlayerAvatar name={profile.name} avatarUrl={url} /><h3 className="text-lg font-black">Sua foto</h3></div>
-    <label className={`relative mt-4 flex min-h-12 w-full items-center justify-center rounded-[14px] border border-zinc-200 bg-zinc-50 text-xs font-bold tracking-[0.08em] text-zinc-700 transition hover:bg-zinc-100 focus-within:ring-2 focus-within:ring-red-500 focus-within:ring-offset-2 ${busy ? "cursor-wait opacity-60" : "cursor-pointer"}`}>
+    <label className={`fk-secondary relative mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-zinc-300 text-sm font-bold text-zinc-800 hover:bg-zinc-50 focus-within:ring-2 focus-within:ring-red-700 focus-within:ring-offset-2 ${busy ? "cursor-wait opacity-60" : "cursor-pointer"}`}>
       <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} className="sr-only"
         onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) { setFileName(file.name); void upload(file); } }} />
-      <span>ALTERAR FOTO</span>
+      <Camera size={18} aria-hidden="true" /><span>ALTERAR FOTO</span>
     </label>
     {fileName && <p className="mt-2 break-words text-center text-xs text-zinc-700" aria-live="polite">{fileName}</p>}
-    <p className="mt-2.5 text-center text-[11px] text-zinc-500">PNG, JPEG ou WebP, até 2 MB.</p>
+    <p className="mt-2.5 text-center text-xs text-zinc-600">PNG, JPEG ou WebP, até 2 MB.</p>
     {busy && <p role="status" className="mt-2 text-sm">Salvando foto...</p>}
     {error && <p role="alert" className="mt-2 text-sm font-bold text-red-700">{error}</p>}
     {message && <p role="status" className="mt-2 text-sm font-bold">{message}</p>}

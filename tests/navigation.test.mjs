@@ -51,7 +51,7 @@ try {
     assert.fail(`Estado esperado não apareceu: ${document.body.textContent}`);
   }
   function button(name) {
-    return [...document.querySelectorAll('button')].find(e => e.getAttribute('aria-label') === name || e.textContent.trim() === name);
+    return [...document.querySelectorAll('button')].find(e => !e.closest('[hidden]') && (e.getAttribute('aria-label') === name || e.textContent.trim() === name));
   }
   async function click(name) {
     await waitFor(()=>button(name) && !button(name).disabled);
@@ -90,6 +90,8 @@ try {
   await waitFor(()=>button('SAIR DA LISTA'));
   await mount('organizador');
   await click('Racha');
+  assert(!button('Fechar lista'), 'Consulta da lista não expõe gestão');
+  await click('Gestão');
   await waitFor(()=>button('Fechar lista'));
   assert(![...document.querySelectorAll('h3')].some(e=>['Partidas','Avaliações'].includes(e.textContent)));
   assert.equal(button('FINALIZAR RACHA').disabled,true);
@@ -99,22 +101,24 @@ try {
   await click('Reabrir lista');await waitFor(()=>button('Fechar lista'));
   await click('Fechar lista');await waitFor(()=>button('Reabrir lista'));
   await click('Times');
+  assert(!button('Sortear times'), 'Consulta dos times não expõe ajustes');
+  await click('Ajustes');
   assert(!document.body.textContent.toLowerCase().includes('goleiro'));
   await click('Sortear times');
   await waitFor(()=>button('Confirmar times') && !button('Confirmar times').disabled);
   assert(!document.body.textContent.toLowerCase().includes('goleiro'));
   await click('Confirmar times');
   await waitFor(()=>document.body.textContent.includes('Times confirmados'));
-  await click('Racha');await click('Reabrir lista');
+  await click('Racha');await click('Gestão');await click('Reabrir lista');
   await waitFor(()=>button('Fechar lista'));
   await click('Resultados');
   await waitFor(()=>document.body.textContent.includes('Nenhuma partida ainda'));
   assert(!button('INICIAR PRIMEIRA PARTIDA'),'Fila antiga não habilita início com lista reaberta');
   assert(!button('Criar partida'));
   assert(!document.querySelector('section[aria-label="Resumo para compartilhar"]'),'Rodada aberta não oferece compartilhamento final');
-  await click('Racha');await click('Fechar lista');
+  await click('Racha');await click('Gestão');await click('Fechar lista');
   await waitFor(()=>button('Reabrir lista'));
-  await click('Times');await click('Confirmar times');
+  await click('Times');await click('Ajustes');await click('Confirmar times');
   await waitFor(()=>document.body.textContent.includes('Times confirmados'));
   assert(![...document.querySelectorAll('button')].some(element => element.textContent.includes('Você')),
     'Organizador fora do sorteio nao deve ter jogador destacado');
@@ -128,6 +132,7 @@ try {
   assert(highlightedPlayers[0].classList.contains('bg-emerald-100'), 'Jogador conectado deve ter fundo verde claro');
   await mount('organizador');
   await click('Racha');
+  await click('Gestão');
   await click('IR PARA RESULTADOS');
   await click('INICIAR PRIMEIRA PARTIDA');
   await click('Aumentar placar de Time 1');
@@ -137,7 +142,7 @@ try {
   await waitFor(()=>document.querySelector('dialog')?.open);
   assert(document.body.textContent.includes('Time 1 atingiu 2 gols.'));
   await click('CONTINUAR');
-  assert.equal(document.querySelectorAll('article').length,1);
+  assert.equal(document.querySelectorAll('article').length,0, 'Partida aberta fica no placar, não no histórico');
   await click('Diminuir placar de Time 1');
   await click('Aumentar placar de Time 1');
   await waitFor(()=>document.querySelector('dialog')?.open);
@@ -153,6 +158,7 @@ try {
   await waitFor(()=>button('Gols')?.getAttribute('aria-pressed')==='true');
   await click('Geral');
   await click('Racha');
+  await click('Gestão');
   await click('FINALIZAR RACHA');
   await waitFor(()=>document.querySelector('dialog')?.open);
   await click('FINALIZAR');
@@ -179,6 +185,7 @@ try {
   assert([...document.querySelectorAll('dialog')].some(d=>d.open && d.textContent.includes(sharedText)));
   await click('Fechar resumo');
   await click('Avaliação');
+  await click('Progresso');
   await click('ABRIR AVALIAÇÕES');
   await waitFor(()=>document.body.textContent.includes('ABERTA'));
   await mount('jogador');
@@ -186,10 +193,12 @@ try {
   await waitFor(()=>document.body.textContent.includes('RODADA FINALIZADA'));
   assert(!button('FINALIZAR RACHA'));
   await click('Resultados');
+  await click('Histórico');
   await waitFor(()=>document.querySelectorAll('article').length===1);
   assert(!button('Editar resultado'));
   assert(!document.body.textContent.includes('NOVA PARTIDA'));
   await click('Avaliação');
+  await click('Progresso');
   await click('AVALIAR MEU TIME');
   await waitFor(()=>document.body.textContent.includes('0 de 4 companheiros avaliados'));
   assert(!button('ABRIR AVALIAÇÕES'));
@@ -219,6 +228,7 @@ try {
   }
   await receiveRating(raters[0].jogador_id,[4,5,3,4,5]);
   await click('Abrir meu perfil');
+  await click('Avaliações');
   await waitFor(()=>document.body.textContent.includes('A nota aparece com 2 respostas.'));
   assert(!document.querySelector('svg polygon[stroke="#f87171"]'),'Uma resposta ainda não desenha radar');
   await receiveRating(raters[1].jogador_id,[5,5,4,4,5]);
@@ -228,7 +238,7 @@ try {
   assert(document.querySelector('svg[aria-label*="Passe: 9 de 10"]'));
   await click('Resultados');await click('Ranking');
   await waitFor(()=>document.querySelector('article [aria-label="Nota media 88"]'));
-  assert(document.querySelector('article').querySelector('[aria-label="Nota media 88"]'),'Maior overall aparece primeiro');
+  assert(document.querySelector('section[aria-label="Ranking dos jogadores"] article').querySelector('[aria-label="Nota media 88"]'),'Maior overall aparece primeiro');
   await click('Partidas');
   await waitFor(()=>document.querySelector('section[aria-label="Maiores notas"]'));
   assert(document.querySelector('section[aria-label="Maiores notas"]').textContent.includes('88'));
@@ -236,11 +246,12 @@ try {
 
   await click('Abrir meu perfil');
   await waitFor(()=>button('Sair da conta'));
-  await mount('jogador');await click('Avaliação');await click('AVALIAR MEU TIME');
+  await mount('jogador');await click('Avaliação');await click('Progresso');await click('AVALIAR MEU TIME');
   await waitFor(()=>document.body.textContent.includes('1 de 4 companheiros avaliados'));
-  await mount('organizador');await click('Avaliação');await click('FECHAR AVALIAÇÕES');
+  await mount('organizador');await click('Avaliação');await click('Progresso');await click('FECHAR AVALIAÇÕES');
   await waitFor(()=>document.body.textContent.includes('FECHADA'));
   await mount('jogador');await click('Avaliação');
+  await click('Progresso');
   await waitFor(()=>document.body.textContent.includes('Avaliações fechadas'));
   assert(!button('AVALIAR MEU TIME'));
   await click('VER MINHAS AVALIAÇÕES');
@@ -253,6 +264,7 @@ try {
   assert.equal(button('Passe: 5 de 5').getAttribute('aria-pressed'),'true','Consulta carrega a nota enviada');
   assert(![...document.querySelectorAll('button')].some(e=>e.textContent==='EDITAR'));
   await mount('organizador');await click('Racha');
+  await click('Gestão');
   await waitFor(()=>document.querySelector('summary') && document.body.textContent.includes('CRIAR PRÓXIMA RODADA'));
   assert(!button('FINALIZAR RACHA'));
   await act(async()=>document.querySelector('summary').click());

@@ -4,7 +4,7 @@ import { Lock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { LogoMark } from "@/components/brand/LogoMark";
+import { AuthShell } from "@/components/auth/AuthShell";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/auth/roles";
 
@@ -87,89 +87,77 @@ export function LoginForm({ initialError }: { initialError?: string }) {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-[430px] items-center bg-[linear-gradient(160deg,#111_0%,#18181b_54%,#050505_100%)] px-5 py-[calc(24px+env(safe-area-inset-top))] pb-[calc(18px+env(safe-area-inset-bottom))]">
-        <div className="flex w-full flex-col items-center">
-          <section className="flex w-full flex-col items-center text-center">
-            <LogoMark size="profile" priority />
-            <h1 className="mt-4 text-[36px] font-black uppercase leading-[0.92] tracking-normal">
-              Racha Fortalaka
-            </h1>
-            <div className="mt-3 h-1 w-12 rounded-full bg-red-600" />
-          </section>
-
-          <form onSubmit={handleLogin} className="mt-6 w-full rounded-[24px] bg-white p-4 text-left text-neutral-950 shadow-xl shadow-black/25">
-            <label className="text-sm font-bold" htmlFor="email">
-              E-mail
-            </label>
-            <input
-              className="mt-2 h-[52px] w-full rounded-[18px] border border-zinc-200 bg-zinc-50 px-4 text-base font-semibold outline-none transition focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-100 disabled:cursor-not-allowed disabled:opacity-70"
-              id="email"
-              name="email"
-              autoComplete="username"
-              type="email"
-              placeholder="voce@email.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              disabled={isLoading}
-              required
-            />
-            <label className="mt-4 block text-sm font-bold" htmlFor="password">
-              Senha
-            </label>
-            <div className="mt-2 flex h-[52px] items-center gap-3 rounded-[18px] border border-zinc-200 bg-zinc-50 px-4 transition focus-within:border-red-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-red-100">
-              <Lock className="text-zinc-400" size={19} />
-              <input
-                className="h-full min-w-0 flex-1 bg-transparent text-base font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-70"
-                id="password"
-                name="password"
-                autoComplete="current-password"
-                type="password"
-                placeholder="Sua senha"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                disabled={isLoading}
-                required
-              />
-            </div>
-
-            {error ? (
-              <p className="mt-4 rounded-[16px] bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
-                {error}
-              </p>
-            ) : null}
-
-            {message ? (
-              <p className="mt-4 rounded-[16px] bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">
-                {message}
-              </p>
-            ) : null}
-
-            <button
-              className="mt-5 h-[52px] w-full rounded-[18px] bg-red-600 text-base font-black uppercase tracking-wide text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-75 disabled:active:scale-100"
-              disabled={isLoading || isSendingReset}
-            >
-              {isLoading ? "Entrando..." : "Entrar"}
-            </button>
-
-            <button
-              type="button"
-              onClick={handlePasswordReset}
-              disabled={isLoading || isSendingReset}
-              className="mt-4 min-h-11 w-full text-center text-sm font-black text-neutral-700 transition hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSendingReset ? "Enviando..." : "Esqueci minha senha"}
-            </button>
-
-            <p className="mt-5 text-center text-sm font-bold text-zinc-600">
-              Nao tem uma conta?{" "}
-              <Link className="font-black text-red-600 transition hover:text-red-700" href="/cadastro">
-                Criar conta
-              </Link>
-            </p>
-          </form>
-        </div>
+    <AuthShell title="Entre para o racha">
+    <form onSubmit={handleLogin} className="w-full" aria-busy={isLoading || isSendingReset}>
+      <label className="text-sm font-bold" htmlFor="email">
+        E-mail
+      </label>
+      <input
+        className="fk-field mt-2 h-12! min-h-12! w-full rounded-md border border-neutral-400 bg-white px-3 py-0! text-base text-neutral-950 outline-none placeholder:text-neutral-500 focus:border-red-500 focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-70"
+        id="email"
+        name="email"
+        autoComplete="username"
+        type="email"
+        placeholder="voce@email.com"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        disabled={isLoading}
+        required
+      />
+      <label className="mt-4 block text-sm font-bold" htmlFor="password">
+        Senha
+      </label>
+      <div className="fk-field mt-2 flex h-12! min-h-12! items-center gap-3 rounded-md border border-neutral-400 bg-white px-3 py-0! focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-500">
+        <Lock className="shrink-0 text-neutral-500" size={18} aria-hidden="true" />
+        <input
+          className="h-full min-w-0 flex-1 bg-transparent text-base text-neutral-950 outline-none placeholder:text-neutral-500 disabled:cursor-not-allowed disabled:opacity-70"
+          id="password"
+          name="password"
+          autoComplete="current-password"
+          type="password"
+          placeholder="Sua senha"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          disabled={isLoading}
+          required
+        />
       </div>
-    </main>
+
+      {error ? (
+        <p role="alert" className="mt-4 border-l-2 border-red-500 pl-3 text-sm leading-relaxed text-red-700">
+          {error}
+        </p>
+      ) : null}
+
+      {message ? (
+        <p role="status" className="mt-4 border-l-2 border-emerald-500 pl-3 text-sm leading-relaxed text-emerald-700">
+          {message}
+        </p>
+      ) : null}
+
+      <button
+        className="fk-primary mt-6 min-h-11 w-full rounded-md bg-red-600 px-4 py-3 text-sm font-bold tracking-normal text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={isLoading || isSendingReset}
+      >
+        {isLoading ? "Entrando..." : "Entrar"}
+      </button>
+
+      <button
+        type="button"
+        onClick={handlePasswordReset}
+        disabled={isLoading || isSendingReset}
+        className="fk-secondary mt-2 min-h-11 w-full rounded-md px-3 py-2 text-center text-sm font-semibold text-neutral-700 hover:text-neutral-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isSendingReset ? "Enviando..." : "Esqueci minha senha"}
+      </button>
+
+      <p className="mt-4 flex flex-wrap items-center justify-center gap-x-1 border-t border-neutral-200 pt-3 text-center text-sm text-neutral-600">
+        Nao tem uma conta?{" "}
+        <Link className="inline-flex min-h-11 items-center rounded-sm px-1 font-bold text-neutral-950 underline decoration-red-500 underline-offset-4 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-red-500" href="/cadastro">
+          Criar conta
+        </Link>
+      </p>
+    </form>
+    </AuthShell>
   );
 }

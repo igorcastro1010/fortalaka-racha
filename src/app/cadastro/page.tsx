@@ -5,7 +5,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export default async function CadastroPage() {
   if (!isSupabaseConfigured()) {
-    return <SignupForm initialError="Configure as variaveis do Supabase para criar conta." />;
+    return <SignupForm initialError="O cadastro esta indisponivel no momento. Tente novamente mais tarde." />;
   }
 
   const { user, profile } = await getCurrentUserProfile();
