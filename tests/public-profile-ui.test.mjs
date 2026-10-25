@@ -82,7 +82,18 @@ try {
   await page.getByText('Gols · 0 registrados', { exact: true }).click();
   await page.getByRole('button', { name: /^Adicionar gols de / }).first().click();
   await page.getByRole('button', { name: 'Finalizar partida', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Finalizar partida?' }).getByRole('button', { name: 'Confirmar', exact: true }).click();
   await page.getByText('Vencedor: Time 1', { exact: true }).waitFor();
+  await page.getByRole('tab', { name: 'Ao vivo', exact: true }).click();
+  await page.getByRole('button', { name: 'INICIAR PRÓXIMA PARTIDA', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancelar partida', exact: true }).click();
+  const cancellations = calls.filter(call => call.name === 'salvar_partida' && call.args?.p_status === 'cancelada').length;
+  await page.getByRole('dialog', { name: 'Cancelar partida?' }).getByRole('button', { name: 'Cancelar', exact: true }).click();
+  assert.equal(calls.filter(call => call.name === 'salvar_partida' && call.args?.p_status === 'cancelada').length, cancellations);
+  await page.getByRole('button', { name: 'Cancelar partida', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click();
+  await page.getByText('Cancelada', { exact: true }).waitFor();
+  assert.equal(calls.filter(call => call.name === 'salvar_partida' && call.args?.p_status === 'cancelada').length, cancellations + 1);
   await nav('Racha'); await tab('Gestão'); await page.getByRole('button', { name: 'FINALIZAR RACHA', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'FINALIZAR', exact: true }).click();
   await page.getByText('Rodada finalizada. As avaliações poderão ser abertas.').waitFor();
@@ -93,7 +104,7 @@ try {
   await nav('Resultados');
   await page.getByRole('region', { name: 'Artilharia do racha', exact: true }).getByRole('link').first().click(); await ready(); await check('resumo');
   await profile().getByRole('button', { name: 'Voltar', exact: true }).click(); await tab('Histórico');
-  await page.getByText('Participantes e eventos', { exact: true }).click();
+  await page.getByText('Participantes e eventos', { exact: true }).first().click();
   await page.locator('article details').getByRole('link').first().click(); await ready(); await check('historico');
   await page.goto('http://127.0.0.1:3011/?role=jogador'); await nav('Avaliação');
   await page.getByRole('button', { name: /^Avaliar / }).first().click();

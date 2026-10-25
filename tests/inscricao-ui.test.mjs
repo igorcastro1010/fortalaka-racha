@@ -23,11 +23,11 @@ await build({entryPoints:[entry],outfile:bundle,bundle:true,platform:'browser',j
   builder.onLoad({filter:/.*/,namespace:'test'},()=>({contents:"export function createClient(){return {rpc:(name,args)=>fetch('/registration'+location.search,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,args})}).then(response=>response.json())};}"}));
 }}]});
 const chunks=resolve('.next/static/chunks');const css=readdirSync(chunks).filter(name=>name.endsWith('.css')).map(name=>readFileSync(join(chunks,name),'utf8')).join('\n');
-const participants=new Map();let requests=0;
+const participants=new Map();let requests=0;let roundStatus='aberto';
 const technical='there is no unique or exclusion constraint matching the ON CONFLICT specification';
 const server=createServer(async(request,response)=>{
   const url=new URL(request.url,'http://localhost');
-  if(url.pathname==='/state'){response.setHeader('Content-Type','application/json');response.end(JSON.stringify({roundId:'round',status:'aberto',participants:[...participants.values()]}));return;}
+  if(url.pathname==='/state'){response.setHeader('Content-Type','application/json');response.end(JSON.stringify({roundId:'round',status:roundStatus,participants:[...participants.values()]}));return;}
   if(url.pathname==='/registration'){
     requests++;const chunks=[];for await(const chunk of request)chunks.push(chunk);
     const {name,args}=JSON.parse(Buffer.concat(chunks).toString());assert.equal(name,'inscricao_rodada');assert.equal(args.p_tipo,'linha');
@@ -44,7 +44,9 @@ await new Promise(done=>server.listen(0,'127.0.0.1',done));let browser;
 try {
   browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:390,height:844}});
   const consoleErrors=[];page.on('console',message=>{if(message.type()==='error')consoleErrors.push(message.text());});
-  page.on('dialog',dialog=>dialog.accept());const base=`http://127.0.0.1:${server.address().port}`;
+  page.setDefaultTimeout(5000);
+  await page.addInitScript(() => { window.confirm = () => false; });
+  const base=`http://127.0.0.1:${server.address().port}`;
   await page.goto(base+'/?fail=1');await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).click();
   await page.getByRole('alert').waitFor();assert.equal(await page.getByRole('alert').textContent(),'Não foi possível entrar na lista. Tente novamente.');
   assert(!(await page.locator('body').textContent()).includes(technical));assert.equal(participants.size,0);
@@ -58,11 +60,42 @@ try {
   assert.equal(await page.locator('li').allTextContents().then(rows=>rows.join(',')),'Jogador teste');
   assert((await page.locator('body').textContent()).includes('Você entrou na lista ✓'));assert.equal(await page.getByRole('dialog').count(),0);
   await page.reload();await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).waitFor();assert.equal(participants.size,1);
-  await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).click();await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).waitFor();
+  await page.goto(base+'/?fail=1');
+  await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click();
+  await page.getByRole('alert').waitFor();
+  assert.equal(await page.getByRole('alert').textContent(), 'Não foi possível sair da lista. Tente novamente.');
+  assert.equal(participants.get('player').status, 'confirmado');
+  assert(!(await page.locator('body').textContent()).includes(technical));
+  await page.goto(base);
+  for (const width of [360, 375, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).click();
+    const dialog = page.getByRole('dialog', { name: 'Sair da lista?' });
+    await dialog.waitFor();
+    assert.equal(await dialog.getByRole('button', { name: 'Cancelar', exact: true }).evaluate(e => e === document.activeElement), true);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await page.screenshot({ path: join(output, `confirmar-saida-${width}.png`), fullPage: true });
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'hidden' });
+  }
+  const beforeLeave = requests;
+  await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).click();
+  const confirmation = page.getByRole('dialog', { name: 'Sair da lista?' });
+  await confirmation.waitFor(); assert.equal(requests, beforeLeave);
+  await confirmation.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  assert.equal(requests, beforeLeave);
+  await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).click();
+  await confirmation.getByRole('button', { name: 'Confirmar', exact: true }).evaluate(button => { button.click(); button.click(); });
+  await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).waitFor();
+  assert.equal(requests, beforeLeave + 1);
   assert.equal(await page.getByLabel('Contador').textContent(),'0 participantes');
   await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).click();await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).waitFor();assert.equal(participants.size,1);
   await page.goto(base+'/?actor=other');await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).click();await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).waitFor();
   assert.equal(await page.getByLabel('Contador').textContent(),'2 participantes');
+  roundStatus='lista_fechada';await page.reload();
+  await page.getByText('Lista fechada para inscrições e saídas.').waitFor();
+  assert.equal(await page.getByRole('button', { name: /SAIR DA LISTA|ENTRAR NA LISTA/ }).count(), 0);
   await page.screenshot({path:join(output,'inscricao.png'),fullPage:true});
   console.log(`PASS UI/repository reais: erro tecnico apenas no console; 0->1; nome; clique duplo; refresh; saida/reentrada; outro jogador. Captura: ${output}`);
 } finally {await browser?.close();await new Promise(done=>server.close(done));}

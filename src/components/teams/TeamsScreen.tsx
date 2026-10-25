@@ -6,6 +6,7 @@ import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { ViewTabs } from "@/components/ui/ViewTabs";
+import { useConfirmation } from "@/components/ui/useConfirmation";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
 import { drawTeams, getTeamCount, hasCompleteTeams, swapPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
@@ -26,6 +27,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const { confirm, confirmationDialog } = useConfirmation();
 
   useEffect(() => {
     let isMounted = true;
@@ -99,7 +101,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       return;
     }
 
-    if (confirmed && !window.confirm("Os times ja estao confirmados. Deseja sortear novamente e sobrescrever?")) {
+    if (confirmed && !await confirm({ title: "Sortear novamente?", description: "Os times já estão confirmados. O novo sorteio substituirá os times atuais." })) {
       return;
     }
 
@@ -198,6 +200,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
   return (
     <section className="flex flex-col gap-3">
+      {confirmationDialog}
       <div>
         <h2 className="text-[29px] font-black leading-tight">Times</h2>
         <p className="mt-0.5 text-xs font-black uppercase tracking-normal text-zinc-500">

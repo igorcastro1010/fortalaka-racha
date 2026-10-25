@@ -56,7 +56,7 @@ try {
     assert.fail(`Estado esperado não apareceu: ${document.body.textContent}`);
   }
   function button(name) {
-    return [...document.querySelectorAll('button')].find(e => !e.closest('[hidden]') && (e.getAttribute('aria-label') === name || e.textContent.trim() === name));
+    return [...document.querySelectorAll('button')].find(e => !e.closest('[hidden]') && !e.closest('dialog:not([open])') && (e.getAttribute('aria-label') === name || e.textContent.trim() === name));
   }
   async function click(name) {
     await waitFor(()=>button(name) && !button(name).disabled);
@@ -67,7 +67,7 @@ try {
     window?.close();
     window = new JSDOM('<div id="root"></div>', {url:`http://127.0.0.1:3011/?role=${role}`}).window;
     for(const key of ['window','document','location','HTMLElement','HTMLDialogElement'])globalThis[key]=key==='window'?window:window[key];
-    window.confirm=()=>true;
+    window.confirm=()=>{throw new Error('Native confirmation is blocked');};
     window.scrollTo=()=>{};
     window.matchMedia=()=>({matches:true});
     window.HTMLElement.prototype.scrollIntoView=()=>{};
@@ -83,16 +83,16 @@ try {
   await mount('jogador');
   assert(!document.querySelector('section[aria-label="Painel do Organizador"]'));
   assert(!requests.some(r=>r.name==='ler_times_rodada'||r.name==='ler_progresso_avaliacoes'),'Home do jogador não carrega dados do painel');
-  window.confirm=()=>false;
   await click('SAIR DA LISTA');
+  await click('Cancelar');
   assert(button('SAIR DA LISTA'),'Cancelar a saída deve manter a inscrição');
   assert(!button('ENTRAR NA LISTA'));
-  window.confirm=()=>true;
   await click('SAIR DA LISTA');
+  await click('Confirmar');
   await waitFor(()=>button('ENTRAR NA LISTA'));
   await click('ENTRAR NA LISTA');
   await waitFor(()=>button('SAIR DA LISTA'));
-  await click('SAIR DA LISTA');await waitFor(()=>button('ENTRAR NA LISTA'));
+  await click('SAIR DA LISTA');await click('Confirmar');await waitFor(()=>button('ENTRAR NA LISTA'));
   await click('ENTRAR NA LISTA');
   await waitFor(()=>button('SAIR DA LISTA'));
   assert.equal(requests.filter(r=>r.name==='ler_partidas_rodada').length,1,'Inscrições do jogador não disparam leituras extras de partidas');
@@ -120,7 +120,7 @@ try {
   assert(!document.body.textContent.includes('ABRIR AVALIAÇÕES'));
   await click('Fechar lista');
   await waitFor(()=>button('Reabrir lista'));
-  await click('Reabrir lista');await waitFor(()=>button('Fechar lista'));
+  await click('Reabrir lista');await click('Confirmar');await waitFor(()=>button('Fechar lista'));
   await click('Fechar lista');await waitFor(()=>button('Reabrir lista'));
   await click('Times');
   assert(!button('Sortear times'), 'Consulta dos times não expõe ajustes');
@@ -136,6 +136,7 @@ try {
   await click('Confirmar times');
   await waitFor(()=>document.body.textContent.includes('Times confirmados'));
   await click('Racha');await click('Gestão');await click('Reabrir lista');
+  await click('Confirmar');
   await waitFor(()=>button('Fechar lista'));
   await click('Resultados');
   await waitFor(()=>document.body.textContent.includes('Nenhuma partida ainda'));

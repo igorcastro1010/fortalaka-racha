@@ -7,6 +7,7 @@ import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { PostRoundSummary } from "@/components/results/PostRoundSummary";
 import { ViewTabs } from "@/components/ui/ViewTabs";
+import { useConfirmation } from "@/components/ui/useConfirmation";
 
 const button = "fk-secondary min-h-11 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-bold disabled:opacity-50";
 
@@ -23,6 +24,8 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const saving = useRef(false);
+  const { confirm, confirmationDialog } = useConfirmation();
   const [teamA, setTeamA] = useState("");
   const [teamB, setTeamB] = useState("");
   const [draft, setDraft] = useState<Match | null>(null);
@@ -98,16 +101,18 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   }
 
   async function save(status: Match["status"], confirmed = false) {
-    if (!draft || !organizer || busy) return;
+    if (!draft || !organizer || busy || saving.current) return;
     if (![draft.placarA, draft.placarB].every(n => Number.isSafeInteger(n) && n >= 0)) {
       setError("Informe placares inteiros maiores ou iguais a zero.");
       return;
     }
 
-    if (!confirmed && status === "finalizada" && draft.status !== "finalizada" && !window.confirm("Finalizar esta partida?\n\nDepois de finalizada, as estatisticas entrarao no ranking.")) {
+    if (!confirmed && status === "finalizada" && draft.status !== "finalizada" && !await confirm({ title: "Finalizar partida?", description: "Depois de finalizada, as estatísticas entrarão no ranking." })) {
       return;
     }
+    if (status === "cancelada" && !await confirm({ title: "Cancelar partida?", description: "Esta partida deixará de contar nas estatísticas." })) return;
 
+    saving.current = true;
     setBusy(true);
     setError("");
     setMessage("");
@@ -122,12 +127,13 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
       console.error("Falha ao salvar partida", e);
       setError("Não foi possível salvar a partida. Seus lançamentos foram mantidos para tentar novamente.");
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   }
 
-  function editMatch(match: Match) {
-    if (match.status === "finalizada" && !window.confirm("Alterar uma partida finalizada pode modificar o ranking.")) {
+  async function editMatch(match: Match) {
+    if (match.status === "finalizada" && !await confirm({ title: "Editar resultado?", description: "Alterar uma partida finalizada pode modificar o ranking." })) {
       return;
     }
     setDraft(structuredClone(match));
@@ -146,6 +152,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   }
 
   return <>
+    {confirmationDialog}
     <ViewTabs label="Visão das partidas" value={activeView} onChange={setView} items={[{ id: "live", label: "Ao vivo" }, { id: "history", label: "Histórico" }, { id: "summary", label: "Resumo" }]} />
     <section className="fk-section flex flex-col gap-4" aria-label="Partidas da rodada">
 
@@ -250,7 +257,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
       <div className="grid gap-2">
         <button disabled={busy} onClick={() => save(draft.status)} className={button}>Salvar</button>
         <button disabled={busy} onClick={() => save("finalizada")} className="fk-primary min-h-12 rounded-lg bg-red-600 text-xs font-black uppercase text-white disabled:opacity-50">Finalizar partida</button>
-        <button disabled={busy} className={button} onClick={() => { if (window.confirm("Cancelar esta partida? Ela deixara de contar nas estatisticas.")) void save("cancelada"); }}>Cancelar partida</button>
+        <button disabled={busy} className={button} onClick={() => save("cancelada")}>Cancelar partida</button>
         <button disabled={busy} className={button} onClick={() => setDraft(null)}>Fechar edicao sem salvar</button>
       </div>
     </div>}

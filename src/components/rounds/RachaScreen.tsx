@@ -4,6 +4,7 @@ import { MoreVertical, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { ViewTabs } from "@/components/ui/ViewTabs";
+import { useConfirmation } from "@/components/ui/useConfirmation";
 import { getRoundMatches } from "@/lib/matches/repository";
 import { RoundForm } from "./RoundForm";
 import { OwnRegistration } from "./OwnRegistration";
@@ -35,6 +36,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const { confirm, confirmationDialog } = useConfirmation();
 
   const [matchSummary, setMatchSummary] = useState<{ roundId: string; count: number | null } | null>(null);
   const onFinalizedCountChange = useCallback((roundId: string, count: number | null) => {
@@ -163,7 +165,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
   }
 
   async function handleRemoveParticipant(participant: RoundParticipant) {
-    if (!window.confirm(`Remover ${participant.name} da rodada?`)) {
+    if (!organizer || isSaving || !await confirm({ title: "Remover participante?", description: `Remover ${participant.name} da rodada?` })) {
       return;
     }
 
@@ -205,7 +207,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
   }
 
   async function handleReopenList() {
-    if (!round || !window.confirm("Reabrir a lista para editar participantes?")) {
+    if (!organizer || isSaving || !round || !await confirm({ title: "Reabrir lista?", description: "A lista será reaberta para editar participantes." })) {
       return;
     }
 
@@ -251,6 +253,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
   }
   return (
     <section className="space-y-3.5">
+      {confirmationDialog}
       <div>
         <h2 className="text-[29px] font-black leading-tight">Racha</h2>
         <p className="mt-0.5 text-xs font-black uppercase tracking-normal text-zinc-500">

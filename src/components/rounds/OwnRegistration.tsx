@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
+import { useConfirmation } from "@/components/ui/useConfirmation";
 import type { Profile } from "@/lib/auth/roles";
 import { setOwnRegistration, type RoundDetails } from "@/lib/rounds/repository";
 
@@ -12,10 +13,11 @@ export function OwnRegistration({ round, profile, onUpdated, compact = false }: 
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const canChange = round.status === "aberto" && profile.active;
+  const { confirm, confirmationDialog } = useConfirmation();
 
   async function submit(join: boolean) {
     if (!canChange || submitting.current) return;
-    if (!join && !window.confirm("Sair da lista desta rodada?")) return;
+    if (!join && !await confirm({ title: "Sair da lista?", description: "Você será retirado da lista desta rodada. Enquanto a lista estiver aberta, poderá entrar novamente." })) return;
     submitting.current = true;
     setBusy(true); setError(""); setMessage("");
     try {
@@ -28,6 +30,7 @@ export function OwnRegistration({ round, profile, onUpdated, compact = false }: 
   }
 
   return <section aria-busy={busy} className={compact ? "space-y-3 border-t border-zinc-200 pt-4" : "fk-section space-y-3"}>
+    {confirmationDialog}
     {!compact && <h3 className="text-xs font-bold text-zinc-500">Sua inscrição</h3>}
     <p className="flex items-center gap-2 text-xs font-black text-neutral-950">{registration && <CheckCircle2 size={17} aria-hidden="true" />}{registration ? "VOCÊ ESTÁ NA LISTA" : "Você ainda não está na lista."}</p>
     {message && <p role="status" className="text-xs font-bold text-zinc-700">{message}</p>}
