@@ -120,7 +120,7 @@ export function EvaluationScreen({ roundId, onStateChange, onReadStatusChange, r
     {error && <div role="alert" className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700 ring-1 ring-red-100"><p>{error}</p><button onClick={reload} className="mt-2 min-h-11 underline">Tentar novamente</button></div>}
     {message && <Status tone="success" text={message} />}
 
-    {!loading && !error && !state && <Card><p className="text-sm font-bold text-zinc-600">Nenhuma rodada com avaliacoes disponiveis.</p></Card>}
+    {!loading && !error && !state && <Card><p className="text-xs font-black uppercase tracking-normal text-zinc-500">Nenhuma rodada com avaliacoes disponiveis.</p></Card>}
     {state && !state.open && <Status tone="neutral" text="As avaliacoes desta rodada estao fechadas. Voce pode consultar o que ja enviou." />}
     {state && !state.canEvaluate && state.open && <Card><p className="text-sm font-bold text-zinc-600">Voce nao tem companheiros elegiveis para avaliar nesta rodada. Apenas quem participou de partida finalizada pode avaliar.</p></Card>}
 
@@ -136,8 +136,8 @@ export function EvaluationScreen({ roundId, onStateChange, onReadStatusChange, r
         {state.players.map(player => <div key={player.jogador_id} className="flex min-h-16 items-center gap-3 py-2">
           <PlayerAvatar name={player.nome} avatarUrl={player.avatar_url} />
           <div className="min-w-0 flex-1">
-            <p className="break-words text-sm font-black">{player.nome}</p>
-            <p className={`mt-1 text-xs font-bold ${player.avaliado ? "text-emerald-700" : "text-amber-700"}`}>{player.avaliado ? "Avaliado ✓" : "Pendente"}</p>
+            <p className="break-words text-base font-black">{player.nome}</p>
+            <p className={`mt-1 text-xs font-black ${player.avaliado ? "text-emerald-700" : "text-amber-700"}`}>{player.avaliado ? "Avaliado ✓" : "Pendente"}</p>
           </div>
           {(state.open || player.avaliado) && <button onClick={() => openPlayer(player)} disabled={saving || loading || Boolean(error) || (state.open && !state.canEvaluate)} aria-label={`${state.open ? player.avaliado ? "Editar avaliação de" : "Avaliar" : "Ver avaliação de"} ${player.nome}`} className="fk-secondary min-h-11 shrink-0 rounded-lg border border-zinc-300 px-3 text-xs font-black text-neutral-950 focus-visible:outline-2 focus-visible:outline-red-600 disabled:opacity-50">{state.open ? player.avaliado ? "EDITAR" : "AVALIAR" : "VER"}</button>}
         </div>)}
@@ -147,14 +147,14 @@ export function EvaluationScreen({ roundId, onStateChange, onReadStatusChange, r
 
     {selected && <div ref={formArea} tabIndex={-1} aria-label={`Avaliação de ${selected.nome}`} className="scroll-mt-4 focus-visible:outline-2 focus-visible:outline-red-600"><Card className="space-y-5 border-t-2 border-red-700 pt-5">
       <div className="flex items-center gap-3">
-        <PlayerAvatar name={selected.nome} avatarUrl={selected.avatar_url} />
+        <PlayerAvatar name={selected.nome} avatarUrl={selected.avatar_url} size="lg" />
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase text-red-700">{!state?.open ? "Avaliação enviada" : selected.avaliado ? "Editar avaliacao" : "Nova avaliacao"}</p>
           <h3 className="break-words text-xl font-black">{selected.nome}</h3>
         </div>
       </div>
       {attributes.map(({ key, label }) => <div key={key} className="space-y-2">
-        <p className="text-sm font-black">{label}</p>
+        <p className="text-sm font-black uppercase tracking-normal text-neutral-950">{label}</p>
         <div className="grid grid-cols-5 gap-2">
           {[1, 2, 3, 4, 5].map(value => {
             const active = scores[key] === value;

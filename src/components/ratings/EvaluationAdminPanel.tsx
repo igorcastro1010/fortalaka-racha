@@ -77,8 +77,8 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
     </div>
     {organizer && progress ? <p className="text-base font-bold tabular-nums text-zinc-800">{progress.respondentes} de {progress.total} jogadores responderam</p> : !organizer && personal ? <p className="text-base font-bold tabular-nums text-zinc-800">{completed} de {personal.players.length} companheiros avaliados</p> : !organizer && personalError ? <p role="alert" className="text-sm text-red-700">{personalError}</p> : !organizer && !personalLoading ? <EmptyState title="Nenhuma avaliação disponível" description="O progresso aparece quando houver uma rodada disponível para avaliar." /> : !error && <LoadingCards label="Carregando progresso..." />}
     {(progress || personal) && <progress aria-label="Progresso das avaliações" value={organizer ? progress?.respondentes ?? 0 : completed} max={Math.max(1, organizer ? progress?.total ?? 0 : personal?.players.length ?? 0)} className="h-1.5 w-full accent-red-700" />}
-    {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p>}
-    {message && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
+    {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p>}
+    {message && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
     {organizer && roundStatus !== "finalizado" && <EmptyState icon={Star} title="As avaliações ainda não estão abertas." description="Finalize pelo menos uma partida e encerre a rodada antes de abrir avaliações." />}
     {!organizer && open === false && <p className="text-sm font-bold text-zinc-600">Avaliações fechadas</p>}
     {!organizer && open === false && completed > 0 && <button onClick={() => onOpenEvaluate(roundId)} disabled={Boolean(error)} className="fk-secondary min-h-12 w-full rounded-lg border border-zinc-300 px-3 text-sm font-black disabled:opacity-50">VER MINHAS AVALIAÇÕES</button>}

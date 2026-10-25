@@ -91,7 +91,7 @@ try {
       await page.getByRole('button', { name: 'Fechar resumo', exact: true }).click();
       await tab('Ranking'); await page.getByRole('button', { name: 'Gols', exact: true }).click(); await shot(`${prefix}-ranking`);
       const evaluationStart = apiCalls.length;
-      await nav('Avaliação'); await shot(`${prefix}-avaliar`);
+      await nav('Avaliação'); await tab('Avaliar'); await shot(`${prefix}-avaliar`);
       assert.equal(apiCalls.slice(evaluationStart).filter(call => call.name === 'ler_avaliacoes_atual').length, 1, 'Avaliar e Progresso compartilham a leitura pessoal');
       if (role === 'jogador') {
         await page.getByRole('button', { name: /^Avaliar / }).first().click(); await shot(`${prefix}-notas`);

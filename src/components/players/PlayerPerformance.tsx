@@ -62,7 +62,7 @@ export function PlayerPerformance({ profile, children, view = "overview" }: { pr
   return <section className="min-w-0 overflow-hidden bg-neutral-950 text-white" aria-label="Desempenho do jogador">
     <div hidden={view !== "overview"}>
     <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 px-5 pt-6">
-      <PlayerAvatar name={profile.name} avatarUrl={avatar} size="lg" />
+      <PlayerAvatar name={profile.name} avatarUrl={avatar} size="xl" />
       <div className="min-w-0"><h2 className="break-words text-2xl font-black leading-tight">{profile.name}</h2><p className="mt-1.5 text-xs font-semibold text-zinc-300">{getRoleLabel(profile.role)}</p></div>
     </div>
     <div className="mx-5 mt-5 flex items-end justify-between gap-4 border-t border-white/15 pt-4">

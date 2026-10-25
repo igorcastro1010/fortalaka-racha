@@ -198,8 +198,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   return (
     <section className="flex flex-col gap-3">
       <div>
-        <h2 className="text-[29px] font-black leading-tight tracking-normal">Times</h2>
-        <p className="mt-0.5 text-sm font-bold text-zinc-600">
+        <h2 className="text-[29px] font-black leading-tight">Times</h2>
+        <p className="mt-0.5 text-xs font-black uppercase tracking-normal text-zinc-500">
           Sorteio da rodada
         </p>
       </div>
@@ -215,8 +215,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
             <Users size={19} />
           </div>
           <div>
-            <p className="text-sm font-black">{confirmedPlayersCount} participantes</p>
-            <p className="text-xs font-bold text-zinc-600">{getTeamsToFormLabel(teamsToFormCount)}</p>
+            <p className="text-xl font-black tracking-normal text-neutral-950">{confirmedPlayersCount} participantes</p>
+            <p className="text-xs font-black uppercase tracking-normal text-zinc-500">{getTeamsToFormLabel(teamsToFormCount)}</p>
           </div>
         </div>
       </Card>
@@ -355,9 +355,9 @@ function TeamCard({
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="break-words text-lg font-black">{team.name}</h3>
-          <p className="text-xs font-bold text-zinc-600">{team.players.length} jogadores</p>
+          <p className="text-xs font-black uppercase tracking-normal text-zinc-500">{team.players.length} jogadores</p>
         </div>
-        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black text-zinc-700">
+        <span className="rounded-full bg-neutral-950 px-3 py-1 text-xs font-black text-white">
           #{String(team.number).padStart(2, "0")}
         </span>
       </div>
@@ -417,7 +417,7 @@ function PlayerPill({
       } ${selected ? "ring-2 ring-red-500" : ""} ${clickable ? "active:scale-[0.99]" : "cursor-default"}`}
     >
       <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} size="sm" />
-      <span className="min-w-0 flex-1 break-words text-sm font-bold leading-snug text-neutral-950">{player.name}</span>
+      <span className="min-w-0 flex-1 break-words text-sm font-black leading-snug text-neutral-950">{player.name}</span>
       {isCurrentPlayer && <span className="shrink-0 text-xs font-bold text-emerald-800">Você</span>}
     </button>
   );

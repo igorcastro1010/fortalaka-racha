@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DrawTeam, TeamPlayer } from "@/lib/teams/draw";
-import { getCurrentRoundDetails } from "@/lib/rounds/repository";
+import { getCurrentRoundDetails, type RoundDetails } from "@/lib/rounds/repository";
 
 export type RoundParticipant = TeamPlayer & {
   jogadorId: string | null;
@@ -28,8 +28,8 @@ function checkError(error: { message: string; code?: string } | null) {
   throw new Error(error.message);
 }
 
-export async function getCurrentRoundTeamsState(supabase: SupabaseClient): Promise<RoundTeamsState | null> {
-  const round = await getCurrentRoundDetails(supabase);
+export async function getCurrentRoundTeamsState(supabase: SupabaseClient, loadedRound?: RoundDetails): Promise<RoundTeamsState | null> {
+  const round = loadedRound ?? await getCurrentRoundDetails(supabase);
   if (!round) return null;
   const { data, error } = await supabase.rpc("ler_times_rodada", {});
   checkError(error);

@@ -45,14 +45,14 @@ function Metrics({ player }: { player: PlayerStatistics }) {
 }
 
 function ReadStatus({ loading, error, reload }: { loading: boolean; error: string; reload: () => void }) {
-  return <>{loading && <LoadingCards label="Carregando estatisticas..." />}{error && <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700"><p>{error}</p><button onClick={reload} className="mt-2 min-h-11 font-bold underline">Tentar novamente</button></div>}</>;
+  return <>{loading && <LoadingCards label="Carregando estatisticas..." />}{error && <div role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700"><p>{error}</p><button onClick={reload} className="mt-2 min-h-11 font-bold underline">Tentar novamente</button></div>}</>;
 }
 
 export function RankingScreen({ sort, onSortChange }: { sort: RankingSort; onSortChange: (sort: RankingSort) => void }) {
   const state = useStatistics();
   const ranking = sortRanking(state.data, sort);
   const activeLabel = rankingOptions.find(option => option.id === sort)!.label;
-  return <section aria-label="Ranking dos jogadores" className="min-w-0 space-y-3"><div><h2 className="text-[29px] font-black leading-tight">Ranking</h2><p className="mt-0.5 text-sm font-bold text-zinc-600">{sort === "geral" ? "Classificação por overall — maior nota primeiro" : `${activeLabel} — maior valor primeiro`}</p></div>
+  return <section aria-label="Ranking dos jogadores" className="min-w-0 space-y-3"><div><h2 className="text-[29px] font-black leading-tight">Ranking</h2><p className="mt-0.5 text-sm text-zinc-600">{sort === "geral" ? "Classificação por overall — maior nota primeiro" : `${activeLabel} — maior valor primeiro`}</p></div>
     <div role="group" aria-label="Ordenação do ranking" className="flex w-full min-w-0 gap-2 overflow-x-auto pb-2">
       {rankingOptions.map(option => <button key={option.id} type="button" aria-pressed={sort === option.id} onClick={() => onSortChange(option.id)} className={`min-h-11 shrink-0 border-b-2 px-3 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 ${sort === option.id ? "border-red-700 text-red-700" : "border-transparent text-zinc-600 hover:bg-zinc-50"}`}>{option.label}</button>)}
     </div>

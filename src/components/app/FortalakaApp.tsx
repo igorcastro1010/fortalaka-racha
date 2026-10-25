@@ -25,10 +25,13 @@ import { EvaluationArea } from "@/components/ratings/EvaluationArea";
 import { ResultsScreen } from "@/components/results/ResultsScreen";
 import { useCurrentRound } from "@/components/rounds/useCurrentRound";
 import { RoundLoadStatus } from "@/components/rounds/RoundSummary";
-import { getRoundMatches } from "@/lib/matches/repository";
+import { getRoundMatches, type MatchesState } from "@/lib/matches/repository";
 import { RoundProgress } from "@/components/rounds/RoundProgress";
+import { OrganizerPanel } from "@/components/rounds/OrganizerPanel";
+import { getRoundParticipantCounts } from "@/lib/rounds/organizer-overview";
+import type { RoundDetails } from "@/lib/rounds/repository";
 import { OwnRegistration } from "@/components/rounds/OwnRegistration";
-import type { Profile } from "@/lib/auth/roles";
+import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { getEvaluationState, type EvaluationState } from "@/lib/ratings/repository";
 import { createClient } from "@/lib/supabase/client";
 
@@ -88,30 +91,33 @@ function ProfileButton({ profile, onClick }: { profile: Profile; onClick: () => 
 
 function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpenTeams, onOpenProfile }: { profile: Profile; onOpenRacha: () => void; onOpenEvaluate: () => void; onOpenResults: () => void; onOpenTeams: () => void; onOpenProfile: () => void }) {
   const { round, loading, error, retry } = useCurrentRound();
-  const [matches, setMatches] = useState<{ roundId: string; count: number } | null>(null);
+  const [matches, setMatches] = useState<{ roundId: string; roundStatus: RoundDetails["status"]; revision: RoundDetails | null; data: MatchesState | null; error: string } | null>(null);
+  const organizer = isOrganizer(profile) && profile.active;
   const roundId = round?.roundId;
+  const roundStatus = round?.status;
+  // Atualizações de inscrição do jogador não precisam reler partidas.
+  const matchesRevision = organizer ? round : null;
   useEffect(() => {
-    if (!roundId) return;
+    if (!roundId || !roundStatus) return;
     let active = true;
     getRoundMatches(roundId).then(data => {
-      if (active) setMatches({ roundId, count: data.partidas.length });
-    }).catch(() => {});
+      if (data.roundStatus && data.roundStatus !== roundStatus) throw new Error("A rodada mudou durante a consulta. Atualize o painel.");
+      if (active) setMatches({ roundId, roundStatus, revision: matchesRevision, data, error: "" });
+    }).catch(() => { if (active) setMatches({ roundId, roundStatus, revision: matchesRevision, data: null, error: "Não foi possível atualizar as partidas." }); });
     return () => { active = false; };
-  }, [roundId]);
-  const participants = round?.participants.filter(player => player.status === "confirmado") ?? [];
-  const counts = {
-    fieldPlayers: participants.filter(player => player.type !== "suplente" && player.status === "confirmado").length,
-    substitutes: participants.filter(player => player.type === "suplente").length,
-  };
+  }, [roundId, roundStatus, matchesRevision]);
+  const currentMatches = matches?.roundId === roundId && matches?.roundStatus === roundStatus && matches?.revision === matchesRevision ? matches : null;
+  const counts = getRoundParticipantCounts(round?.participants ?? []);
   const displayName = getDisplayName(profile);
   const firstName = getFirstName(displayName);
-
-  const organizerAction = round?.status === "aberto" ? { label: "Gerenciar lista", action: onOpenRacha } : round?.status === "lista_fechada" ? { label: "Preparar times", action: onOpenTeams } : round?.status === "finalizado" ? { label: "Gerenciar avaliações", action: onOpenEvaluate } : { label: "Gerenciar partidas", action: onOpenResults };
 
   return <section className="space-y-5">
     <AppHeader profile={profile} onOpenProfile={onOpenProfile} />
     <div><p className="text-sm text-zinc-600">Olá, {firstName}</p><h2 className="mt-1">{round?.status === "finalizado" ? "Dentro e fora de campo." : "É dia de Fortalaka."}</h2></div>
     <RoundLoadStatus loading={loading && !round} error={error} empty={!round} retry={retry} />
+    {organizer && !round && !error && <OrganizerPanel profile={profile} round={round} loading={loading}
+      matches={currentMatches?.data ?? null} matchesError={currentMatches?.error ?? ""} onRefresh={retry}
+      onNavigate={destination => ({ racha: onOpenRacha, teams: onOpenTeams, results: onOpenResults, evaluate: onOpenEvaluate })[destination]()} />}
     {!error && round && <>
       <section aria-label="Rodada atual" className="border-y border-zinc-200">
         <div className="-mx-5 border-l-4 border-red-600 bg-neutral-950 px-5 py-6 text-white sm:-mx-8 sm:px-8">
@@ -125,17 +131,19 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
             <InfoBlock icon={Clock3} label="Horário" value={round.time?.slice(0, 5) ?? "A definir"} />
           </div>
           <p className="flex items-start gap-2 text-xs font-medium leading-relaxed text-zinc-600"><MapPin size={16} className="mt-0.5 shrink-0" /><span className="min-w-0 break-words">{round.address ?? "Endereço a definir"}</span></p>
-          <div className="flex flex-wrap items-baseline gap-x-2 border-t border-zinc-200 pt-4"><span className="text-3xl font-black tabular-nums">{counts.fieldPlayers}</span><span className="text-sm text-zinc-700">participantes</span><span className="ml-auto text-sm text-zinc-600">{counts.substitutes} suplentes</span></div>
+          <div className="flex flex-wrap items-baseline gap-x-2 border-t border-zinc-200 pt-4"><span className="text-3xl font-black tabular-nums">{counts.confirmed}</span><span className="text-sm text-zinc-700">participantes</span><span className="ml-auto text-sm text-zinc-600">{counts.substitutes} suplentes</span></div>
           <OwnRegistration key={round.roundId} compact round={round} profile={profile} onUpdated={retry} />
           {round.status !== "aberto" && <button onClick={round.status === "lista_fechada" ? onOpenTeams : onOpenResults} className="fk-primary w-full">{round.status === "lista_fechada" ? "Ver times" : round.status === "finalizado" ? "Ver resumo do racha" : "Acompanhar partidas"}</button>}
           <button onClick={onOpenRacha} className="fk-secondary w-full">Ver racha</button>
         </div>
       </section>
-      <RoundProgress status={round.status} />
-      {matches?.roundId === roundId && matches && matches.count > 0 && <p className="text-center text-xs text-zinc-600">{matches.count} partidas na rodada</p>}
-      {profile.role === "organizador" && profile.active && <section className="fk-section flex items-center justify-between gap-4"><div><p className="text-xs font-bold uppercase text-zinc-500">Organização</p><p className="mt-1 text-sm font-semibold">Próxima ação</p></div><button onClick={organizerAction.action} className="fk-secondary">{organizerAction.label}</button></section>}
+      {!organizer && <RoundProgress status={round.status} />}
+      {currentMatches?.data && currentMatches.data.partidas.length > 0 && <p className="text-center text-xs text-zinc-600">{currentMatches.data.partidas.length} partidas na rodada</p>}
+      {organizer && <OrganizerPanel profile={profile} round={round} loading={loading}
+        matches={currentMatches?.data ?? null} matchesError={currentMatches?.error ?? ""} onRefresh={retry}
+        onNavigate={destination => ({ racha: onOpenRacha, teams: onOpenTeams, results: onOpenResults, evaluate: onOpenEvaluate })[destination]()} />}
     </>}
-    <HomeEvaluationCard onOpenEvaluate={onOpenEvaluate} />
+    {!organizer && <HomeEvaluationCard onOpenEvaluate={onOpenEvaluate} />}
   </section>;
 }
 

@@ -11,7 +11,7 @@ import type { EvaluationState } from "@/lib/ratings/repository";
 
 export function EvaluationArea({ profile }: { profile: Profile }) {
   const { round, loading, error, retry } = useCurrentRound();
-  const [view, setView] = useState<"avaliar" | "progresso">("avaliar");
+  const [view, setView] = useState<"avaliar" | "progresso">(isOrganizer(profile) && profile.active ? "progresso" : "avaliar");
   const [revision, setRevision] = useState(0);
   const [personal, setPersonal] = useState<EvaluationState | null>(null);
   const [readStatus, setReadStatus] = useState({ loading: true, error: "" });

@@ -12,6 +12,11 @@ const { build } = dependencies('esbuild');
 const { JSDOM } = dependencies('jsdom');
 const fixture = spawn(process.execPath, ['tests/preview-sorteio.mjs', process.argv[2], process.argv[2], '--app'], { stdio: ['ignore', 'pipe', 'inherit'] });
 const originalFetch = globalThis.fetch;
+const requests=[];
+globalThis.fetch=async(input,options)=>{
+  if(String(input).endsWith('/api') && options?.body)requests.push(JSON.parse(options.body));
+  return originalFetch(input,options);
+};
 let root;
 let window;
 let testAct;
@@ -76,6 +81,8 @@ try {
     assert.deepEqual([...document.querySelectorAll('nav[aria-label="Navegação principal"] button')].map(e=>e.textContent),['Início','Racha','Times','Avaliação','Resultados']);
   }
   await mount('jogador');
+  assert(!document.querySelector('section[aria-label="Painel do Organizador"]'));
+  assert(!requests.some(r=>r.name==='ler_times_rodada'||r.name==='ler_progresso_avaliacoes'),'Home do jogador não carrega dados do painel');
   window.confirm=()=>false;
   await click('SAIR DA LISTA');
   assert(button('SAIR DA LISTA'),'Cancelar a saída deve manter a inscrição');
@@ -88,7 +95,22 @@ try {
   await click('SAIR DA LISTA');await waitFor(()=>button('ENTRAR NA LISTA'));
   await click('ENTRAR NA LISTA');
   await waitFor(()=>button('SAIR DA LISTA'));
+  assert.equal(requests.filter(r=>r.name==='ler_partidas_rodada').length,1,'Inscrições do jogador não disparam leituras extras de partidas');
+  requests.length=0;
   await mount('organizador');
+  const organizerPanel=()=>document.querySelector('section[aria-label="Painel do Organizador"]');
+  async function expectOrganizerCTA(label){
+    await click('Início');
+    await waitFor(()=>organizerPanel()?.getAttribute('aria-busy')==='false');
+    assert(organizerPanel().textContent.includes(label));
+    return organizerPanel();
+  }
+  await waitFor(()=>organizerPanel()?.getAttribute('aria-busy')==='false');
+  assert.deepEqual([...organizerPanel().querySelectorAll('dl dd')].map(e=>e.textContent),['10','0','0','FECHADAS']);
+  for(const name of ['ler_times_rodada','ler_partidas_rodada','ler_progresso_avaliacoes','avatars_da_rodada'])assert.equal(requests.filter(r=>r.name===name).length,1,`${name} apenas uma vez`);
+  assert.equal(requests.filter(r=>r.table==='rachas').length,1,'Reaproveita leitura de rodada');
+  assert.equal(requests.filter(r=>r.table==='racha_participantes').length,1,'Reaproveita participantes da Home');
+  assert(!requests.some(r=>r.name==='ler_avaliacoes_atual'),'Painel usa progresso agregado, sem chamada pessoal redundante');
   await click('Racha');
   assert(!button('Fechar lista'), 'Consulta da lista não expõe gestão');
   await click('Gestão');
@@ -106,6 +128,10 @@ try {
   assert(!document.body.textContent.toLowerCase().includes('goleiro'));
   await click('Sortear times');
   await waitFor(()=>button('Confirmar times') && !button('Confirmar times').disabled);
+  await expectOrganizerCTA('MONTAR TIMES');
+  assert(organizerPanel().textContent.includes('RASCUNHO'));
+  await click('MONTAR TIMES');
+  await click('Ajustes');
   assert(!document.body.textContent.toLowerCase().includes('goleiro'));
   await click('Confirmar times');
   await waitFor(()=>document.body.textContent.includes('Times confirmados'));
@@ -135,6 +161,11 @@ try {
   await click('Gestão');
   await click('IR PARA RESULTADOS');
   await click('INICIAR PRIMEIRA PARTIDA');
+  await expectOrganizerCTA('IR PARA RESULTADOS');
+  assert(organizerPanel().textContent.includes('Partida em andamento.'));
+  assert(organizerPanel().textContent.includes('EM CAMPO'));
+  await click('IR PARA RESULTADOS');
+  await click('LANÇAR PLACAR E EVENTOS');
   await click('Aumentar placar de Time 1');
   await waitFor(()=>button('Adicionar gols de Conta teste'));
   await click('Adicionar gols de Conta teste');
@@ -163,6 +194,10 @@ try {
   await waitFor(()=>document.querySelector('dialog')?.open);
   await click('FINALIZAR');
   await waitFor(()=>document.body.textContent.includes('RODADA FINALIZADA'));
+  await expectOrganizerCTA('ABRIR AVALIAÇÕES');
+  await click('ABRIR AVALIAÇÕES');
+  await waitFor(()=>button('ABRIR AVALIAÇÕES'));
+  assert(button('ABRIR AVALIAÇÕES'),'Atalho navega e não abre automaticamente');
   await click('Resultados');
   await waitFor(()=>document.querySelector('section[aria-label="Resumo para compartilhar"]'));
   const postSummary=document.querySelector('section[aria-label="Resumo pós-racha"]');
@@ -188,6 +223,8 @@ try {
   await click('Progresso');
   await click('ABRIR AVALIAÇÕES');
   await waitFor(()=>document.body.textContent.includes('ABERTA'));
+  await expectOrganizerCTA('ACOMPANHAR AVALIAÇÕES');
+  await click('ACOMPANHAR AVALIAÇÕES');
   await mount('jogador');
   await click('Racha');
   await waitFor(()=>document.body.textContent.includes('RODADA FINALIZADA'));
@@ -286,6 +323,7 @@ try {
   if(root)await testAct(async()=>root.unmount());
   window?.close();
   fixture.kill();
+  globalThis.fetch=originalFetch;
 }
 // React/Next podem manter MessageChannels abertos no ambiente DOM isolado.
 process.exit(0);

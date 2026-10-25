@@ -68,3 +68,57 @@ Os MCPs Playwright/Chrome DevTools nao foram expostos nesta sessao. A validacao
 equivalente usa a biblioteca Playwright e o protocolo CDP local, sem credenciais
 nem alteracoes de dados em producao. Falha de avatar intencional na fixture
 valida o fallback; nao representa falha de imagem do app em producao.
+
+## Resultado verificado
+
+- Build e lint aprovados; 56 testes unitarios de dominio aprovados.
+- Navegacao completa aprovada com PostgreSQL local: ambas roles, inscricao,
+  painel contextual, sorteio, placar, encerramento, avaliacao e privacidade.
+- 152 capturas aprovadas nas cinco resolucoes. Console sem erros/warnings
+  inesperados; rede sem falhas inesperadas; avatar ausente proposital tem fallback.
+- Sem nova consulta ao alternar as views de partidas; Avaliar/Progresso
+  compartilham uma leitura pessoal. Notas nao enviadas permanecem ao atualizar.
+- Suites de ranking visual, artilharia, inscricao, perfil e SQL local aprovadas.
+- Quatro testes adicionais de Avaliar/Progresso aprovados: consulta compartilhada,
+  erro, vazio e preservacao da nota ainda nao enviada ao atualizar o estado.
+- Seis commits remotos encontrados no fetch foram integrados sem force-push.
+  O painel do organizador existente e seus testes foram preservados e refinados.
+
+## Arquivos da remodelagem
+
+Comparacao com a master remota recebida antes da entrega:
+
+```text
+docs/remodelagem-visual.md
+src/app/cadastro/page.tsx
+src/app/globals.css
+src/app/login/page.tsx
+src/components/app/FortalakaApp.tsx
+src/components/auth/AuthShell.tsx
+src/components/auth/LoginForm.tsx
+src/components/auth/ResetPasswordForm.tsx
+src/components/auth/SignupForm.tsx
+src/components/players/PlayerAvatar.tsx
+src/components/players/PlayerPerformance.tsx
+src/components/players/ProfilePhoto.tsx
+src/components/players/StatisticsViews.tsx
+src/components/ratings/EvaluationAdminPanel.tsx
+src/components/ratings/EvaluationArea.tsx
+src/components/ratings/EvaluationScreen.tsx
+src/components/results/PostRoundSummary.tsx
+src/components/results/ResultsScreen.tsx
+src/components/results/RoundShareCard.tsx
+src/components/rounds/MatchesPanel.tsx
+src/components/rounds/OrganizerPanel.tsx
+src/components/rounds/OwnRegistration.tsx
+src/components/rounds/RachaScreen.tsx
+src/components/rounds/RoundForm.tsx
+src/components/rounds/RoundProgress.tsx
+src/components/rounds/RoundSummary.tsx
+src/components/teams/TeamsScreen.tsx
+src/components/ui/ScreenState.tsx
+src/components/ui/ViewTabs.tsx
+tests/navigation.test.mjs
+tests/visual-remodel.test.mjs
+tests/evaluation-views.test.mjs
+```

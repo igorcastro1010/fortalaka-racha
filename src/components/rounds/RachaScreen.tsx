@@ -252,8 +252,8 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
   return (
     <section className="space-y-3.5">
       <div>
-        <h2 className="text-[29px] font-black leading-tight tracking-normal">Racha</h2>
-        <p className="mt-0.5 text-sm font-bold text-zinc-600">
+        <h2 className="text-[29px] font-black leading-tight">Racha</h2>
+        <p className="mt-0.5 text-xs font-black uppercase tracking-normal text-zinc-500">
           {round ? getStatusLabel(round.status) : "Crie a rodada para gerenciar a lista"}
         </p>
       </div>
@@ -365,7 +365,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
               >
                 FINALIZAR RACHA
               </button>
-              <p id="finish-round-status" aria-live="polite" className="mt-3 text-sm font-bold text-zinc-600">
+              <p id="finish-round-status" aria-live="polite" className="mt-3 text-xs font-black uppercase tracking-normal text-zinc-500">
                 {finalizedMatchCount === null ? "Verificando partidas da rodada..." : finalizedMatchCount === 0 ? "Finalize pelo menos uma partida antes de encerrar a rodada." : !["times_confirmados", "em_andamento"].includes(round.status) ? "Confirme os times antes de finalizar a rodada." : `${finalizedMatchCount} partidas finalizadas`}
               </p>
               {onOpenResults && <button onClick={onOpenResults} className="mt-2 min-h-11 w-full rounded-lg border border-zinc-200 text-xs font-black">IR PARA RESULTADOS</button>}
@@ -408,7 +408,7 @@ function ParticipantSection({
   return (
     <Card>
       <div className="mb-2.5 flex items-center justify-between">
-        <h3 className="text-lg font-black">{title}</h3>
+        <h3 className="text-2xl font-black text-red-600">{title}</h3>
         <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black text-zinc-700">
           {participants.length}
         </span>
@@ -420,7 +420,7 @@ function ParticipantSection({
               <PlayerAvatar name={participant.name} avatarUrl={participant.avatarUrl} />
               <div className={`min-w-0 flex-1 ${editable ? "pr-11" : ""}`}>
               <p className="break-words text-sm font-black">{participant.name}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-zinc-600"><span>{getParticipantStatusLabel(participant.status)}</span><span>{participant.type === "suplente" ? "Suplente" : "Participante"}</span></div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-zinc-500"><span>{getParticipantStatusLabel(participant.status)}</span><span>{participant.type === "suplente" ? "Suplente" : "Participante"}</span></div>
               </div>
             </div>
             {editable ? (
@@ -446,7 +446,7 @@ function ParticipantSection({
                   <option value="ausente">Ausente</option>
                   <option value="removido">Removido</option>
                 </select>
-                <button onClick={() => onRemove(participant)} className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white text-xs font-bold text-red-600"><Trash2 size={15} /> Remover da rodada</button>
+                <button onClick={() => onRemove(participant)} className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white text-xs font-black text-red-600 transition hover:bg-red-50"><Trash2 size={15} /> Remover da rodada</button>
               </div>
               </details>
             ) : null}
