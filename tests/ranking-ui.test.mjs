@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 
 const dependencies=createRequire(resolve(process.argv[2],'package.json'));
 const { build }=dependencies('esbuild');
@@ -35,9 +35,10 @@ const chunks=resolve('.next/static/chunks');
 const css=readdirSync(chunks).filter(name=>name.endsWith('.css')).map(name=>readFileSync(join(chunks,name),'utf8')).join('\n');
 let requests=0;
 const server=createServer((request,response)=>{
+  if(request.url?.endsWith('.woff2')){response.setHeader('Content-Type','font/woff2');response.end(readFileSync(join('.next/static/media',basename(request.url))));return;}
   if(request.url==='/stats'){requests++;response.setHeader('Content-Type','application/json');response.end(JSON.stringify(rows));return;}
   response.setHeader('Content-Type',request.url==='/app.js'?'text/javascript':request.url==='/app.css'?'text/css':'text/html; charset=utf-8');
-  response.end(request.url==='/app.js'?readFileSync(bundle):request.url==='/app.css'?css:'<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body style="margin:0;background:#f4f4f5"><main id="root" style="max-width:430px;margin:auto;padding:16px"></main><script src="/app.js"></script></body></html>');
+  response.end(request.url==='/app.js'?readFileSync(bundle):request.url==='/app.css'?css:'<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body style="margin:0;background:#f4f4f5;--font-geist-sans:Geist,Arial,sans-serif"><main id="root" style="max-width:430px;margin:auto;padding:16px"></main><script src="/app.js"></script></body></html>');
 });
 await new Promise(done=>server.listen(0,'127.0.0.1',done));
 let browser;
@@ -50,10 +51,11 @@ try {
   devtools.on('Runtime.exceptionThrown',event=>errors.push(event.exceptionDetails.text));
   devtools.on('Log.entryAdded',event=>{if(event.entry.level==='error')errors.push(event.entry.text);});
   devtools.on('Network.responseReceived',event=>{if(event.response.url.endsWith('/stats'))network.push(event.response.status);});
-  for(const width of [360,375,390,430]){
+  for(const width of [360,375,390,430,899]){
     await page.setViewportSize({width,height:900});
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     await page.locator('article').first().waitFor();
+    await page.evaluate(()=>document.fonts.ready);
     const filters=page.getByRole('group',{name:'Ordenação do ranking'});
     assert.equal(await filters.getByRole('button',{name:'Geral',exact:true}).getAttribute('aria-pressed'),'true');
     const before=requests;
@@ -72,6 +74,11 @@ try {
         const bounds=element.getBoundingClientRect();const name=element.querySelector('h3').getBoundingClientRect();const metric=element.lastElementChild.getBoundingClientRect();
         return name.right>metric.left || metric.right>bounds.right+1 || element.scrollWidth>element.clientWidth;
       })),false,'Nome, posição e estatística devem caber sem sobreposição');
+      assert.equal(await page.locator('article > div:first-child > span:last-child > span').evaluateAll(elements=>elements.some(element=>{
+        const range=document.createRange();range.selectNodeContents(element);
+        return range.getClientRects().length !== 1 || element.scrollWidth > element.clientWidth;
+      })),false,`A unidade ${label} deve ficar inteira em uma linha (${width}px)`);
+      if(label==='Assistências')await page.screenshot({path:join(output,`assistencias-${width}.png`),fullPage:true});
     }
     assert.equal(requests,before,'Filtros não devem disparar requisições');
     await page.keyboard.press('Tab');
@@ -82,6 +89,6 @@ try {
     await filters.getByRole('button',{name:'Gols',exact:true}).click();
     await page.screenshot({path:join(output,`ranking-${width}.png`),fullPage:true});
   }
-  assert.deepEqual(errors,[]);assert(network.length>=4 && network.every(status=>status===200));
-  console.log(`OK: seis filtros, empates, zero/sem nota, Top 3, sem requests extras; 360/375/390/430px; console e rede CDP OK. Capturas: ${output}`);
+  assert.deepEqual(errors,[]);assert(network.length>=5 && network.every(status=>status===200));
+  console.log(`OK: seis filtros, unidades sem quebra com Geist, empates, zero/sem nota, Top 3, sem requests extras; 360/375/390/430/899px; console e rede CDP OK. Capturas: ${output}`);
 } finally {await browser?.close();await new Promise(done=>server.close(done));}
