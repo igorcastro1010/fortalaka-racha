@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Users } from "lucide-react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
-import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { attributes } from "@/lib/ratings/summary";
 import { getEvaluationState, saveEvaluation, type EvaluationPlayer, type EvaluationScores, type EvaluationState } from "@/lib/ratings/repository";
 
@@ -134,10 +134,9 @@ export function EvaluationScreen({ roundId, onStateChange, onReadStatusChange, r
       <p aria-live="polite" className="text-sm font-bold tabular-nums text-zinc-600">{state.players.filter(player => player.avaliado).length} de {state.players.length} companheiros avaliados</p>
       <div className="divide-y divide-zinc-100">
         {state.players.map(player => <div key={player.jogador_id} className="flex min-h-16 items-center gap-3 py-2">
-          <PlayerAvatar name={player.nome} avatarUrl={player.avatar_url} />
           <div className="min-w-0 flex-1">
-            <p className="break-words text-base font-black">{player.nome}</p>
-            <p className={`mt-1 text-xs font-black ${player.avaliado ? "text-emerald-700" : "text-amber-700"}`}>{player.avaliado ? "Avaliado ✓" : "Pendente"}</p>
+            <PlayerIdentity playerId={player.jogador_id} name={player.nome} avatarUrl={player.avatar_url} size="md" className="[&>span]:text-base [&>span]:font-black" />
+            <p className={`mt-1 ml-12 text-xs font-black ${player.avaliado ? "text-emerald-700" : "text-amber-700"}`}>{player.avaliado ? "Avaliado ✓" : "Pendente"}</p>
           </div>
           {(state.open || player.avaliado) && <button onClick={() => openPlayer(player)} disabled={saving || loading || Boolean(error) || (state.open && !state.canEvaluate)} aria-label={`${state.open ? player.avaliado ? "Editar avaliação de" : "Avaliar" : "Ver avaliação de"} ${player.nome}`} className="fk-secondary min-h-11 shrink-0 rounded-lg border border-zinc-300 px-3 text-xs font-black text-neutral-950 focus-visible:outline-2 focus-visible:outline-red-600 disabled:opacity-50">{state.open ? player.avaliado ? "EDITAR" : "AVALIAR" : "VER"}</button>}
         </div>)}
@@ -147,10 +146,9 @@ export function EvaluationScreen({ roundId, onStateChange, onReadStatusChange, r
 
     {selected && <div ref={formArea} tabIndex={-1} aria-label={`Avaliação de ${selected.nome}`} className="scroll-mt-4 focus-visible:outline-2 focus-visible:outline-red-600"><Card className="space-y-5 border-t-2 border-red-700 pt-5">
       <div className="flex items-center gap-3">
-        <PlayerAvatar name={selected.nome} avatarUrl={selected.avatar_url} size="lg" />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-bold uppercase text-red-700">{!state?.open ? "Avaliação enviada" : selected.avaliado ? "Editar avaliacao" : "Nova avaliacao"}</p>
-          <h3 className="break-words text-xl font-black">{selected.nome}</h3>
+          <PlayerIdentity playerId={selected.jogador_id} name={selected.nome} avatarUrl={selected.avatar_url} size="lg" nameTag="h3" className="mt-1 [&>h3]:text-xl [&>h3]:font-black" />
         </div>
       </div>
       {attributes.map(({ key, label }) => <div key={key} className="space-y-2">

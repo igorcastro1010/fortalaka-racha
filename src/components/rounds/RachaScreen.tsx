@@ -2,7 +2,7 @@
 
 import { MoreVertical, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { ViewTabs } from "@/components/ui/ViewTabs";
 import { getRoundMatches } from "@/lib/matches/repository";
 import { RoundForm } from "./RoundForm";
@@ -417,10 +417,9 @@ function ParticipantSection({
         {participants.map((participant) => (
           <div key={participant.id} className="py-2">
             <div className="flex items-center gap-3">
-              <PlayerAvatar name={participant.name} avatarUrl={participant.avatarUrl} />
               <div className={`min-w-0 flex-1 ${editable ? "pr-11" : ""}`}>
-              <p className="break-words text-sm font-black">{participant.name}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-zinc-500"><span>{getParticipantStatusLabel(participant.status)}</span><span>{participant.type === "suplente" ? "Suplente" : "Participante"}</span></div>
+                <PlayerIdentity playerId={participant.jogadorId} name={participant.name} avatarUrl={participant.avatarUrl} size="md" className="text-sm [&>span]:font-black" />
+                <div className="mt-1 ml-12 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-zinc-500"><span>{getParticipantStatusLabel(participant.status)}</span><span>{participant.type === "suplente" ? "Suplente" : "Participante"}</span></div>
               </div>
             </div>
             {editable ? (

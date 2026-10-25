@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createMatch, createNextMatch, getRoundMatches, saveMatch, type Match, type MatchPlayer, type MatchesState } from "@/lib/matches/repository";
 import { Minus, Plus, Trophy } from "lucide-react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
-import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { PostRoundSummary } from "@/components/results/PostRoundSummary";
 import { ViewTabs } from "@/components/ui/ViewTabs";
 
@@ -211,7 +211,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
       {match.finalizadaAt && <p className="mt-1 text-center text-xs font-semibold text-zinc-600">Finalizada em {formatDateTime(match.finalizadaAt)}</p>}
       <details className="mt-2 text-xs">
         <summary className="min-h-11 cursor-pointer py-2 font-semibold">Participantes e eventos</summary>
-        {match.jogadores.map(player => <p key={player.jogador_id} className="border-t border-zinc-100 py-2">{player.nome} - {player.participou ? `${player.gols} gols / ${player.assistencias} assistencias` : "Nao participou"}</p>)}
+        {match.jogadores.map(player => <div key={player.jogador_id} className="border-t border-zinc-100 py-2"><PlayerIdentity playerId={player.jogador_id} name={player.nome} avatarUrl={player.avatar_url} size="sm" className="font-semibold" /><p className="mt-1">{player.participou ? `${player.gols} gols / ${player.assistencias} assistencias` : "Nao participou"}</p></div>)}
       </details>
       {organizer && <button disabled={busy} onClick={() => editMatch(match)} className={`${button} mt-2 w-full`}>{match.status === "finalizada" ? "Editar resultado" : "Editar partida"}</button>}
     </article>)}
@@ -235,8 +235,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
         {[draft.timeAId, draft.timeBId].map(teamId => <div key={teamId}>
           <p className="mb-2 text-xs font-black uppercase text-zinc-600">{teamId === draft.timeAId ? draft.timeA : draft.timeB}</p>
           {draft.jogadores.filter(player => player.time_id === teamId).map(player => <div key={player.jogador_id} className="flex items-center gap-2 border-t border-zinc-200 py-2">
-            <PlayerAvatar name={player.nome} avatarUrl={player.avatar_url} size="sm" />
-            <span className="min-w-0 flex-1 break-words text-sm font-bold">{player.nome}</span>
+            <PlayerIdentity playerId={player.jogador_id} name={player.nome} avatarUrl={player.avatar_url} size="sm" className="flex-1 text-sm font-bold" />
             <label className="flex min-h-11 items-center gap-2 text-xs font-semibold"><input type="checkbox" disabled={busy} checked={player.participou} onChange={event => updatePlayer(player.jogador_id, { participou: event.target.checked, ...(!event.target.checked ? { gols: 0, assistencias: 0 } : {}) })} className="h-5 w-5 accent-red-600" />Participou</label>
           </div>)}
         </div>)}
@@ -276,8 +275,7 @@ function EventEditor({ title, field, draft, busy, updatePlayer }: { title: strin
     <div className="mt-2 space-y-2">
     {!players.length && <p className="text-xs text-zinc-500">Marque participantes para lancar {title.toLowerCase()}.</p>}
     {players.map(player => <div key={player.jogador_id} className="flex items-center gap-1 border-t border-zinc-100 py-3">
-      <PlayerAvatar name={player.nome} avatarUrl={player.avatar_url} size="sm" />
-      <span className="min-w-0 flex-1 break-words text-sm font-bold">{player.nome}</span>
+      <PlayerIdentity playerId={player.jogador_id} name={player.nome} avatarUrl={player.avatar_url} size="sm" className="flex-1 text-sm font-bold" />
       <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-zinc-200 disabled:opacity-40" disabled={busy || player[field] <= 0} onClick={() => updatePlayer(player.jogador_id, { [field]: player[field] - 1 })} aria-label={`Diminuir ${title.toLowerCase()} de ${player.nome}`} title={`Diminuir ${title.toLowerCase()}`}><Minus size={18} /></button>
       <span className="w-8 text-center text-base font-black tabular-nums">{player[field]}</span>
       <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-zinc-200 disabled:opacity-40" disabled={busy} onClick={() => updatePlayer(player.jogador_id, { [field]: player[field] + 1 })} aria-label={`Adicionar ${title.toLowerCase()} de ${player.nome}`} title={`Adicionar ${title.toLowerCase()}`}><Plus size={18} /></button>

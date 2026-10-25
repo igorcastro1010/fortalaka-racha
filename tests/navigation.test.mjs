@@ -146,13 +146,12 @@ try {
   await waitFor(()=>button('Reabrir lista'));
   await click('Times');await click('Ajustes');await click('Confirmar times');
   await waitFor(()=>document.body.textContent.includes('Times confirmados'));
-  assert(![...document.querySelectorAll('button')].some(element => element.textContent.includes('Você')),
+  assert(!document.querySelector('[data-current-player="true"]'),
     'Organizador fora do sorteio nao deve ter jogador destacado');
   await mount('jogador');
   await click('Times');
   await waitFor(()=>document.body.textContent.includes('Times confirmados'));
-  const highlightedPlayers = [...document.querySelectorAll('button')].filter(element =>
-    [...element.querySelectorAll('span')].some(label => label.textContent === 'Você'));
+  const highlightedPlayers = [...document.querySelectorAll('[data-current-player="true"]')];
   assert.equal(highlightedPlayers.length, 1, 'Somente o jogador conectado deve ser identificado');
   assert(highlightedPlayers[0].textContent.includes('Conta teste'), 'Destaque deve pertencer ao perfil conectado');
   assert(highlightedPlayers[0].classList.contains('bg-emerald-100'), 'Jogador conectado deve ter fundo verde claro');

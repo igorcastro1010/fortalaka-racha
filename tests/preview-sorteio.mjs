@@ -2,7 +2,7 @@
 // node tests/preview-sorteio.mjs <node_modules com esbuild> <node_modules com PGlite>
 // Adicione --app para validar as cinco abas do app principal.
 import { createRequire } from 'node:module';
-import { resolve, join } from 'node:path';
+import { basename, resolve, join } from 'node:path';
 import { mkdtempSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createServer } from 'node:http';
@@ -54,14 +54,14 @@ import { ProfilePhoto } from ${JSON.stringify(resolve('src/components/players/Pr
 const role=new URLSearchParams(location.search).get('role')==='jogador'?'jogador':'organizador';
 const profile={id:role==='jogador'?${JSON.stringify(viewer)}:${JSON.stringify(organizer)},name:'Conta teste',email:null,active:true,role};
 function App(){const [tab,setTab]=useState('racha');return <main className="mx-auto min-h-screen max-w-[430px] bg-zinc-100 p-4"><nav className="mb-4 flex gap-4">{['racha','times','ranking','perfil'].map(t=><button key={t} onClick={()=>setTab(t)}>{t}</button>)}</nav>{tab==='racha'?<RachaScreen profile={profile}/>:tab==='times'?<TeamsScreen profile={profile}/>:tab==='ranking'?<RankingScreen/>:<><PlayerStatisticsCard playerId={profile.id}/><ProfilePhoto profile={profile}/></>}</main>}
-createRoot(document.getElementById('root')!).render(${process.argv.includes('--app') ? '<FortalakaApp profile={profile}/>' : '<App/>'});
+createRoot(document.getElementById('root')!).render(${process.argv.includes('--app') ? '<FortalakaApp profile={profile} initialPlayerId={location.pathname.startsWith("/perfil/") ? location.pathname.split("/")[2] : undefined}/>' : '<App/>'});
 `);
 const navigation=join(output,'navigation.ts');
 writeFileSync(navigation,`export function useRouter(){return {replace(){},refresh(){}};}`);
 await build({entryPoints:[join(output,'main.tsx')],outfile:join(output,'app.js'),bundle:true,jsx:'automatic',define:{'process.env':'{}'},tsconfig:resolve('tsconfig.json'),nodePaths:[resolve('node_modules')],plugins:[{name:'isolated-client',setup(b){b.onResolve({filter:/^@\/lib\/supabase\/client$/},()=>({path:client}));b.onResolve({filter:/^next\/navigation$/},()=>({path:navigation}));}}]});
 const chunks=resolve('.next/static/chunks');const css=readdirSync(chunks).find(n=>n.endsWith('.css'));
 writeFileSync(join(output,'app.css'),readFileSync(join(chunks,css)));
-writeFileSync(join(output,'index.html'),'<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Validação isolada</title><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');
+writeFileSync(join(output,'index.html'),'<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Validação isolada</title><link rel="stylesheet" href="/app.css"></head><body style="--font-geist-sans:Geist,Arial,sans-serif"><div id="root"></div><script src="/app.js"></script></body></html>');
 const photo=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
 const uploaded=new Map();let queue=Promise.resolve();
 async function api(input){
@@ -102,6 +102,7 @@ async function api(input){
  }catch(error){await db.exec('rollback');return {data:null,error:{message:error.message,code:error.code}};}
 }
 createServer(async(req,res)=>{
+ if(req.url?.endsWith('.woff2')){res.setHeader('Content-Type','font/woff2');res.end(readFileSync(join('.next/static/media',basename(req.url))));return;}
  if(req.url==='/api'){
   const parts=[];for await(const chunk of req)parts.push(chunk);const input=JSON.parse(Buffer.concat(parts).toString());const job=queue.then(()=>api(input));queue=job.catch(()=>{});
   res.setHeader('Content-Type','application/json');res.end(JSON.stringify(await job));return;

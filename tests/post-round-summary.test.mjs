@@ -53,11 +53,11 @@ try {
     const rows = await ranking.locator('li').allTextContents();
     for (const [index, name] of names.slice(0, 5).entries()) assert(rows[index].includes(name));
     assert(rows[4].includes('1gol'));
-    assert.equal(await ranking.locator('li > span.h-10').count(), 5, 'PlayerAvatar presente nas cinco linhas');
+    assert.equal(await ranking.locator('li > a > span.h-10').count(), 5, 'PlayerAvatar presente nas cinco linhas');
     assert.equal(await page.locator('body').evaluate(element => element.scrollWidth > innerWidth), false, `Overflow em ${width}px`);
     const geometry = await ranking.locator('li').evaluateAll(elements => elements.map(element => {
       const row = element.getBoundingClientRect();
-      const name = element.children[2].getBoundingClientRect();
+      const name = element.querySelector('a[href^="/perfil/"]').getBoundingClientRect();
       const goals = element.lastElementChild.getBoundingClientRect();
       return { right: row.right, goalsRight: goals.right, overlap: name.right > goals.left, overflow: element.scrollWidth > element.clientWidth };
     }));

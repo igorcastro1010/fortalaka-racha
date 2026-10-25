@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Trophy } from "lucide-react";
 import { getPlayerStatistics, type Match, type PlayerStatistics } from "@/lib/matches/repository";
 import { getRoundRatingLeaders, getRoundShareSummary, type RoundLeader } from "@/lib/results/round-share";
-import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { RoundShareCard } from "./RoundShareCard";
 
 const singularUnits: Record<string, string> = { gols: "gol", assistências: "assistência", vitórias: "vitória" };
@@ -16,8 +16,7 @@ function Leaders({ title, rows, unit, showAvatars = false }: { title: string; ro
     <h3 className="text-sm font-black uppercase">{title}</h3>
     <ol className="mt-3 divide-y divide-zinc-100">{rows.map(player => <li key={player.id} className={`flex min-h-12 items-center py-2 ${showAvatars ? "gap-2" : "gap-3"}`}>
       <span aria-label={`${player.place}º lugar`} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${player.place === 1 ? "bg-red-600 text-white" : showAvatars && player.place === 2 ? "bg-neutral-950 text-white" : showAvatars && player.place === 3 ? "bg-zinc-200 text-zinc-900" : showAvatars ? "bg-zinc-50 text-zinc-500" : "bg-zinc-100 text-zinc-700"}`}>{player.place}º</span>
-      {showAvatars && <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} size="sm" />}
-      <span className="min-w-0 flex-1 break-words text-sm font-bold">{player.name}</span>
+      <PlayerIdentity playerId={player.id} name={player.name} avatarUrl={player.avatarUrl} size="sm" showAvatar={showAvatars} className="flex-1 text-sm font-bold" />
       <span className="shrink-0 text-right"><strong className="block text-lg font-black tabular-nums">{player.value}</strong><span className="text-xs font-semibold text-zinc-600">{player.value === 1 ? (singularUnits[unit] ?? unit) : unit}</span></span>
     </li>)}</ol>
   </section>;
@@ -82,7 +81,7 @@ export function PostRoundSummary({ roundId, date, matches }: { roundId: string; 
       </section>
       {hasParticipants && <details className={card}>
         <summary className="min-h-11 cursor-pointer content-center text-xs font-black">VER PARTICIPANTES · {summary.participantCount}</summary>
-        <ul className="mt-2 divide-y divide-zinc-100">{summary.players.map(player => <li key={player.id} className="flex items-center gap-3 py-2"><PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} size="sm" /><span className="min-w-0 break-words text-sm font-bold">{player.name}</span></li>)}</ul>
+        <ul className="mt-2 divide-y divide-zinc-100">{summary.players.map(player => <li key={player.id} className="flex items-center gap-3 py-2"><PlayerIdentity playerId={player.id} name={player.name} avatarUrl={player.avatarUrl} size="sm" className="text-sm font-bold" /></li>)}</ul>
       </details>}
     </>}
     <RoundShareCard roundId={roundId} source={source} summary={summary} compact />

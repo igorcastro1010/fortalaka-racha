@@ -4,6 +4,7 @@ import { RefreshCw, Shuffle, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { ViewTabs } from "@/components/ui/ViewTabs";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
@@ -407,6 +408,12 @@ function PlayerPill({
   clickable?: boolean;
   onClick?: () => void;
 }) {
+  if (!clickable) return (
+    <div data-current-player={isCurrentPlayer ? "true" : undefined} className={`flex min-h-11 w-full items-center gap-2.5 rounded-lg py-1 ${isCurrentPlayer ? "bg-emerald-100 px-2" : "bg-transparent"}`}>
+      <PlayerIdentity playerId={player.jogadorId} name={player.name} avatarUrl={player.avatarUrl} size="sm" className="flex-1 text-neutral-950 [&>span]:font-black [&>span]:leading-snug" />
+      {isCurrentPlayer && <span className="shrink-0 text-xs font-bold text-emerald-800">Você</span>}
+    </div>
+  );
   return (
     <button
       type="button"

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { ViewTabs } from "@/components/ui/ViewTabs";
 import { RachaScreen } from "@/components/rounds/RachaScreen";
@@ -20,6 +20,8 @@ import { TeamsScreen } from "@/components/teams/TeamsScreen";
 import { PlayerPerformance } from "@/components/players/PlayerPerformance";
 import { ProfilePhoto } from "@/components/players/ProfilePhoto";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { PlayerNavigation } from "@/components/players/PlayerIdentity";
+import { PublicPlayerProfile } from "@/components/players/PublicPlayerProfile";
 import { PlayerStatisticsCard } from "@/components/players/StatisticsViews";
 import { EvaluationArea } from "@/components/ratings/EvaluationArea";
 import { ResultsScreen } from "@/components/results/ResultsScreen";
@@ -45,17 +47,48 @@ const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "results", label: "Resultados", icon: Trophy },
 ];
 
-export function FortalakaApp({ profile }: { profile: Profile }) {
+export function FortalakaApp({ profile, initialPlayerId = null }: { profile: Profile; initialPlayerId?: string | null }) {
   const [activeTab, setActiveTab] = useState<Tab>("home");
+  const [publicPlayerId, setPublicPlayerId] = useState<string | null>(initialPlayerId);
+  const [underlyingReady, setUnderlyingReady] = useState(!initialPlayerId);
+  const origin = useRef<{ url: string; scroll: number; focus: HTMLElement | null } | null>(null);
+  useEffect(() => {
+    function restore() {
+      const match = window.location.pathname.match(/^\/perfil\/([^/]+)\/?$/);
+      setPublicPlayerId(match ? match[1] : null);
+      if (!match) setUnderlyingReady(true);
+      if (!match && origin.current) {
+        const previous = origin.current;
+        requestAnimationFrame(() => { window.scrollTo({ top: previous.scroll, behavior: "instant" }); previous.focus?.focus({ preventScroll: true }); });
+      }
+    }
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
+  function openPlayer(id: string) {
+    if (publicPlayerId === id) return;
+    origin.current = { url: window.location.pathname + window.location.search, scroll: window.scrollY, focus: document.activeElement instanceof HTMLElement ? document.activeElement : null };
+    window.history.pushState(window.history.state, "", `/perfil/${encodeURIComponent(id)}`);
+    setPublicPlayerId(id);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
+  function backFromPlayer() {
+    if (origin.current) window.history.back();
+    else { window.history.replaceState(window.history.state, "", "/"); setPublicPlayerId(null); setUnderlyingReady(true); }
+  }
   function navigate(tab: Tab) {
+    setUnderlyingReady(true);
+    if (publicPlayerId) { window.history.replaceState(window.history.state, "", origin.current?.url ?? "/"); setPublicPlayerId(null); }
     setActiveTab(tab);
     window.scrollTo({ top: 0, behavior: "instant" });
   }
 
   return (
-    <main className="min-h-screen bg-zinc-100 text-neutral-950">
+    <PlayerNavigation.Provider value={openPlayer}><main className="min-h-screen bg-zinc-100 text-neutral-950">
       <div className="mx-auto min-h-screen w-full max-w-[640px] bg-background">
         <div className="min-h-screen px-5 pb-[calc(96px+env(safe-area-inset-bottom))] pt-[calc(16px+env(safe-area-inset-top))] sm:px-8">
+          <div hidden={Boolean(publicPlayerId)}>
+          {underlyingReady && <>
           {activeTab !== "home" && <AppHeader profile={profile} onOpenProfile={() => navigate("profile")} />}
           {activeTab === "home" && <HomeScreen profile={profile} onOpenProfile={() => navigate("profile")} onOpenRacha={() => navigate("racha")} onOpenEvaluate={() => navigate("evaluate")} onOpenResults={() => navigate("results")} onOpenTeams={() => navigate("teams")} />}
           {activeTab === "racha" && <RachaScreen profile={profile} onOpenResults={() => navigate("results")} />}
@@ -63,10 +96,13 @@ export function FortalakaApp({ profile }: { profile: Profile }) {
           {activeTab === "results" && <ResultsScreen profile={profile} />}
           {activeTab === "profile" && <ProfileScreen profile={profile} />}
           {activeTab === "evaluate" && <EvaluationArea profile={profile} />}
+          </>}
+          </div>
+          {publicPlayerId && <><AppHeader profile={profile} onOpenProfile={() => navigate("profile")} /><PublicPlayerProfile key={publicPlayerId} playerId={publicPlayerId} viewer={profile} onBack={backFromPlayer} /></>}
         </div>
         <BottomNav activeTab={activeTab} onChange={navigate} />
       </div>
-    </main>
+    </main></PlayerNavigation.Provider>
   );
 }
 
