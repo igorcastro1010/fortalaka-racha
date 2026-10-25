@@ -221,6 +221,7 @@ try {
   await click('Avaliação');
   await click('Progresso');
   await click('ABRIR AVALIAÇÕES');
+  await click('Confirmar');
   await waitFor(()=>document.body.textContent.includes('ABERTA'));
   await expectOrganizerCTA('ACOMPANHAR AVALIAÇÕES');
   await click('ACOMPANHAR AVALIAÇÕES');
@@ -285,6 +286,7 @@ try {
   await mount('jogador');await click('Avaliação');await click('Progresso');await click('AVALIAR MEU TIME');
   await waitFor(()=>document.body.textContent.includes('1 de 4 companheiros avaliados'));
   await mount('organizador');await click('Avaliação');await click('Progresso');await click('FECHAR AVALIAÇÕES');
+  await click('Confirmar');
   await waitFor(()=>document.body.textContent.includes('FECHADA'));
   await mount('jogador');await click('Avaliação');
   await click('Progresso');

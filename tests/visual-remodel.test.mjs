@@ -66,8 +66,21 @@ try {
   await page.getByRole('dialog').getByRole('button', { name: 'FINALIZAR', exact: true }).click();
   await page.getByText('Rodada finalizada. As avaliações poderão ser abertas.').waitFor();
   await nav('Avaliação'); await tab('Progresso'); await page.getByText('Gerenciar avaliações', { exact: true }).click();
+  await page.evaluate(() => { window.confirm = () => { throw new Error('Native confirmation is blocked'); }; });
+  for (const width of [360, 375, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    const writes = apiCalls.filter(call => call.name === 'alterar_avaliacoes_rodada').length;
+    await page.getByRole('button', { name: 'ABRIR AVALIAÇÕES', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Abrir avaliações?' }).waitFor();
+    await shot(`confirmar-avaliacoes-${width}`);
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click();
+    assert.equal(apiCalls.filter(call => call.name === 'alterar_avaliacoes_rodada').length, writes);
+  }
   await page.getByRole('button', { name: 'ABRIR AVALIAÇÕES', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click();
   await page.getByText('Avaliacoes abertas.', { exact: true }).waitFor();
+  assert.equal(apiCalls.filter(call => call.name === 'alterar_avaliacoes_rodada').length, 1);
+  await page.evaluate(() => { window.confirm = () => true; });
 
   for (const role of ['organizador', 'jogador']) {
     for (const [width, height] of [[360,800],[375,812],[390,844],[430,932],[1280,900]]) {

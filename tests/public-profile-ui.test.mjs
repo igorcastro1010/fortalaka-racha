@@ -87,7 +87,9 @@ try {
   await page.getByRole('dialog').getByRole('button', { name: 'FINALIZAR', exact: true }).click();
   await page.getByText('Rodada finalizada. As avaliações poderão ser abertas.').waitFor();
   await nav('Avaliação'); await page.getByText('Gerenciar avaliações', { exact: true }).click();
-  await page.getByRole('button', { name: 'ABRIR AVALIAÇÕES', exact: true }).click(); await page.getByText('Avaliacoes abertas.', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'ABRIR AVALIAÇÕES', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click();
+  await page.getByText('Avaliacoes abertas.', { exact: true }).waitFor();
   await nav('Resultados');
   await page.getByRole('region', { name: 'Artilharia do racha', exact: true }).getByRole('link').first().click(); await ready(); await check('resumo');
   await profile().getByRole('button', { name: 'Voltar', exact: true }).click(); await tab('Histórico');

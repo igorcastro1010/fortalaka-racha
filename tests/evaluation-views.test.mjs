@@ -57,6 +57,8 @@ const bundle = await build({
           }
           export async function setRoundEvaluationsOpen(roundId, open) {
             const f = fixture(); f.toggles.push({ roundId, open });
+            if (f.toggleError) throw new Error(f.toggleError);
+            if (f.toggleWait) await f.toggleWait;
             f.state.open = open; f.state.canEvaluate = open;
             return { total: 2, respondentes: 0, abertas: open };
           }
@@ -95,7 +97,9 @@ async function render({ organizer = false, state, readError = '' } = {}) {
   window.matchMedia = () => ({ matches: true });
   window.HTMLElement.prototype.scrollIntoView = () => {};
   const confirmations = [];
-  window.confirm = message => { confirmations.push(message); return true; };
+  window.confirm = message => { confirmations.push(message); return false; };
+  window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  window.HTMLDialogElement.prototype.close = function () { this.open = false; };
   const intervals = new Map();
   let nextInterval = 0;
   window.setInterval = callback => { intervals.set(++nextInterval, callback); return nextInterval; };
@@ -131,7 +135,7 @@ async function render({ organizer = false, state, readError = '' } = {}) {
   const tab = label => find('[role="tab"]', element => element.textContent === label);
   const progress = () => find('section', element => element.querySelector('h3')?.textContent === 'Progresso da rodada');
   return {
-    fixture: window.fixture, document, find, click, tab, progress, confirmations, errors,
+    fixture: window.fixture, document, find, click, tab, progress, confirmations, errors, act,
     async close() {
       try {
         await act(async () => { mounted.unmount(); });
@@ -197,6 +201,8 @@ test('Opening/closing evaluations refreshes state without losing the unsaved sco
     for (const [label, open] of [['FECHAR AVALIA\u00c7\u00d5ES', false], ['ABRIR AVALIA\u00c7\u00d5ES', true]]) {
       const before = app.fixture.reads.length;
       await app.click(app.find('button', element => element.textContent === label));
+      assert.equal(app.fixture.reads.length, before, 'Opening confirmation must not mutate the round');
+      await app.click(app.find('dialog[open] button', element => element.textContent === 'Confirmar'));
       assert.equal(app.fixture.reads.length, before + 1, 'Mutation must refresh the mounted screen exactly once');
       await app.click(app.tab('Avaliar'));
       assert.equal(app.find('button[aria-label="Passe: 5 de 5"]'), score, 'Score button must retain DOM identity');
@@ -208,10 +214,53 @@ test('Opening/closing evaluations refreshes state without losing the unsaved sco
     }
     assert.equal(app.fixture.toggles.length, 2);
     assert.deepEqual(Array.from(app.fixture.toggles, item => item.open), [false, true]);
-    assert.equal(app.confirmations.length, 2);
+    assert.equal(app.confirmations.length, 0, 'Blocked native browser confirmations must not prevent the action');
     assert.equal(app.fixture.saves.length, 0, 'The draft must not be saved implicitly');
     assert.equal(app.fixture.state.players[0].passe, null);
     assert.equal(app.fixture.progressReads.length, 1);
+    assert.equal(app.errors.length, 0);
+  } finally { await app.close(); }
+});
+
+test('In-app confirmation can be cancelled and failed writes show a friendly retryable error', async () => {
+  const app = await render({ organizer: true });
+  try {
+    await app.click(app.tab('Progresso'));
+    const close = () => app.find('button', element => element.textContent === 'FECHAR AVALIA\u00c7\u00d5ES');
+    await app.click(close());
+    await app.click(app.find('dialog[open] button', element => element.textContent === 'Cancelar'));
+    assert.equal(app.fixture.toggles.length, 0);
+    assert.equal(app.document.querySelector('dialog[open]'), null);
+    app.fixture.toggleError = 'Postgres private error';
+    await app.click(close());
+    await app.click(app.find('dialog[open] button', element => element.textContent === 'Confirmar'));
+    assert.match(app.progress().querySelector('[role="alert"]').textContent, /Tente novamente/);
+    assert(!app.document.body.textContent.includes('Postgres private error'));
+    assert.equal(app.fixture.state.open, true);
+    assert.equal(close().disabled, false);
+    app.fixture.toggleError = '';
+    await app.click(close());
+    await app.click(app.find('dialog[open] button', element => element.textContent === 'Confirmar'));
+    assert.equal(app.fixture.state.open, false);
+    assert.equal(app.errors.length, 1);
+    assert.equal(app.confirmations.length, 0);
+  } finally { await app.close(); }
+});
+
+test('Repeated confirmation while saving submits only one request', async () => {
+  const app = await render({ organizer: true });
+  try {
+    await app.click(app.tab('Progresso'));
+    let release;
+    app.fixture.toggleWait = new Promise(resolve => { release = resolve; });
+    await app.click(app.find('button', element => element.textContent === 'FECHAR AVALIA\u00c7\u00d5ES'));
+    const confirm = app.find('dialog[open] button', element => element.textContent === 'Confirmar');
+    await app.act(async () => { confirm.click(); confirm.click(); });
+    assert.equal(app.fixture.toggles.length, 1);
+    assert.equal(app.find('button', element => element.textContent === 'Fechando...').disabled, true);
+    await app.act(async () => { release(); });
+    assert.equal(app.fixture.toggles.length, 1);
+    assert.equal(app.fixture.state.open, false);
     assert.equal(app.errors.length, 0);
   } finally { await app.close(); }
 });

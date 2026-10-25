@@ -2,7 +2,7 @@
 
 import { Star } from "lucide-react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { getEvaluationProgress, getEvaluationState, setRoundEvaluationsOpen, type EvaluationProgress, type EvaluationState } from "@/lib/ratings/repository";
 
 export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEvaluate, onUpdated, personalState, personalLoading = true, personalError = "" }: { roundId: string; organizer: boolean; roundStatus: string; onOpenEvaluate: (roundId: string) => void; onUpdated?: () => void; personalState?: EvaluationState | null; personalLoading?: boolean; personalError?: string }) {
@@ -15,6 +15,14 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
   const [message, setMessage] = useState("");
   const readSequence = useRef(0);
   const busyRef = useRef(false);
+  const [confirmation, setConfirmation] = useState<boolean | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const confirmationId = useId();
+
+  useEffect(() => {
+    if (confirmation !== null) dialogRef.current?.showModal();
+    else dialogRef.current?.close();
+  }, [confirmation]);
 
   useEffect(() => {
     if (!organizer && sharedPersonal) return;
@@ -46,11 +54,10 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
   const completed = personal?.players.filter(player => player.avaliado).length ?? 0;
 
   async function toggle(open: boolean) {
-    if (!organizer || busy || (open && roundStatus !== "finalizado")) return;
-    if (!open && !window.confirm("Fechar avaliacoes? Jogadores nao poderao editar as notas depois disso.")) return;
-    if (open && !window.confirm("Abrir avaliacoes para jogadores que participaram das partidas finalizadas?")) return;
+    if (!organizer || busyRef.current || !progress || progress.abertas === open || (open && roundStatus !== "finalizado")) return;
     ++readSequence.current;
     busyRef.current = true;
+    setConfirmation(null);
     setBusy(true);
     setError("");
     setMessage("");
@@ -86,9 +93,17 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
     {organizer && <details className="border-t border-zinc-200 pt-2">
       <summary className="min-h-12 cursor-pointer content-center text-sm font-bold focus-visible:outline-2 focus-visible:outline-red-600">Gerenciar avaliações</summary>
       <div className="grid grid-cols-2 gap-2 pt-2">
-        <button disabled={busy || !progress || progress.abertas || roundStatus !== "finalizado"} onClick={() => toggle(true)} className="fk-primary min-h-12 rounded-lg bg-red-700 px-3 text-xs font-black uppercase text-white disabled:opacity-50">ABRIR AVALIAÇÕES</button>
-        <button disabled={busy || !progress?.abertas} onClick={() => toggle(false)} className="fk-secondary min-h-12 rounded-lg border border-zinc-300 px-3 text-xs font-black uppercase disabled:opacity-50">FECHAR AVALIAÇÕES</button>
+        <button disabled={busy || !progress || progress.abertas || roundStatus !== "finalizado"} onClick={() => setConfirmation(true)} className="fk-primary min-h-12 rounded-lg bg-red-700 px-3 text-xs font-black uppercase text-white disabled:opacity-50">{busy && !open ? "Abrindo..." : "ABRIR AVALIAÇÕES"}</button>
+        <button disabled={busy || !progress?.abertas} onClick={() => setConfirmation(false)} className="fk-secondary min-h-12 rounded-lg border border-zinc-300 px-3 text-xs font-black uppercase disabled:opacity-50">{busy && open ? "Fechando..." : "FECHAR AVALIAÇÕES"}</button>
       </div>
     </details>}
+    {organizer && <dialog ref={dialogRef} aria-labelledby={`${confirmationId}-title`} aria-describedby={`${confirmationId}-description`} onCancel={() => setConfirmation(null)} onClose={() => setConfirmation(null)} className="m-auto w-[calc(100%-2rem)] max-w-sm rounded-lg border border-zinc-200 bg-white p-5 text-zinc-950 backdrop:bg-black/40">
+      <h3 id={`${confirmationId}-title`} className="text-lg font-black">{confirmation ? "Abrir avaliações?" : "Fechar avaliações?"}</h3>
+      <p id={`${confirmationId}-description`} className="mt-3 text-sm text-zinc-600">{confirmation ? "Os jogadores que participaram das partidas finalizadas poderão avaliar seus companheiros." : "Os jogadores não poderão editar as notas depois do fechamento."}</p>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <button type="button" autoFocus onClick={() => setConfirmation(null)} className="fk-secondary min-h-12 rounded-lg border border-zinc-300 px-3 text-sm font-bold">Cancelar</button>
+        <button type="button" disabled={busy || confirmation === null} onClick={() => { if (confirmation !== null) void toggle(confirmation); }} className="fk-primary min-h-12 rounded-lg bg-red-700 px-3 text-sm font-bold text-white disabled:opacity-50">Confirmar</button>
+      </div>
+    </dialog>}
   </section>;
 }
