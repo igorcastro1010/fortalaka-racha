@@ -104,6 +104,7 @@ try {
   await nav('Resultados');
   await page.getByRole('region', { name: 'Artilharia do racha', exact: true }).getByRole('link').first().click(); await ready(); await check('resumo');
   await profile().getByRole('button', { name: 'Voltar', exact: true }).click(); await tab('Histórico');
+  await page.getByText('Partidas da rodada atual', { exact: true }).click();
   await page.getByText('Participantes e eventos', { exact: true }).first().click();
   await page.locator('article details').getByRole('link').first().click(); await ready(); await check('historico');
   await page.goto('http://127.0.0.1:3011/?role=jogador'); await nav('Avaliação');

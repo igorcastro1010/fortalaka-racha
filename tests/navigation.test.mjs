@@ -33,7 +33,7 @@ try {
   writeFileSync(client, `
     async function request(body){const r=await fetch('http://127.0.0.1:3011/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,role:new URLSearchParams(location.search).get('role')||'organizador'})});return r.json();}
     export function createClient(){return {rpc:(name,args)=>request({kind:'rpc',name,args}),
-      from(table){const body={kind:'table',table,op:'select',filters:[],single:false};const q={select(){return q},eq(k,v){body.filters.push([k,v]);return q},order(k,o){body.orders??=[];body.orders.push([k,o]);return q},limit(n){body.limit=n;return q},returns(){return q},maybeSingle(){body.single=true;return q},single(){body.single=true;return q},insert(value){body.op="insert";body.value=value;return q},update(value){body.op="update";body.value=value;return q},then(a,b){return request(body).then(a,b)}};return q},
+      from(table){const body={kind:'table',table,op:'select',filters:[],single:false};const q={select(columns){body.columns=columns;return q},eq(k,v){body.filters.push([k,v]);return q},order(k,o){body.orders??=[];body.orders.push([k,o]);return q},range(from,to){body.range=[from,to];return q},limit(n){body.limit=n;return q},returns(){return q},maybeSingle(){body.single=true;return q},single(){body.single=true;return q},insert(value){body.op="insert";body.value=value;return q},update(value){body.op="update";body.value=value;return q},then(a,b){return request(body).then(a,b)}};return q},
       auth:{getUser:async()=>({data:{user:(await request({kind:'user'})).data}})}
     };}
   `);

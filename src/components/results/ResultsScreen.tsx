@@ -14,6 +14,7 @@ export function ResultsScreen({ profile }: { profile: Profile }) {
   const [rankingVisited, setRankingVisited] = useState(false);
   const [rankingSort, setRankingSort] = useState<RankingSort>("geral");
   const [startedRound, setStartedRound] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const onRoundStarted = useCallback((id: string) => setStartedRound(id), []);
   const { round, loading, error, retry } = useCurrentRound();
 
@@ -24,8 +25,8 @@ export function ResultsScreen({ profile }: { profile: Profile }) {
     <div hidden={view !== "matches"} className="space-y-4">
       <RoundLoadStatus loading={loading} error={error} empty={!round} retry={retry} />
       {!loading && !error && round && <>
-        <RoundSummary round={round.status === "times_confirmados" && startedRound === round.roundId ? { ...round, status: "em_andamento" } : round} />
-        <MatchesPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} roundDate={round.date} onRoundStarted={onRoundStarted} organizer={isOrganizer(profile) && profile.active} />
+        {!historyOpen && <RoundSummary round={round.status === "times_confirmados" && startedRound === round.roundId ? { ...round, status: "em_andamento" } : round} />}
+        <MatchesPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} roundDate={round.date} onRoundStarted={onRoundStarted} onHistoryViewChange={setHistoryOpen} organizer={isOrganizer(profile) && profile.active} />
       </>}
     </div>
   </section>;

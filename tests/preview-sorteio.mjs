@@ -32,6 +32,22 @@ await db.query("select set_config('request.jwt.claim.sub',$1,false)",[organizer]
 const round=randomUUID();await db.query("insert into public.rachas(id,nome,data) values($1,'Rodada isolada','2026-10-08')",[round]);
 for(let i=0;i<8;i++)await db.query("insert into public.racha_participantes(racha_id,jogador_id,nome,tipo) values($1,$2,$3,'linha')",[round,ids[i],`Pessoa ${i}`]);
 for(let i=10;i<14;i++)await db.query('insert into public.racha_participantes(racha_id,jogador_id,nome,tipo,status) values($1,$2,$3,$4,$5)',[round,ids[i],`Pessoa ${i}`,i<12?'goleiro':i===12?'suplente':'linha',i===13?'ausente':'confirmado']);
+if(process.argv.includes('--history')) {
+ for(let i=0;i<12;i++) {
+  const rid=randomUUID(),a=randomUUID(),b=randomUUID(),m=randomUUID();
+  await db.query("insert into public.rachas(id,nome,data,horario,endereco) values($1,$2,$3,'19:00','Arena Fortalaka')",[rid,`Rodada histórica ${i+1}`,`2026-09-${String(25-i).padStart(2,'0')}`]);
+  for(let j=0;j<4;j++)await db.query("insert into public.racha_participantes(racha_id,jogador_id,nome,tipo) values($1,$2,$3,'linha')",[rid,ids[j],j===0?'Conta teste':`Pessoa ${j}`]);
+  await db.query("insert into public.times(id,racha_id,nome,numero,confirmado) values($1,$3,'Time 1',1,true),($2,$3,'Time 2',2,true)",[a,b,rid]);
+  for(let j=0;j<4;j++)await db.query('insert into public.time_jogadores(time_id,jogador_id) values($1,$2)',[j<2?a:b,ids[j]]);
+  await db.query("update public.rachas set estado='times_confirmados' where id=$1",[rid]);
+  await db.query("insert into public.partidas(id,racha_id,time_a_id,time_b_id,placar_a,placar_b,status) values($1,$2,$3,$4,2,1,'finalizada')",[m,rid,a,b]);
+  for(let j=0;j<4;j++)await db.query('insert into public.partida_jogadores(partida_id,jogador_id,time_id,participou) values($1,$2,$3,$4)',[m,ids[j],j<2?a:b,j!==3]);
+  await db.query("insert into public.eventos_partida(partida_id,jogador_id,tipo,quantidade) values($1,$2,'gol',$3),($1,$2,'assistencia',1)",[m,ids[0],i+1]);
+  await db.query("insert into public.partidas(racha_id,time_a_id,time_b_id,placar_a,status) values($1,$2,$3,99,'cancelada')",[rid,a,b]);
+  await db.query("update public.rachas set estado='em_andamento' where id=$1",[rid]);
+  if(i<10)await db.query('select public.finalizar_rodada($1)',[rid]);
+ }
+}
 const output=mkdtempSync(join(tmpdir(),'fortalaka-validation-'));
 const client=join(output,'client.ts');
 writeFileSync(client,`
@@ -39,7 +55,7 @@ const role=new URLSearchParams(location.search).get('role')==='jogador'?'jogador
 async function request(body){const r=await fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,role})});return r.json();}
 export function createClient(){return {
  rpc:(name,args)=>request({kind:'rpc',name,args}),
- from(table){let body={kind:'table',table,op:'select',filters:[],single:false};const q={select(){return q},eq(k,v){body.filters.push([k,v]);return q},order(k,o){body.orders??=[];body.orders.push([k,o]);return q},limit(n){body.limit=n;return q},returns(){return q},maybeSingle(){body.single=true;return q},single(){body.single=true;return q},insert(value){body.op='insert';body.value=value;return q},update(value){body.op='update';body.value=value;return q},delete(){body.op='delete';return q},then(a,b){return request(body).then(a,b)}};return q},
+ from(table){let body={kind:'table',table,op:'select',filters:[],single:false};const q={select(columns){body.columns=columns;return q},eq(k,v){body.filters.push([k,v]);return q},order(k,o){body.orders??=[];body.orders.push([k,o]);return q},range(from,to){body.range=[from,to];return q},limit(n){body.limit=n;return q},returns(){return q},maybeSingle(){body.single=true;return q},single(){body.single=true;return q},insert(value){body.op='insert';body.value=value;return q},update(value){body.op='update';body.value=value;return q},delete(){body.op='delete';return q},then(a,b){return request(body).then(a,b)}};return q},
  auth:{async getUser(){const r=await request({kind:'user'});return {data:{user:r.data},error:r.error}}},
  storage:{from(){return {async upload(path,file){const bytes=new Uint8Array(await file.arrayBuffer());let text='';for(const b of bytes)text+=String.fromCharCode(b);return request({kind:'upload',path,type:file.type,base64:btoa(text)})},getPublicUrl(path){return {data:{publicUrl:location.origin+'/avatar/'+path}}},remove(paths){return request({kind:'remove',paths})}}}}
 };}
@@ -80,8 +96,8 @@ async function api(input){
    // PGlite retorna numeric como texto; PostgREST serializa numeric como número JSON.
    if(input.name==='medias_jogador')data=rows.map(row=>({...row,...Object.fromEntries(['passe','chute','velocidade','defesa','fisico'].map(key=>[key,row[key]===null?null:Number(row[key])]))}));
   }else if(input.kind==='table'){
-   const fields={profiles:['id','name','email','avatar_url','role','active'],rachas:['id','nome','data','estado','horario','endereco','versao','created_at'],racha_participantes:['id','racha_id','jogador_id','nome','tipo','status','created_at']};
-   if(!fields[input.table])throw Error('Tabela inválida');const params=[];const clauses=(input.filters??[]).map(([k,v])=>{if(!fields[input.table].includes(k))throw Error('Campo inválido');params.push(v);return k+'=$'+params.length;});const where=clauses.length?' where '+clauses.join(' and '):'';
+   const fields={profiles:['id','name','email','avatar_url','role','active'],rachas:['id','nome','data','estado','horario','endereco','versao','created_at'],racha_participantes:['id','racha_id','jogador_id','nome','tipo','status','created_at'],times:['id','racha_id','nome','numero','confirmado','ativo']};
+   if(!fields[input.table])throw Error('Tabela inválida');const params=[];const clauses=(input.filters??[]).filter(([k])=>k!=='partidas.status').map(([k,v])=>{if(!fields[input.table].includes(k))throw Error('Campo inválido');params.push(v);return k+'=$'+params.length;});const where=clauses.length?' where '+clauses.join(' and '):'';
    let sql='select '+fields[input.table].join(',')+' from public.'+input.table+where;
    if(input.op==='insert'){const keys=Object.keys(input.value);if(keys.some(k=>!fields[input.table].includes(k)))throw Error('Campo inválido');sql='insert into public.'+input.table+'('+keys.join(',')+') values('+keys.map(k=>{params.push(input.value[k]);return '$'+params.length}).join(',')+') returning *';}
    if(input.op==='update'){const keys=Object.keys(input.value);if(keys.some(k=>!fields[input.table].includes(k)))throw Error('Campo inválido');sql='update public.'+input.table+' set '+keys.map(k=>{params.push(input.value[k]);return k+'=$'+params.length}).join(',')+where+' returning *';}
@@ -92,8 +108,13 @@ async function api(input){
        sql+=(index?',':' order by ')+field+(options?.ascending===false?' desc':' asc')+(options?.nullsFirst===false?' nulls last':'');
      }
      if(input.limit)sql+=' limit '+Math.min(100,Math.max(1,Number(input.limit)||1));
+     if(input.range)sql+=' limit '+(input.range[1]-input.range[0]+1)+' offset '+input.range[0];
    }
-   const rows=(await db.query(sql,params)).rows;for(const row of rows)if(row.data instanceof Date)row.data=row.data.toISOString().slice(0,10);data=input.single?(rows[0]??null):rows;
+   const rows=(await db.query(sql,params)).rows;for(const row of rows){
+    if(row.data instanceof Date)row.data=row.data.toISOString().slice(0,10);
+    if(input.table==='rachas'&&input.columns?.includes('partidas('))row.partidas=(await db.query("select p.id,p.status,p.placar_a,p.placar_b,p.time_a_id,p.time_b_id,coalesce((select jsonb_agg(jsonb_build_object('jogador_id',j.jogador_id,'time_id',j.time_id,'participou',j.participou)) from public.partida_jogadores j where j.partida_id=p.id),'[]'::jsonb) as partida_jogadores from public.partidas p where p.racha_id=$1 and p.status='finalizada'",[row.id])).rows;
+    if(input.table==='times'&&input.columns?.includes('time_jogadores('))row.time_jogadores=(await db.query('select jogador_id,ativo from public.time_jogadores where time_id=$1',[row.id])).rows;
+   }data=input.single?(rows[0]??null):rows;
   }else if(input.kind==='upload'){
    const bytes=Buffer.from(input.base64,'base64');if(bytes.length>2097152||!['image/png','image/jpeg','image/webp'].includes(input.type))throw Error('Imagem inválida');
    await db.query("insert into storage.objects(bucket_id,name) values('avatars',$1)",[input.path]);uploaded.set(input.path,{bytes,type:input.type});data={path:input.path};

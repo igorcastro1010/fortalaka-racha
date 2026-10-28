@@ -7,6 +7,18 @@ export type RoundLeader = { id: string; name: string; value: number; place: numb
 
 function line(value: string) { return value.replace(/\s+/g, " ").trim(); }
 function count(value: number) { return Number.isSafeInteger(value) && value > 0 ? value : 0; }
+type MetricMatch = Pick<Match, "id" | "status" | "placarA" | "placarB" | "timeAId" | "timeBId"> & { jogadores: Pick<Match["jogadores"][number], "jogador_id" | "time_id" | "participou">[] };
+
+export function getRoundMetrics(source: readonly MetricMatch[]) {
+  const seen = new Set<string>();
+  const matches = source.filter(match => {
+    if (match.status !== "finalizada" || seen.has(match.id)) return false;
+    seen.add(match.id); return true;
+  });
+  const participants = new Set(matches.flatMap(match => match.jogadores.filter(player => player.participou && [match.timeAId, match.timeBId].includes(player.time_id)).map(player => player.jogador_id)));
+  const totalGoals = matches.reduce((total, match) => total + count(match.placarA) + count(match.placarB), 0);
+  return { participantCount: participants.size, matchCount: matches.length, totalGoals, averageGoals: matches.length ? totalGoals / matches.length : null };
+}
 function timestamp(match: Match) {
   const time = Date.parse(match.createdAt ?? match.finalizadaAt ?? "");
   return Number.isNaN(time) ? Infinity : time;
@@ -48,8 +60,7 @@ export function getRoundShareSummary(roundId: string, source: RoundShareSource) 
   }
   const players = [...totals.values()];
   const topScorers = rankLeaders(players.map(player => ({ id: player.id, name: player.name, avatarUrl: player.avatarUrl, value: player.goals })), 5);
-  const totalGoals = matches.reduce((total, match) => total + count(match.placarA) + count(match.placarB), 0);
-  return { roundId, date: source.date, matches, players, totalGoals, averageGoals: matches.length ? totalGoals / matches.length : null, participantCount: players.length, topScorers, goals: topScorers, assists: leaders(players, "assists"), wins: leaders(players, "wins") };
+  return { roundId, date: source.date, matches, players, ...getRoundMetrics(matches), topScorers, goals: topScorers, assists: leaders(players, "assists"), wins: leaders(players, "wins") };
 }
 
 export type RoundShareSummary = ReturnType<typeof getRoundShareSummary>;

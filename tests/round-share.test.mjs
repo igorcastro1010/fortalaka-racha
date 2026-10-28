@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRoundShareText, buildRoundShareTextFromSummary, getRoundRatingLeaders, getRoundShareSummary, getWhatsAppShareUrl } from '../src/lib/results/round-share.ts';
+import { buildRoundShareText, buildRoundShareTextFromSummary, getRoundMetrics, getRoundRatingLeaders, getRoundShareSummary, getWhatsAppShareUrl } from '../src/lib/results/round-share.ts';
 import { copyRoundShareText, shareRoundText } from '../src/lib/results/share-actions.ts';
 
 const player = (id, team, goals=0, assists=0, participou=true) => ({jogador_id:id,nome:id,avatar_url:null,time_id:team,participou,gols:goals,assistencias:assists});
@@ -8,6 +8,15 @@ const match = (id, patch={}) => ({id,versao:1,timeAId:'a',timeBId:'b',timeA:'Tim
 const source = (partidas, patch={}) => ({roundId:'rodada-1',date:'2026-10-22',partidas,...patch});
 const text = partidas => buildRoundShareText('rodada-1',source(partidas));
 const summary = partidas => getRoundShareSummary('rodada-1',source(partidas));
+
+test('metricas compactas do historico sao identicas ao summary, sem eventos nem perfis',()=>{
+  const matches=[match('a',{jogadores:[player('p','a',1),player('q','b'),player('fora','a',0,0,false)]}),match('b',{jogadores:[player('p','a',2)]}),match('cancelada',{status:'cancelada',placarA:99,jogadores:[player('x','a',99)]})];
+  const minimal=matches.map(({id,status,placarA,placarB,timeAId,timeBId,jogadores})=>({id,status,placarA,placarB,timeAId,timeBId,jogadores:jogadores.map(({jogador_id,time_id,participou})=>({jogador_id,time_id,participou}))}));
+  const metrics=getRoundMetrics(minimal),full=summary(matches);
+  assert.deepEqual(metrics,{participantCount:2,matchCount:2,totalGoals:4,averageGoals:2});
+  for(const key of Object.keys(metrics))assert.equal(metrics[key],full[key]);
+  assert.deepEqual(getRoundMetrics([]),{participantCount:0,matchCount:0,totalGoals:0,averageGoals:null});
+});
 
 test('mensagem traz marca, data em pt-BR e partidas em ordem cronológica sem mutar entrada',()=>{
   const later=match('late',{timeA:'Time 3',createdAt:'2026-10-22T21:00:00Z'});

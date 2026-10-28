@@ -6,18 +6,20 @@ import { Minus, Plus, Trophy } from "lucide-react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { PostRoundSummary } from "@/components/results/PostRoundSummary";
+import { RoundHistory } from "@/components/results/RoundHistory";
 import { ViewTabs } from "@/components/ui/ViewTabs";
 import { useConfirmation } from "@/components/ui/useConfirmation";
 
 const button = "fk-secondary min-h-11 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-bold disabled:opacity-50";
 
-export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null, onFinalizedCountChange, onRoundStarted }: {
+export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null, onFinalizedCountChange, onRoundStarted, onHistoryViewChange }: {
   roundId: string;
   organizer: boolean;
   roundStatus: string;
   roundDate?: string | null;
   onRoundStarted?: (roundId: string) => void;
   onFinalizedCountChange?: (roundId: string, count: number | null) => void;
+  onHistoryViewChange?: (history: boolean) => void;
 }) {
   const [state, setState] = useState<MatchesState>({ times: [], partidas: [] });
   const [loading, setLoading] = useState(true);
@@ -31,6 +33,8 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   const [draft, setDraft] = useState<Match | null>(null);
   const [goalLimitTeam, setGoalLimitTeam] = useState<string | null>(null);
   const [view, setView] = useState<"auto" | "live" | "history" | "summary">("auto");
+  const [historyDetailOpen, setHistoryDetailOpen] = useState(false);
+  const [historyMatchesExpanded, setHistoryMatchesExpanded] = useState(false);
   const goalDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (goalLimitTeam) goalDialog.current?.showModal();
@@ -121,7 +125,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
       setState(await getRoundMatches(roundId));
       setDraft(null);
       setGoalLimitTeam(null);
-      if (status !== "aberta") setView("history");
+      if (status !== "aberta") { setView("history"); setHistoryMatchesExpanded(true); onHistoryViewChange?.(true); }
       setMessage(result.aviso ? `Partida salva. ${result.aviso}` : status === "finalizada" ? "Partida finalizada. Estatisticas atualizadas." : "Partida salva.");
     } catch (e) {
       console.error("Falha ao salvar partida", e);
@@ -153,10 +157,11 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
 
   return <>
     {confirmationDialog}
-    <ViewTabs label="Visão das partidas" value={activeView} onChange={setView} items={[{ id: "live", label: "Ao vivo" }, { id: "history", label: "Histórico" }, { id: "summary", label: "Resumo" }]} />
-    <section className="fk-section flex flex-col gap-4" aria-label="Partidas da rodada">
+    <ViewTabs label="Visão das partidas" value={activeView} onChange={next => { setView(next); onHistoryViewChange?.(next === "history"); }} items={[{ id: "live", label: "Ao vivo" }, { id: "history", label: "Histórico" }, { id: "summary", label: "Resumo" }]} />
+    <div hidden={activeView !== "history"}><RoundHistory active={activeView === "history"} onDetailChange={setHistoryDetailOpen} /></div>
+    <section hidden={activeView === "history" && historyDetailOpen} className="fk-section flex flex-col gap-4" aria-label="Partidas da rodada">
 
-    {!loading && !error && state.partidas.length > 0 && <p className="text-xs font-bold text-zinc-500">{state.partidas.length} partidas · {state.partidas.filter(match => match.status === "finalizada").length} finalizadas</p>}
+    {activeView !== "history" && !loading && !error && state.partidas.length > 0 && <p className="text-xs font-bold text-zinc-500">{state.partidas.length} partidas · {state.partidas.filter(match => match.status === "finalizada").length} finalizadas</p>}
 
     {loading && <LoadingCards label="Carregando partidas..." />}
     {error && <div role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700"><p>{error}</p><button className={`${button} mt-2`} disabled={busy} onClick={refreshMatches}>Atualizar partidas</button></div>}
@@ -185,7 +190,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
       {error && <p role="alert" className="mt-3 text-sm font-bold text-red-700">{error}</p>}
     </dialog>
 
-    {!draft && <button disabled={busy || loading} onClick={refreshMatches} className={`${button} order-4`}>ATUALIZAR PARTIDAS E FILA</button>}
+    {!draft && activeView !== "history" && <button disabled={busy || loading} onClick={refreshMatches} className={`${button} order-4`}>ATUALIZAR PARTIDAS E FILA</button>}
 
     {activeView === "live" && canCreate && !currentMatch && !draft && !loading && state.times.length >= 2 && <details className="order-3 border-y border-zinc-200 py-2">
       <summary className="min-h-11 cursor-pointer content-center text-center text-xs font-black">ESCOLHER CONFRONTO MANUALMENTE</summary>
@@ -202,11 +207,10 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
     </details>}
 
     {activeView === "live" && !loading && !error && !state.partidas.length && <EmptyState icon={Trophy} title="Nenhuma partida ainda" description={organizer && state.times.length < 2 ? "Confirme os times para começar. Quando o racha começar, os resultados aparecem aqui." : "Quando o racha começar, os resultados aparecem aqui."} />}
-    {activeView === "history" && !loading && !error && !state.partidas.some(match => match.status !== "aberta") && <EmptyState icon={Trophy} title="Histórico vazio" description="As partidas finalizadas ou canceladas aparecem aqui." />}
     {activeView === "summary" && currentStatus !== "finalizado" && !loading && <EmptyState icon={Trophy} title="Resumo após o apito final" description="O resumo estará disponível quando o racha for finalizado." />}
     {currentStatus === "finalizado" && !loading && !error && !busy && !draft && <div hidden={activeView !== "summary"}><PostRoundSummary roundId={roundId} date={roundDate} matches={state.partidas} /></div>}
 
-    {activeView === "history" && state.partidas.map((match, index) => match.status !== "aberta" && <article key={match.id} className="order-2 border-b border-zinc-200 py-4">
+    {activeView === "history" && state.partidas.some(match => match.status !== "aberta") && <details open={historyMatchesExpanded} onToggle={event => setHistoryMatchesExpanded(event.currentTarget.open)} className="order-2 border-t border-zinc-200"><summary className="min-h-12 cursor-pointer content-center text-sm font-bold">Partidas da rodada atual</summary>{state.partidas.map((match, index) => match.status !== "aberta" && <article key={match.id} className="border-b border-zinc-200 py-4">
       <p className="text-xs font-black uppercase text-zinc-600">Partida {index + 1}</p>
       <div className="mt-1 flex items-center justify-between gap-2 text-center">
         <p className="min-w-0 flex-1 break-words text-sm font-black">{match.timeA}</p>
@@ -221,7 +225,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
         {match.jogadores.map(player => <div key={player.jogador_id} className="border-t border-zinc-100 py-2"><PlayerIdentity playerId={player.jogador_id} name={player.nome} avatarUrl={player.avatar_url} size="sm" className="font-semibold" /><p className="mt-1">{player.participou ? `${player.gols} gols / ${player.assistencias} assistencias` : "Nao participou"}</p></div>)}
       </details>
       {organizer && <button disabled={busy} onClick={() => editMatch(match)} className={`${button} mt-2 w-full`}>{match.status === "finalizada" ? "Editar resultado" : "Editar partida"}</button>}
-    </article>)}
+    </article>)}</details>}
 
     {activeView === "live" && organizer && draft && <div className="fk-panel order-1 space-y-4 rounded-lg border border-zinc-200 bg-white p-3">
       <div>

@@ -136,7 +136,9 @@ try {
       await page.waitForTimeout(100); const before = requests;
       await tab('Histórico'); await shot(`${prefix}-historico`);
       await tab('Ao vivo'); await tab('Resumo');
-      assert.equal(requests, before, 'Trocar visualizações das partidas não deve consultar novamente');
+      assert.equal(requests, before + 1, 'Primeira visita ao histórico consulta uma página, sem reler partidas');
+      const cachedHistory = requests; await tab('Histórico'); await tab('Resumo');
+      assert.equal(requests, cachedHistory, 'Voltar ao histórico preserva a página sem requests duplicados');
       await page.getByRole('button', { name: 'VER RESUMO', exact: true }).click(); await shot(`${prefix}-sheet`);
       await page.getByRole('button', { name: 'Fechar resumo', exact: true }).click();
       await tab('Ranking'); await page.getByRole('button', { name: 'Gols', exact: true }).click(); await shot(`${prefix}-ranking`);
