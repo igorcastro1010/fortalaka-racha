@@ -12,19 +12,19 @@ Gestão de futebol amador: da inscrição na rodada ao sorteio dos times, result
 
 ## Funcionalidades em tela
 
-Capturas de demonstração local com dados fictícios, preparadas em 22/10/2026. Não representam dados de produção. [Como foram produzidas](docs/capturas-demonstracao.md).
+Capturas de demonstração local com dados fictícios, atualizadas em 28/10/2026. Não representam dados de produção. [Como foram produzidas](docs/capturas-demonstracao.md).
 
 ### Placar e partidas
 
-![Placar e partida com dados fictícios](assets/funcionalidades-demo.png)
+<p align="center"><img src="assets/placar-mobile-20261028.png" alt="Placar de partida demonstrativa finalizada em 2 a 1, com dados fictícios" width="360"></p>
 
 ### Times confirmados
 
-![Sorteio e composição dos times com participantes fictícios](assets/times-demo.png)
+<p align="center"><img src="assets/times-mobile-20261028.png" alt="Dois times completos com cinco participantes fictícios cada" width="360"></p>
 
 ### Ranking
 
-![Ranking no ambiente local de demonstração](assets/ranking-demo.png)
+<p align="center"><img src="assets/ranking-mobile-20261028.png" alt="Três primeiros colocados por gols no ranking local com dados fictícios" width="360"></p>
 
 ## O que o projeto faz
 

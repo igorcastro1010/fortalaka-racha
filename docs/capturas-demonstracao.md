@@ -1,7 +1,9 @@
 # Capturas de demonstração
 
-Os componentes reais do app foram executados pelo harness existente de testes, usando PGlite (PostgreSQL em memória). A rodada, as inscrições, o sorteio, a partida e o ranking usam dados criados somente nesse banco local. Uma partida de demonstração foi salva com placar 1 × 1 e depois finalizada para conferir as estatísticas.
+As capturas atuais foram refeitas em 28/10/2026, executando os componentes reais do aplicativo no harness de testes com PGlite (PostgreSQL em memória). A rodada, os participantes, os times e os eventos existem somente nesse banco local.
 
-Capturadas em 22/10/2026. Nomes, placas, contatos, produtos, valores e estatísticas visíveis são fictícios. Não houve acesso de escrita a banco remoto, alteração de dados de produção, envio de mensagens ou pagamento.
+A partida demonstrativa foi finalizada em 2 × 1. O ranking exibe os três primeiros colocados por gols, calculados a partir dessa partida. A captura dos times mostra duas equipes de cinco participantes.
 
-Essas imagens ilustram a interface e suas funcionalidades; não certificam testes completos de produção nem disponibilidade dos serviços remotos. Os scripts temporários, bancos e credenciais locais usados para as capturas não foram publicados.
+As imagens foram capturadas diretamente no navegador com largura de 430 pixels, sem as margens pretas do viewport desktop nem a barra de rolagem. O ranking usa um recorte dos três primeiros cartões completos. Os READMEs exibem as imagens com largura de 360 pixels.
+
+Todos os nomes e números são fictícios. Não houve alteração de dados de produção nem escrita no Supabase remoto. Essas imagens ilustram a interface; não certificam disponibilidade ou validação completa de produção.
