@@ -6,6 +6,7 @@ import { getPublicPlayer, type PublicPlayer } from "@/lib/players/public-profile
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { PlayerPerformance } from "./PlayerPerformance";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
+import { PlayerAchievements } from "./PlayerAchievements";
 
 export function PublicPlayerProfile({ playerId, viewer, onBack }: { playerId: string; viewer: Profile; onBack: () => void }) {
   const [player, setPlayer] = useState<PublicPlayer | null>(null);
@@ -35,6 +36,7 @@ export function PublicPlayerProfile({ playerId, viewer, onBack }: { playerId: st
     {!loading && !error && player && <>
       <PlayerPerformance profile={{ id: playerId, name: player.nome, avatar_url: player.avatar_url, role: "jogador", active: true, email: null }} publicData={player} view="all" />
       <a href={`/comparar?jogadorA=${encodeURIComponent(playerId)}`} className="fk-secondary">Comparar</a>
+      <PlayerAchievements playerId={playerId} stats={player} />
     </>}
   </section>;
 }
