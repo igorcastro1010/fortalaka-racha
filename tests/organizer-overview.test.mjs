@@ -22,7 +22,8 @@ test('confirmados incluem legado; suplentes, ausentes e removidos não inflam pa
 test('lista fechada e rascunho são diferentes de times confirmados',()=>{
   const empty=build('lista_fechada');assert.equal(empty.listStatus,'FECHADA');assert.equal(empty.teamsStatus,'NÃO SORTEADOS');assert.equal(empty.alert,'Lista fechada. Falta definir os times.');
   const draft=build('lista_fechada',{teams:teams('lista_fechada',[{id:'a'},{id:'b'}])});
-  assert.equal(draft.teamCount,2);assert.equal(draft.teamsStatus,'RASCUNHO');assert.match(draft.alert,/rascunho/);assert.equal(draft.primary.label,'MONTAR TIMES');assert.equal(draft.primary.destination,'teams');
+  assert.equal(draft.teamCount,2);assert.equal(draft.teamsStatus,'RASCUNHO');assert.match(draft.alert,/rascunho/);assert.equal(draft.primary.label,'REVISAR TIMES');assert.equal(draft.primary.destination,'teams');
+  assert.equal(empty.primary.label,'SORTEAR TIMES');
 });
 test('times confirmados, nenhuma partida: atalho para resultados',()=>{
   const view=build('times_confirmados',{teams:teams('times_confirmados',[{id:'a'},{id:'b'}],true)});
@@ -31,7 +32,7 @@ test('times confirmados, nenhuma partida: atalho para resultados',()=>{
 test('partida aberta e fila: mostra somente a partida aberta e times aguardando',()=>{
   const view=build('em_andamento',{matches:matches('em_andamento',[game('done'),game('open','aberta'),game('cancel','cancelada')],{order:['a','b','c'],currentMatchId:'done',version:1})});
   assert.equal(view.currentMatch.id,'open');assert.equal(view.matchCount,3);assert.equal(view.finalized,1);assert.deepEqual(view.waiting,['Time 3']);
-  assert.equal(view.rachaStatus,'EM ANDAMENTO');assert.equal(view.alert,'Partida em andamento.');assert.equal(view.primary.label,'IR PARA RESULTADOS');
+  assert.equal(view.rachaStatus,'EM ANDAMENTO');assert.equal(view.alert,'Partida em andamento.');assert.equal(view.primary.label,'GERENCIAR PARTIDAS');
 });
 test('sem partida aberta não anuncia partida em andamento',()=>{
   const view=build('em_andamento',{matches:matches('em_andamento',[game('done')])});assert.equal(view.currentMatch,null);assert.match(view.alert,/próxima partida/);

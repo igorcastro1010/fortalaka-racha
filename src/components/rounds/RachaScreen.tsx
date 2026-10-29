@@ -185,7 +185,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
   }
 
   async function handleCloseList() {
-    if (!round) {
+    if (!organizer || !round || isSaving || !await confirm({ title: "Fechar lista?", description: "Jogadores não poderão entrar ou sair até ela ser reaberta." })) {
       return;
     }
 

@@ -34,7 +34,7 @@ export function buildOrganizerOverview(round: RoundDetails, teams: RoundTeamsSta
     primary = { label: "GERENCIAR LISTA", destination: "racha" };
   } else if (round.status === "lista_fechada") {
     alert = !validTeams ? "Lista fechada. Consulte os times da rodada." : validTeams.teams.length ? "Times em rascunho. Confira a composição e confirme os times." : "Lista fechada. Falta definir os times.";
-    primary = { label: "MONTAR TIMES", destination: "teams" };
+    primary = { label: validTeams?.teams.length ? "REVISAR TIMES" : "SORTEAR TIMES", destination: "teams" };
   } else if (round.status === "finalizado") {
     if (!evaluations) {
       alert = "Racha finalizado. Consulte o estado das avaliações.";
@@ -53,7 +53,7 @@ export function buildOrganizerOverview(round: RoundDetails, teams: RoundTeamsSta
   } else {
     alert = currentMatch ? "Partida em andamento." : validMatches?.partidas.length === 0 ? "Times prontos. Você já pode iniciar o racha."
       : validMatches ? "Partidas registradas. Confira os resultados e a próxima partida." : "Consulte as partidas da rodada em Resultados.";
-    primary = { label: "IR PARA RESULTADOS", destination: "results" };
+    primary = { label: currentMatch || finalized ? "GERENCIAR PARTIDAS" : "IR PARA RESULTADOS", destination: "results" };
   }
   const waiting = validMatches?.fila?.order.filter(id => !currentMatch || ![currentMatch.timeAId, currentMatch.timeBId].includes(id))
     .map(id => validMatches.times.find(team => team.id === id)?.nome).filter((name): name is string => Boolean(name)) ?? [];

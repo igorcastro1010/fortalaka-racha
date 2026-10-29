@@ -101,7 +101,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       return;
     }
 
-    if (confirmed && !await confirm({ title: "Sortear novamente?", description: "Os times já estão confirmados. O novo sorteio substituirá os times atuais." })) {
+    if (draw?.teams.length && !await confirm({ title: "Sortear novamente?", description: "O novo sorteio substituirá a composição atual dos times." })) {
       return;
     }
 

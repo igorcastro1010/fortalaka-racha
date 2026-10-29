@@ -69,6 +69,7 @@ function OrganizerRoundPanel({ round, matches, matchesError, loading, onRefresh,
     <p role="status" className="border-l-2 border-red-700 py-1 pl-3 text-sm font-semibold">{view.alert}</p>
     {pending && <p className="text-xs text-zinc-600">Atualizando indicadores...</p>}
     {errors.length > 0 && <p role="alert" className="text-sm text-red-700">{errors.join(" ")} Use Atualizar painel para tentar novamente.</p>}
+    <p className="text-xs font-bold text-zinc-600">Próxima ação</p>
     <button onClick={() => onNavigate(view.primary.destination)} className="fk-primary w-full">{view.primary.label}<ArrowRight size={18} aria-hidden="true" /></button>
     <RoundProgress status={round.status} evaluationsCompleted={view.evaluationsCompleted} />
     <details className="border-b border-zinc-200 pb-2">
