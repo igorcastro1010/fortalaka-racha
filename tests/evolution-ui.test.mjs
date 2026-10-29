@@ -18,7 +18,7 @@ const client=join(output,'client.ts');
 writeFileSync(client,`
 let notes=[{id:'n1',round_id:'round-local',title:'Times confirmados',body:'Confira os times da rodada.',destination:'teams',created_at:'2026-10-29T12:00:00Z',read_at:null},{id:'n2',round_id:null,title:'Nova conquista',body:'Primeiro gol registrado.',destination:'profile',created_at:'2026-10-29T11:00:00Z',read_at:null}];
 if(location.pathname.includes('paginadas'))notes=Array.from({length:21},(_,i)=>({...notes[0],id:'n'+i,read_at:i<20?'2026-10-29T12:01:00Z':null}));
-export function createClient(){return {from(table){let head=false,unread=false;const q={select(c,o){head=o?.head;return q},eq(){return q},is(){unread=true;return q},order(){return q},range(){return q},abortSignal(){return q},then(resolve){return Promise.resolve(location.pathname.includes('indisponivel')?{data:null,error:{message:'fixture unavailable'}}:{data:head?null:table==='notifications'?notes:[],count:unread?notes.filter(n=>!n.read_at).length:notes.length,error:null}).then(resolve)}};return q},rpc:async(name,args)=>{if(location.pathname.includes('parcial')&&name==='medias_jogador'&&args.p_jogador==='b')throw new Error('Falha sintética');if(name==='marcar_notificacoes_lidas'){notes=notes.map(n=>!args.p_ids||args.p_ids.includes(n.id)?{...n,read_at:new Date().toISOString()}:n);return {data:1,error:null};}return {data:[{quantidade:2,passe:8,chute:7,velocidade:9,defesa:6,fisico:8}],error:null};}};}
+export function createClient(){return {from(table){let head=false,unread=false;const q={select(c,o){head=o?.head;return q},eq(){return q},is(){unread=true;return q},order(){return q},range(){return q},abortSignal(){return q},then(resolve){if(table==='notifications'&&head)window.notificationCountReads=(window.notificationCountReads||0)+1;return Promise.resolve(location.pathname.includes('indisponivel')?{data:null,error:{message:'fixture unavailable'}}:{data:head?null:table==='notifications'?notes:[],count:unread?notes.filter(n=>!n.read_at).length:notes.length,error:null}).then(resolve)}};return q},rpc:async(name,args)=>{if(location.pathname.includes('parcial')&&name==='medias_jogador'&&args.p_jogador==='b')throw new Error('Falha sintética');if(name==='marcar_notificacoes_lidas'){notes=notes.map(n=>!args.p_ids||args.p_ids.includes(n.id)?{...n,read_at:new Date().toISOString()}:n);return {data:1,error:null};}return {data:[{quantidade:2,passe:8,chute:7,velocidade:9,defesa:6,fisico:8}],error:null};}};}
 `);
 const entry=join(output,'entry.tsx');
 writeFileSync(entry,`
@@ -52,6 +52,13 @@ else {
  try{
   browser=await chromium.launch({headless:true,channel:'chrome'});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(url);await page.getByLabel('Jogador A').selectOption('a');await page.getByLabel('Jogador B').selectOption('b');
+  await page.getByRole('link',{name:'Notificações, 2 não lidas',exact:true}).waitFor();
+  const countReads=await page.evaluate(()=>window.notificationCountReads);
+  await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});window.dispatchEvent(new Event('focus'));});
+  assert.equal(await page.evaluate(()=>window.notificationCountReads),countReads,'Não consulta avisos em segundo plano');
+  await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'});document.dispatchEvent(new Event('visibilitychange'));});
+  await page.waitForFunction(previous=>window.notificationCountReads>previous,countReads,{timeout:1500});
+  await page.evaluate(()=>{delete document.visibilityState;});
   assert.equal(await page.getByLabel('Jogador B').locator('option[value="a"]').count(),0);
   assert.equal(await page.locator('dt').filter({hasText:/^Gols\/jogo$/}).locator('..').innerText(),'0,4\nGols/jogo\n--');
   await page.goto(url+'/comparacao-parcial');await page.getByRole('status').filter({hasText:/médias.*indisponíveis/i}).waitFor();assert.equal(await page.locator('dt').filter({hasText:'Passe /10'}).locator('..').innerText(),'8\nPasse /10\n--','Falha de B preserva a média válida de A');
