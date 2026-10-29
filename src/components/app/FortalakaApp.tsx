@@ -84,7 +84,7 @@ export function FortalakaApp({ profile, initialPlayerId = null, initialTab = "ho
     if (publicPlayerId) { window.history.replaceState(window.history.state, "", origin.current?.url ?? "/"); setPublicPlayerId(null); }
     setActiveTab(tab);
     const url = new URL(window.location.href);
-    url.pathname = '/'; url.search = ''; url.searchParams.set('tab', tab);
+    url.pathname = '/'; url.searchParams.set('tab', tab);
     window.history.replaceState(window.history.state, '', url);
     window.scrollTo({ top: 0, behavior: "instant" });
   }

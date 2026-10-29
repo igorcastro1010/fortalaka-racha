@@ -47,7 +47,7 @@ try {
     await page.getByRole('button', { name: 'Assistências', exact: true }).click();
     const ranking = page.getByRole('region', { name: 'Ranking dos jogadores' });
     const target = ranking.locator(`a[href="/perfil/${other.jogador_id}"]`);
-    await target.scrollIntoViewIfNeeded(); const scroll = await page.evaluate(() => scrollY); const before = calls.length;
+    await target.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' })); const scroll = await page.evaluate(() => scrollY); const before = calls.length;
     await target.click(); await ready();
     assert.equal(new URL(page.url()).pathname, `/perfil/${other.jogador_id}`);
     const reads = calls.slice(before);
@@ -58,7 +58,7 @@ try {
     await profile().getByRole('button', { name: 'Voltar', exact: true }).click();
     await ranking.waitFor({ state: 'visible' });
     assert.equal(await page.getByRole('button', { name: 'Assistências', exact: true }).getAttribute('aria-pressed'), 'true');
-    await page.waitForTimeout(60); assert(Math.abs(await page.evaluate(() => scrollY) - scroll) < 5, 'Scroll preservado');
+    await page.waitForTimeout(60); const returnedScroll = await page.evaluate(() => scrollY); assert(Math.abs(returnedScroll - scroll) < 5, `Scroll preservado: antes=${scroll}, depois=${returnedScroll}, largura=${width}`);
     assert.equal(await target.evaluate(e => e === document.activeElement), true, 'Foco restaurado');
     await target.click(); await ready(); await page.goBack(); await ranking.waitFor({ state: 'visible' });
     await nav('Racha'); const list = page.getByRole('link', { name: /^Ver perfil de / }).first(); await list.click(); await ready(); await check(`racha-${width}`); await profile().getByRole('button', { name: 'Voltar', exact: true }).click();
@@ -69,10 +69,10 @@ try {
     await page.goto('http://127.0.0.1:3011/perfil/00000000-0000-0000-0000-000000000000?role=jogador');
     await profile().getByText('Jogador não encontrado.', { exact: true }).waitFor(); await page.screenshot({ path: join(output, `inexistente-${width}.png`) });
   }
-  await page.goto('http://127.0.0.1:3011/?role=organizador'); await nav('Racha'); await tab('Gestão'); await page.getByRole('button', { name: 'Fechar lista' }).click(); await page.getByRole('button', { name: 'Reabrir lista' }).waitFor();
+  await page.goto('http://127.0.0.1:3011/?role=organizador'); await nav('Racha'); await tab('Gestão'); await page.getByRole('button', { name: 'Fechar lista' }).click(); await page.getByRole('dialog', { name: 'Fechar lista?' }).getByRole('button', { name: 'Confirmar', exact: true }).click(); await page.getByRole('button', { name: 'Reabrir lista' }).waitFor();
   await nav('Times'); await tab('Ajustes'); await page.getByRole('button', { name: 'Sortear times', exact: true }).click(); await page.getByRole('button', { name: 'Ajustar times', exact: true }).click();
   assert.equal(await page.locator('div.order-10 a[href^="/perfil/"]').count(), 0, 'Modo de troca não deve abrir perfil');
-  await page.getByRole('button', { name: 'Concluir ajuste', exact: true }).click(); await page.getByRole('button', { name: 'Confirmar times', exact: true }).click(); await page.getByText('Times confirmados com sucesso.').waitFor();
+  await page.getByRole('button', { name: 'Concluir ajuste', exact: true }).click(); await page.getByRole('button', { name: 'Confirmar times', exact: true }).click(); await page.getByRole('dialog', { name: 'Confirmar times?' }).getByRole('button', { name: 'Confirmar', exact: true }).click(); await page.getByText('Times confirmados com sucesso.').waitFor();
   await page.goto('http://127.0.0.1:3011/?role=jogador'); await nav('Times'); await page.getByRole('link', { name: /^Ver perfil de / }).first().click(); await ready(); await check('times-jogador');
   await profile().getByRole('button', { name: 'Voltar', exact: true }).click(); await page.getByRole('heading', { name: 'Times', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Abrir meu perfil' }).click(); await page.getByRole('button', { name: 'Sair da conta' }).waitFor();

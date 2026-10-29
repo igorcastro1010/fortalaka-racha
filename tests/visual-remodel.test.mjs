@@ -50,7 +50,7 @@ try {
   await page.goto('http://127.0.0.1:3011/');
   await page.getByRole('button', { name: 'Ver racha', exact: true }).waitFor();
   await shot('organizador-lista-aberta-home');
-  await nav('Racha'); await tab('Gestão'); await page.getByRole('button', { name: 'Fechar lista', exact: true }).click();
+  await nav('Racha'); await tab('Gestão'); await page.getByRole('button', { name: 'Fechar lista', exact: true }).click(); await page.getByRole('dialog', { name: 'Fechar lista?' }).getByRole('button', { name: 'Confirmar', exact: true }).click();
   await page.getByRole('button', { name: 'Reabrir lista' }).waitFor();
   const reopenWrites = apiCalls.filter(call => call.name === 'alterar_estado_rodada').length;
   await page.getByRole('button', { name: 'Reabrir lista', exact: true }).click();
@@ -65,10 +65,10 @@ try {
   await page.getByLabel('Editar Pessoa 13', { exact: true }).locator('..').getByRole('button', { name: 'Remover da rodada' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click();
   await page.getByLabel('Editar Pessoa 13', { exact: true }).waitFor({ state: 'hidden' });
-  await tab('Gestão'); await page.getByRole('button', { name: 'Fechar lista', exact: true }).click();
+  await tab('Gestão'); await page.getByRole('button', { name: 'Fechar lista', exact: true }).click(); await page.getByRole('dialog', { name: 'Fechar lista?' }).getByRole('button', { name: 'Confirmar', exact: true }).click();
   await page.getByRole('button', { name: 'Reabrir lista' }).waitFor();
   await nav('Times'); await tab('Ajustes'); await page.getByRole('button', { name: 'Sortear times', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar times' }).click();
+  await page.getByRole('button', { name: 'Confirmar times' }).click(); await page.getByRole('dialog', { name: 'Confirmar times?' }).getByRole('button', { name: 'Confirmar', exact: true }).click();
   await page.getByText('Times confirmados com sucesso.').waitFor();
   const draws = apiCalls.filter(call => call.name === 'salvar_rascunho_times').length;
   await page.getByRole('button', { name: 'Sortear novamente', exact: true }).click();
@@ -77,7 +77,7 @@ try {
   await page.getByRole('button', { name: 'Sortear novamente', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click();
   await page.getByText('Times sorteados e salvos como rascunho.').waitFor();
-  await page.getByRole('button', { name: 'Confirmar times', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirmar times', exact: true }).click(); await page.getByRole('dialog', { name: 'Confirmar times?' }).getByRole('button', { name: 'Confirmar', exact: true }).click();
   await page.getByText('Times confirmados com sucesso.').waitFor();
   await nav('Resultados'); await page.getByRole('button', { name: 'INICIAR PRIMEIRA PARTIDA' }).click();
   await page.getByRole('button', { name: 'Aumentar placar de Time 1' }).click();
