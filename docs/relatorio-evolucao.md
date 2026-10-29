@@ -1,5 +1,20 @@
 # Entrega do pacote de evolução — 29/10/2026
 
+## Complemento solicitado: novos commits
+
+Após os dez commits originais, o usuário solicitou novos commits. Foram acrescentadas correções independentes, com testes de regressão:
+
+- `79251ac`: preserva médias válidas na comparação quando a consulta do outro jogador falha. A privacidade e o mínimo de avaliações continuam iguais.
+- `b6423fe`: atualiza o sino quando a página volta a ficar visível no celular, mantendo o bloqueio de consultas em segundo plano e a proteção contra requests simultâneos.
+- `515be31`: respeita palavras inteiras nos nomes dos cards, acomoda sobrenomes sem espaços e limita o texto com reticências sem quebrar pares Unicode.
+- Este complemento recebe um commit próprio de documentação. O total passa a 14 commits nesta sequência de trabalho.
+
+O usuário informou que aplicou o SQL no Supabase depois da entrega original. Essa informação foi registrada; a aplicação e os fluxos autenticados remotos ainda não foram verificados nesta etapa. Não foi criada ou aplicada outra migration.
+
+Validação deste complemento: build e lint aprovados; sete testes unitários relevantes aprovados; suíte de navegador do pacote aprovada, incluindo falha parcial de médias, retomada de visibilidade, PNG 1080×1920, compartilhamento/download, notificações e cinco larguras. Graphify atualizado localmente. Os testes novos reproduziram as falhas antes das correções. As alterações locais anteriores de package.json, package-lock.json e skills continuam preservadas fora dos commits.
+
+As seções abaixo preservam o registro da entrega original. O status de SQL pendente nelas descreve aquele momento anterior à informação do usuário.
+
 ## Resultado e limites
 
 A–D implementadas. E implementada como central persistida com migration e testes locais. **SQL remoto pendente: `supabase/notificacoes.sql`**. A central só receberá/persistirá avisos na produção depois da aplicação dessa migration. Nenhuma migration foi executada no Supabase remoto nesta tarefa.
