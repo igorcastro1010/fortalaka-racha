@@ -238,6 +238,7 @@ function ProfileScreen({ profile }: { profile: Profile }) {
   return (
     <section className="space-y-5">
       <h2>Meu perfil</h2>
+      <a href={`/comparar?jogadorA=${encodeURIComponent(profile.id)}`} className="fk-secondary">Comparar jogadores</a>
       <ViewTabs label="Áreas do perfil" value={view} onChange={setView} items={[{ id: "overview", label: "Visão geral" }, { id: "stats", label: "Estatísticas" }, { id: "ratings", label: "Avaliações" }]} />
       <div hidden={view === "stats"}><PlayerPerformance profile={profile} view={view === "ratings" ? "ratings" : "overview"} /></div>
       <div hidden={view === "ratings"}><PlayerStatisticsCard playerId={profile.id} /></div>

@@ -67,10 +67,11 @@ import { TeamsScreen } from ${JSON.stringify(resolve('src/components/teams/Teams
 import { RachaScreen } from ${JSON.stringify(resolve('src/components/rounds/RachaScreen.tsx'))};
 import { RankingScreen, PlayerStatisticsCard } from ${JSON.stringify(resolve('src/components/players/StatisticsViews.tsx'))};
 import { ProfilePhoto } from ${JSON.stringify(resolve('src/components/players/ProfilePhoto.tsx'))};
+import { PlayerComparison } from ${JSON.stringify(resolve('src/components/players/PlayerComparison.tsx'))};
 const role=new URLSearchParams(location.search).get('role')==='jogador'?'jogador':'organizador';
 const profile={id:role==='jogador'?${JSON.stringify(viewer)}:${JSON.stringify(organizer)},name:'Conta teste',email:null,active:true,role};
 function App(){const [tab,setTab]=useState('racha');return <main className="mx-auto min-h-screen max-w-[430px] bg-zinc-100 p-4"><nav className="mb-4 flex gap-4">{['racha','times','ranking','perfil'].map(t=><button key={t} onClick={()=>setTab(t)}>{t}</button>)}</nav>{tab==='racha'?<RachaScreen profile={profile}/>:tab==='times'?<TeamsScreen profile={profile}/>:tab==='ranking'?<RankingScreen/>:<><PlayerStatisticsCard playerId={profile.id}/><ProfilePhoto profile={profile}/></>}</main>}
-createRoot(document.getElementById('root')!).render(${process.argv.includes('--app') ? '<FortalakaApp profile={profile} initialPlayerId={location.pathname.startsWith("/perfil/") ? location.pathname.split("/")[2] : undefined}/>' : '<App/>'});
+createRoot(document.getElementById('root')!).render(location.pathname==='/comparar' ? <main className="mx-auto max-w-[640px] p-5"><PlayerComparison viewerId={profile.id} organizer={role==='organizador'} initialA={new URLSearchParams(location.search).get('jogadorA')||''} initialB={new URLSearchParams(location.search).get('jogadorB')||''}/></main> : ${process.argv.includes('--app') ? '<FortalakaApp profile={profile} initialPlayerId={location.pathname.startsWith("/perfil/") ? location.pathname.split("/")[2] : undefined}/>' : '<App/>'});
 `);
 const navigation=join(output,'navigation.ts');
 writeFileSync(navigation,`export function useRouter(){return {replace(){},refresh(){}};}`);

@@ -57,6 +57,7 @@ export function RankingScreen({ sort, onSortChange }: { sort: RankingSort; onSor
       {rankingOptions.map(option => <button key={option.id} type="button" aria-pressed={sort === option.id} onClick={() => onSortChange(option.id)} className={`min-h-11 shrink-0 border-b-2 px-3 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 ${sort === option.id ? "border-red-700 text-red-700" : "border-transparent text-zinc-600 hover:bg-zinc-50"}`}>{option.label}</button>)}
     </div>
     <ReadStatus {...state} />
+    <a href="/comparar" className="fk-secondary">Comparar jogadores</a>
     {!state.error && !state.loading && !state.data.length && <EmptyState icon={Trophy} title="O ranking começa em campo" description="O desempenho dos jogadores aparece aqui depois das partidas." />}
     {!state.error && ranking.map((player, index) => {
       const metric = rankingMetric(player, sort);

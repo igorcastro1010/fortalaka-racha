@@ -34,6 +34,7 @@ export function PublicPlayerProfile({ playerId, viewer, onBack }: { playerId: st
     {!loading && !error && !player && <EmptyState title="Jogador não encontrado." description="Este jogador não está disponível para consulta." />}
     {!loading && !error && player && <>
       <PlayerPerformance profile={{ id: playerId, name: player.nome, avatar_url: player.avatar_url, role: "jogador", active: true, email: null }} publicData={player} view="all" />
+      <a href={`/comparar?jogadorA=${encodeURIComponent(playerId)}`} className="fk-secondary">Comparar</a>
     </>}
   </section>;
 }
