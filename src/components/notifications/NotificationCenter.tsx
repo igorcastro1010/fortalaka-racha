@@ -44,7 +44,7 @@ export function NotificationCenter() {
     finally { readPending.current = false; if (mounted.current) setBusy(false); }
   }
   return <section aria-label="Central de notificações" className="space-y-4"><Link href="/" className="fk-tertiary inline-flex items-center">← Voltar ao app</Link><h1 className="flex items-center gap-2 text-3xl font-black"><Bell aria-hidden="true" />Notificações</h1><p className="text-sm text-zinc-600">Avisos da rodada e conquistas. Sem notificações a cada gol.</p>
-    <div className="flex flex-wrap gap-2"><button onClick={() => load()} disabled={loading || busy} className="fk-secondary">Atualizar</button><button onClick={() => mark(null)} disabled={loading || busy || !rows.some(row => !row.read_at)} className="fk-secondary"><CheckCheck size={18} aria-hidden="true" />Marcar todas como lidas</button></div>
+    <div className="flex flex-wrap gap-2"><button onClick={() => load()} disabled={loading || busy} className="fk-secondary">Atualizar</button><button onClick={() => mark(null)} disabled={loading || busy || (!hasMore && !rows.some(row => !row.read_at))} className="fk-secondary"><CheckCheck size={18} aria-hidden="true" />Marcar todas como lidas</button></div>
     {loading && <p role="status">Carregando avisos...</p>}
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     {!loading && !error && !rows.length && <div className="fk-section"><h2 className="text-lg font-black">Tudo em dia</h2><p className="mt-2 text-sm text-zinc-600">Novos avisos aparecerão aqui.</p></div>}

@@ -7,14 +7,15 @@ import type { VisualCard } from '@/lib/results/visual-card';
 
 export function VisualShareCard({ cards }: { cards: { id: string; label: string; data: VisualCard }[] }) {
   const [selected, setSelected] = useState(cards[0]?.id ?? '');
-  const [preview, setPreview] = useState<{ blob: Blob; url: string; card: VisualCard } | null>(null);
+  const [preview, setPreview] = useState<{ blob: Blob; url: string; key: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const sequence = useRef(0);
   const card = cards.find(c => c.id === selected) ?? cards[0];
+  const cardKey = card ? JSON.stringify(card.data) : '';
   useEffect(() => () => { sequence.current++; }, []);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
-  const current = preview?.card === card?.data ? preview : null;
+  const current = preview?.key === cardKey ? preview : null;
   async function generate() {
     if (!card || busy) return;
     const request = ++sequence.current;
@@ -22,7 +23,7 @@ export function VisualShareCard({ cards }: { cards: { id: string; label: string;
     try {
       const { renderVisualCard } = await import('@/lib/results/render-visual-card');
       const blob = await renderVisualCard(card.data);
-      if (sequence.current === request) setPreview({ blob, url: URL.createObjectURL(blob), card: card.data });
+      if (sequence.current === request) setPreview({ blob, url: URL.createObjectURL(blob), key: cardKey });
     } catch { if (sequence.current === request) setMessage('Não foi possível gerar a imagem. Tente novamente.'); }
     finally { if (sequence.current === request) setBusy(false); }
   }
