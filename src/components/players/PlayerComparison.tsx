@@ -28,14 +28,16 @@ export function PlayerComparison({ initialA = "", initialB = "", viewerId, organ
   useEffect(() => {
     let active = true;
     const client = createClient();
-    Promise.all([a, b].map(async id => {
+    Promise.allSettled([a, b].map(async id => {
       if (!id || (!organizer && id !== viewerId) || !players.some(p => p.jogador_id === id)) return null;
       const { data, error } = await client.rpc("medias_jogador", { p_jogador: id });
       if (error) throw error;
       const row = data?.[0] as RatingSummary | undefined;
       return row && row.quantidade >= 2 ? row : null;
-    })).then(values => { if (active) setRatings({ a, b, values, error: false }); })
-      .catch(() => { if (active) setRatings({ a, b, values: [null, null], error: true }); });
+    })).then(results => {
+      if (active) setRatings({ a, b, values: results.map(result => result.status === 'fulfilled' ? result.value : null),
+        error: results.some(result => result.status === 'rejected') });
+    });
     return () => { active = false; };
   }, [a, b, players, viewerId, organizer]);
   const playerA = players.find(p => p.jogador_id === a) ?? null;
@@ -63,7 +65,7 @@ export function PlayerComparison({ initialA = "", initialB = "", viewerId, organ
     </div>)}</div>
     {!loading && !error && ((a && !playerA) || (b && !playerB)) && <p role="status" className="text-sm text-zinc-600">Um dos jogadores não está disponível. Selecione outro jogador.</p>}
     <div className="overflow-hidden rounded-2xl bg-white p-4 ring-1 ring-black/5"><p className="mb-3 text-xs text-zinc-600">A à esquerda · B à direita. Maior valor em destaque.</p><dl className="divide-y divide-zinc-100">{rows.map(row => <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.8fr)_minmax(0,1fr)] items-center gap-2 py-3 text-center"><dd className={`font-black tabular-nums ${row.a != null && row.b != null && row.a > row.b ? "text-red-700" : ""}`}>{format(row.a)}</dd><dt className="text-xs font-bold text-zinc-600">{row.label}</dt><dd className={`font-black tabular-nums ${row.a != null && row.b != null && row.b > row.a ? "text-red-700" : ""}`}>{format(row.b)}</dd></div>)}</dl></div>
-    {current?.error && <p role="status" className="text-sm text-zinc-600">Médias indisponíveis no momento. As estatísticas continuam disponíveis.</p>}
+    {current?.error && <p role="status" className="text-sm text-zinc-600">Algumas médias estão indisponíveis no momento. Os dados carregados continuam disponíveis.</p>}
     <p className="text-xs leading-relaxed text-zinc-600">Jogos são partidas finalizadas. Overall e atributos exigem pelo menos duas avaliações. Os atributos seguem a permissão atual do perfil: próprios ou para organizadores. Uma métrica isolada não define o melhor jogador.</p>
   </section>;
 }
