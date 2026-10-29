@@ -15,15 +15,20 @@ const players=[
  ...Array.from({length:4},(_,i)=>({jogador_id:'p'+i,nome:'Jogador '+i,jogos:10,gols:6-i,assistencias:1,vitorias:2,nota_geral_100:70-i,quantidade_avaliacoes:2,avatar_url:null})),
 ];
 const client=join(output,'client.ts');
-writeFileSync(client,`export function createClient(){const q={select(){return q},eq(){return q},order(){return q},range(){return q},abortSignal(){return q},then(resolve){return Promise.resolve({data:[],error:null}).then(resolve)}};return {from(){return q},rpc:async()=>({data:[{quantidade:2,passe:8,chute:7,velocidade:9,defesa:6,fisico:8}],error:null})};}`);
+writeFileSync(client,`
+let notes=[{id:'n1',round_id:'round-local',title:'Times confirmados',body:'Confira os times da rodada.',destination:'teams',created_at:'2026-10-29T12:00:00Z',read_at:null},{id:'n2',round_id:null,title:'Nova conquista',body:'Primeiro gol registrado.',destination:'profile',created_at:'2026-10-29T11:00:00Z',read_at:null}];
+export function createClient(){return {from(table){let head=false,unread=false;const q={select(c,o){head=o?.head;return q},eq(){return q},is(){unread=true;return q},order(){return q},range(){return q},abortSignal(){return q},then(resolve){return Promise.resolve(location.pathname.includes('indisponivel')?{data:null,error:{message:'fixture unavailable'}}:{data:head?null:table==='notifications'?notes:[],count:unread?notes.filter(n=>!n.read_at).length:notes.length,error:null}).then(resolve)}};return q},rpc:async(name,args)=>{if(name==='marcar_notificacoes_lidas'){notes=notes.map(n=>!args.p_ids||args.p_ids.includes(n.id)?{...n,read_at:new Date().toISOString()}:n);return {data:1,error:null};}return {data:[{quantidade:2,passe:8,chute:7,velocidade:9,defesa:6,fisico:8}],error:null};}};}
+`);
 const entry=join(output,'entry.tsx');
 writeFileSync(entry,`
 import {createRoot} from 'react-dom/client';import {PlayerComparison} from ${JSON.stringify(resolve('src/components/players/PlayerComparison.tsx'))};
 import {PlayerAchievements} from ${JSON.stringify(resolve('src/components/players/PlayerAchievements.tsx'))};
 import {VisualShareCard} from ${JSON.stringify(resolve('src/components/results/VisualShareCard.tsx'))};
 import {rankingVisualCard} from ${JSON.stringify(resolve('src/lib/results/visual-card.ts'))};
+import {NotificationCenter} from ${JSON.stringify(resolve('src/components/notifications/NotificationCenter.tsx'))};
+import {NotificationBell} from ${JSON.stringify(resolve('src/components/notifications/NotificationBell.tsx'))};
 const players=${JSON.stringify(players)};
-createRoot(document.getElementById('root')).render(<><p>Demonstração local · dados fictícios</p>{location.pathname==='/cards'?<VisualShareCard cards={[{id:'ranking',label:'Ranking · Gols',data:rankingVisualCard(players,'gols','Gols')}]}/>:location.pathname==='/conquistas'?<PlayerAchievements playerId="a" stats={players[0]}/>:<PlayerComparison viewerId="a" organizer={false} initialA="a" initialB="b"/>}</>);
+createRoot(document.getElementById('root')).render(<><p>Demonstração local · dados fictícios</p><NotificationBell />{location.pathname.startsWith('/notificacoes')?<NotificationCenter />:location.pathname==='/cards'?<VisualShareCard cards={[{id:'ranking',label:'Ranking · Gols',data:rankingVisualCard(players,'gols','Gols')}]}/>:location.pathname==='/conquistas'?<PlayerAchievements playerId="a" stats={players[0]}/>:<PlayerComparison viewerId="a" organizer={false} initialA="a" initialB="b"/>}</>);
 `);
 await build({entryPoints:[entry],outfile:join(output,'app.js'),bundle:true,jsx:'automatic',define:{'process.env':'{}'},tsconfig:resolve('tsconfig.json'),nodePaths:[resolve('node_modules')],plugins:[{name:'fixture',setup(b){
  b.onResolve({filter:/^@\/lib\/supabase\/client$/},()=>({path:client}));
@@ -54,7 +59,11 @@ else {
   await page.getByRole('button',{name:'Compartilhar',exact:true}).click();await page.getByRole('status').filter({hasText:'Use Salvar imagem'}).waitFor();
   await page.evaluate(()=>{Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});Object.defineProperty(navigator,'share',{configurable:true,value:async data=>{window.sharedFile={name:data.files[0].name,size:data.files[0].size,type:data.files[0].type};}});});
   await page.getByRole('button',{name:'Compartilhar',exact:true}).click();await page.getByRole('status').filter({hasText:'Imagem compartilhada.'}).waitFor();assert.equal((await page.evaluate(()=>window.sharedFile)).type,'image/png');
-  for(const route of ['/','/conquistas','/cards']){await page.goto(url+route);for(const [width,height] of [[360,800],[375,812],[390,844],[430,932],[1280,900]]){await page.setViewportSize({width,height});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${route} ${width}`);}}
+  await page.goto(url+'/notificacoes');await page.getByRole('link',{name:'Notificações, 2 não lidas',exact:true}).waitFor();assert.equal(await page.getByRole('link',{name:'Ver times'}).getAttribute('href'),'/rodadas/round-local?destino=teams');
+  await page.getByRole('button',{name:'Marcar como lida',exact:true}).first().click();await page.getByRole('status').filter({hasText:'Notificação lida.'}).waitFor();
+  await page.getByRole('button',{name:'Marcar todas como lidas'}).click();await page.getByRole('status').filter({hasText:'Todas as notificações'}).waitFor();assert.equal(await page.getByRole('button',{name:'Marcar como lida',exact:true}).count(),0);
+  await page.goto(url+'/notificacoes-indisponivel');await page.getByRole('alert').filter({hasText:'indisponível'}).waitFor();
+  for(const route of ['/','/conquistas','/cards','/notificacoes']){await page.goto(url+route);for(const [width,height] of [[360,800],[375,812],[390,844],[430,932],[1280,900]]){await page.setViewportSize({width,height});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${route} ${width}`);}}
   assert.deepEqual(errors,[]);console.log('OK: comparação, privacidade de atributos, conquistas e cinco larguras sem overflow.');
  }finally{await browser?.close();await new Promise(done=>server.close(done));}
 }

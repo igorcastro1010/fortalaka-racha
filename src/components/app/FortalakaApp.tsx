@@ -36,6 +36,7 @@ import { OwnRegistration } from "@/components/rounds/OwnRegistration";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { getEvaluationState, type EvaluationState } from "@/lib/ratings/repository";
 import { createClient } from "@/lib/supabase/client";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 type Tab = "home" | "racha" | "teams" | "evaluate" | "results" | "profile";
 
@@ -47,8 +48,8 @@ const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "results", label: "Resultados", icon: Trophy },
 ];
 
-export function FortalakaApp({ profile, initialPlayerId = null }: { profile: Profile; initialPlayerId?: string | null }) {
-  const [activeTab, setActiveTab] = useState<Tab>("home");
+export function FortalakaApp({ profile, initialPlayerId = null, initialTab = "home" }: { profile: Profile; initialPlayerId?: string | null; initialTab?: Tab }) {
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [publicPlayerId, setPublicPlayerId] = useState<string | null>(initialPlayerId);
   const [underlyingReady, setUnderlyingReady] = useState(!initialPlayerId);
   const origin = useRef<{ url: string; scroll: number; focus: HTMLElement | null } | null>(null);
@@ -56,6 +57,8 @@ export function FortalakaApp({ profile, initialPlayerId = null }: { profile: Pro
     function restore() {
       const match = window.location.pathname.match(/^\/perfil\/([^/]+)\/?$/);
       setPublicPlayerId(match ? match[1] : null);
+      const tab = new URLSearchParams(window.location.search).get('tab');
+      if (tab && ['home','racha','teams','evaluate','results','profile'].includes(tab)) setActiveTab(tab as Tab);
       if (!match) setUnderlyingReady(true);
       if (!match && origin.current) {
         const previous = origin.current;
@@ -80,6 +83,9 @@ export function FortalakaApp({ profile, initialPlayerId = null }: { profile: Pro
     setUnderlyingReady(true);
     if (publicPlayerId) { window.history.replaceState(window.history.state, "", origin.current?.url ?? "/"); setPublicPlayerId(null); }
     setActiveTab(tab);
+    const url = new URL(window.location.href);
+    url.pathname = '/'; url.search = ''; url.searchParams.set('tab', tab);
+    window.history.replaceState(window.history.state, '', url);
     window.scrollTo({ top: 0, behavior: "instant" });
   }
 
@@ -116,7 +122,7 @@ function AppHeader({ profile, onOpenProfile }: { profile: Profile; onOpenProfile
           <h1 className="text-[23px] font-black uppercase leading-none">Fortalaka</h1>
         </div>
       </div>
-      <ProfileButton profile={profile} onClick={onOpenProfile} />
+      <div className="flex shrink-0 items-center gap-2"><NotificationBell /><ProfileButton profile={profile} onClick={onOpenProfile} /></div>
     </header>
   );
 }

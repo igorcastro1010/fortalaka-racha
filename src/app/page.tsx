@@ -4,7 +4,7 @@ import { getCurrentUserProfile } from "@/lib/auth/get-profile";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   if (!isSupabaseConfigured()) {
     redirect("/login");
   }
@@ -21,5 +21,7 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  return <FortalakaApp profile={profile} />;
+  const { tab } = await searchParams;
+  const initialTab = typeof tab === 'string' && ['home','racha','teams','evaluate','results','profile'].includes(tab) ? tab as 'home' | 'racha' | 'teams' | 'evaluate' | 'results' | 'profile' : 'home';
+  return <FortalakaApp profile={profile} initialTab={initialTab} />;
 }
