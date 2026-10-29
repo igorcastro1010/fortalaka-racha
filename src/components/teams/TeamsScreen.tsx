@@ -181,6 +181,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
       return;
     }
 
+    if (!await confirm({ title: "Confirmar times?", description: "Os jogadores poderão consultar esta composição e as partidas poderão começar." })) return;
     setIsSaving(true);
 
     try {
