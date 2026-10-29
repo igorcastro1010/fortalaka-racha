@@ -6,6 +6,8 @@ import { getPlayerStatistics, type Match, type PlayerStatistics } from "@/lib/ma
 import { getRoundRatingLeaders, getRoundShareSummary, type RoundLeader } from "@/lib/results/round-share";
 import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { RoundShareCard } from "./RoundShareCard";
+import { VisualShareCard } from "./VisualShareCard";
+import { roundVisualCard } from "@/lib/results/visual-card";
 
 const singularUnits: Record<string, string> = { gols: "gol", assistências: "assistência", vitórias: "vitória" };
 const card = "fk-section border-b border-zinc-200 py-5";
@@ -89,5 +91,10 @@ export function PostRoundSummary({ roundId, date, matches, historical = false, p
       <ul className="mt-2 divide-y divide-zinc-100">{(participants ?? summary.players).map(player => <li key={player.id} className="flex items-center gap-3 py-2"><PlayerIdentity playerId={"registeredId" in player ? player.registeredId : player.id} name={player.name} avatarUrl={player.avatarUrl} size="sm" className="text-sm font-bold" /></li>)}</ul>
     </details> : null}
     <RoundShareCard roundId={roundId} source={source} summary={summary} compact />
+    {summary.matches.length > 0 && <VisualShareCard cards={[
+      { id: 'resultado', label: 'Resultado da rodada', data: roundVisualCard(summary, 'resultado') },
+      { id: 'artilharia', label: 'Artilharia', data: roundVisualCard(summary, 'artilharia') },
+      { id: 'destaques', label: 'Destaques da rodada', data: roundVisualCard(summary, 'destaques') },
+    ]} />}
   </section>;
 }

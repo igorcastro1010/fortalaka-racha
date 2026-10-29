@@ -7,6 +7,8 @@ import { Trophy } from "lucide-react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { rankingMetric, rankingOptions, sortRanking, type RankingSort } from "@/lib/players/ranking";
 import { PlayerAchievements } from "./PlayerAchievements";
+import { VisualShareCard } from "@/components/results/VisualShareCard";
+import { rankingVisualCard } from "@/lib/results/visual-card";
 
 function useStatistics(playerId?: string) {
   const [data, setData] = useState<PlayerStatistics[]>([]);
@@ -60,6 +62,7 @@ export function RankingScreen({ sort, onSortChange }: { sort: RankingSort; onSor
     <ReadStatus {...state} />
     <a href="/comparar" className="fk-secondary">Comparar jogadores</a>
     {!state.error && !state.loading && !state.data.length && <EmptyState icon={Trophy} title="O ranking começa em campo" description="O desempenho dos jogadores aparece aqui depois das partidas." />}
+    {!state.error && !state.loading && ranking.length > 0 && <VisualShareCard cards={[{ id: sort, label: `Ranking · ${activeLabel}`, data: rankingVisualCard(ranking, sort, activeLabel) }]} />}
     {!state.error && ranking.map((player, index) => {
       const metric = rankingMetric(player, sort);
       return <article key={player.jogador_id} className="min-w-0 border-b border-zinc-200 py-3">
