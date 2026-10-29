@@ -1,4 +1,5 @@
 import type { VisualCard } from './visual-card';
+import { wrapCardText } from './card-text';
 
 async function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise(resolve => {
@@ -27,18 +28,8 @@ export async function renderVisualCard(card: VisualCard): Promise<Blob> {
   ctx.font = 'bold 24px Arial'; ctx.fillStyle = '#b6b6be'; ctx.fillText('FUTEBOL ENTRE AMIGOS', shield ? 225 : 72, 180);
   const text = (value: string, x: number, y: number, maxWidth: number, size: number, maxLines = 2) => {
     ctx.font = `900 ${size}px Arial`;
-    const chars = [...value.replace(/\s+/g, ' ').trim()];
-    const lines: string[] = []; let line = '';
-    for (const char of chars) {
-      if (ctx.measureText(line + char).width > maxWidth && line) { lines.push(line.trim()); line = ''; }
-      line += char;
-    }
-    if (line) lines.push(line.trim());
-    for (let i = 0; i < Math.min(maxLines, lines.length); i++) {
-      let part = lines[i];
-      if (i === maxLines - 1 && lines.length > maxLines) { while (ctx.measureText(part + '…').width > maxWidth) part = part.slice(0, -1); part += '…'; }
-      ctx.fillText(part, x, y + i * (size + 10));
-    }
+    const lines = wrapCardText(value, maxWidth, text => ctx.measureText(text).width, maxLines);
+    lines.forEach((line, index) => ctx.fillText(line, x, y + index * (size + 10)));
   };
   ctx.fillStyle = '#ffffff'; text(card.title, 72, 315, 936, 64);
   ctx.font = 'bold 30px Arial'; ctx.fillStyle = '#b6b6be'; ctx.fillText(card.subtitle, 72, 454, 936);
