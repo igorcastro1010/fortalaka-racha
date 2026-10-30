@@ -55,6 +55,8 @@ else {
   await page.getByText('Algumas informações podem estar indisponíveis ou desatualizadas.').waitFor();
   await page.evaluate(()=>window.dispatchEvent(new Event('online')));
   await page.getByText('Conexão restaurada.',{exact:true}).waitFor();
+  const other=await context.newPage();await other.goto(url+'/private');
+  await other.evaluate(()=>{const input=document.createElement('input');input.setAttribute('aria-label','Rascunho local');input.value='alterações ainda não salvas';document.body.append(input);});
   await page.evaluate(()=>document.cookie='fixture=test; path=/');
   await page.request.post(url+'/test/update');await page.evaluate(async()=>{await (await navigator.serviceWorker.getRegistration()).update()});
   await page.getByRole('button',{name:'Atualizar e recarregar'}).waitFor();assert(await page.getByText('DADO PRIVADO FICTÍCIO',{exact:true}).isVisible());
@@ -72,6 +74,10 @@ else {
   await waitBrowser(async()=>{const r=await navigator.serviceWorker.getRegistration();return r.active?.state==='activated'&&!r.waiting});
   const cached=await page.evaluate(async()=>{const keys=await caches.keys();return Promise.all(keys.map(async key=>({key,urls:(await (await caches.open(key)).keys()).map(r=>new URL(r.url).pathname)})))});
   assert.equal(cached.length,1);assert(cached[0].key.endsWith('3'));assert(!cached[0].urls.includes('/private'));assert(!cached[0].urls.includes('/login'));
+  assert.equal(await other.getByRole('textbox',{name:'Rascunho local'}).inputValue(),'alterações ainda não salvas');
+  await other.getByRole('button',{name:'Atualizar e recarregar'}).waitFor();
+  const otherReload=other.waitForEvent('load');await other.getByRole('button',{name:'Atualizar e recarregar'}).click();await otherReload;
+  assert.equal(await other.getByRole('textbox',{name:'Rascunho local'}).count(),0);await other.close();
   await context.setOffline(true);await page.goto(url+'/private');await page.getByRole('heading',{name:'Você está sem conexão.'}).waitFor();assert.equal(await page.getByText('DADO PRIVADO FICTÍCIO',{exact:true}).count(),0);
   for(const [width,height] of [[360,800],[375,812],[390,844],[430,932],[1280,900]]){await page.setViewportSize({width,height});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);}
   await context.setOffline(false);await page.getByText(/Conexão restaurada/).waitFor();await page.getByRole('button',{name:'TENTAR NOVAMENTE'}).click();await page.getByText('DADO PRIVADO FICTÍCIO',{exact:true}).waitFor();
