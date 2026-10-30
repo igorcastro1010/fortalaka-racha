@@ -5,16 +5,18 @@ import { Users } from "lucide-react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { attributes } from "@/lib/ratings/summary";
+import { subscribeLiveRefresh } from '@/lib/live/refresh';
 import { getEvaluationState, saveEvaluation, type EvaluationPlayer, type EvaluationScores, type EvaluationState } from "@/lib/ratings/repository";
 
 const emptyScores: EvaluationScores = { passe: 3, chute: 3, velocidade: 3, defesa: 3, fisico: 3 };
 
-export function EvaluationScreen({ roundId, onStateChange, onReadStatusChange, refreshToken = 0 }: { roundId?: string; onStateChange?: (state: EvaluationState | null) => void; onReadStatusChange?: (status: { loading: boolean; error: string }) => void; refreshToken?: number }) {
+export function EvaluationScreen({ roundId, onStateChange, onReadStatusChange, refreshToken = 0, onEditingChange }: { roundId?: string; onStateChange?: (state: EvaluationState | null) => void; onReadStatusChange?: (status: { loading: boolean; error: string }) => void; refreshToken?: number; onEditingChange?: (editing: boolean) => void }) {
   const [state, setState] = useState<EvaluationState | null>(null);
   const [selected, setSelected] = useState<EvaluationPlayer | null>(null);
   const [scores, setScores] = useState<EvaluationScores>(emptyScores);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  useEffect(() => { onEditingChange?.(Boolean(selected) || saving); }, [selected, saving, onEditingChange]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const savingRef = useRef(false);
@@ -54,10 +56,8 @@ export function EvaluationScreen({ roundId, onStateChange, onReadStatusChange, r
       }
     }
     void read();
-    const onFocus = () => { void read(); };
-    window.addEventListener("focus", onFocus);
-    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void read(); }, 15000);
-    return () => { active = false; window.removeEventListener("focus", onFocus); window.clearInterval(timer); };
+    const unsubscribe = subscribeLiveRefresh(read);
+    return () => { active = false; unsubscribe(); };
   }, [roundId, onStateChange, onReadStatusChange, refreshToken]);
 
   const formArea = useRef<HTMLDivElement>(null);

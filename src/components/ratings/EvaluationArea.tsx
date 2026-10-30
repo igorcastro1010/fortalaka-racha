@@ -10,7 +10,8 @@ import { ViewTabs } from "@/components/ui/ViewTabs";
 import type { EvaluationState } from "@/lib/ratings/repository";
 
 export function EvaluationArea({ profile }: { profile: Profile }) {
-  const { round, loading, error, retry } = useCurrentRound();
+  const [editing, setEditing] = useState(false);
+  const { round, loading, error, retry } = useCurrentRound(!editing);
   const [view, setView] = useState<"avaliar" | "progresso">(isOrganizer(profile) && profile.active ? "progresso" : "avaliar");
   const [revision, setRevision] = useState(0);
   const [personal, setPersonal] = useState<EvaluationState | null>(null);
@@ -23,7 +24,7 @@ export function EvaluationArea({ profile }: { profile: Profile }) {
     {!loading && !error && round && <>
       <ViewTabs label="Visualização das avaliações" value={view} onChange={setView} items={[{ id: "avaliar", label: "Avaliar" }, { id: "progresso", label: "Progresso" }]} />
       <div hidden={view !== "avaliar"}>
-        <EvaluationScreen key={round.roundId} roundId={round.roundId} refreshToken={revision} onStateChange={setPersonal} onReadStatusChange={setReadStatus} />
+        <EvaluationScreen key={round.roundId} roundId={round.roundId} refreshToken={revision} onStateChange={setPersonal} onReadStatusChange={setReadStatus} onEditingChange={setEditing} />
       </div>
       <div hidden={view !== "progresso"} className="space-y-5">
         <details className="border-b border-zinc-200 pb-4"><summary className="min-h-11 cursor-pointer content-center text-sm font-bold focus-visible:outline-2 focus-visible:outline-red-600">Resumo da rodada</summary><div className="pt-3"><RoundSummary round={round} /></div></details>

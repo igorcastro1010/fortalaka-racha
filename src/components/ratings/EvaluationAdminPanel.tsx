@@ -3,6 +3,7 @@
 import { Star } from "lucide-react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { useEffect, useId, useRef, useState } from "react";
+import { subscribeLiveRefresh } from '@/lib/live/refresh';
 import { getEvaluationProgress, getEvaluationState, setRoundEvaluationsOpen, type EvaluationProgress, type EvaluationState } from "@/lib/ratings/repository";
 
 export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEvaluate, onUpdated, personalState, personalLoading = true, personalError = "" }: { roundId: string; organizer: boolean; roundStatus: string; onOpenEvaluate: (roundId: string) => void; onUpdated?: () => void; personalState?: EvaluationState | null; personalLoading?: boolean; personalError?: string }) {
@@ -43,11 +44,9 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
         if (active && currentRequest === readSequence.current) setError("Não foi possível carregar as avaliações. Tente novamente.");
       }
     }
-    const onFocus = () => { void refresh(); };
     void refresh();
-    window.addEventListener("focus", onFocus);
-    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 15000);
-    return () => { active = false; window.removeEventListener("focus", onFocus); window.clearInterval(timer); };
+    const unsubscribe = subscribeLiveRefresh(refresh);
+    return () => { active = false; unsubscribe(); };
   }, [roundId, roundStatus, organizer, sharedPersonal]);
 
   const open = organizer ? progress?.abertas : personal?.open;
