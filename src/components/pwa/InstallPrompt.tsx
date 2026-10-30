@@ -64,7 +64,7 @@ export function InstallPrompt() {
     } finally { pending.current = false; setBusy(false); }
   }
   if (hidden || (!prompt && !ios)) return null;
-  return <aside aria-label="Instalação do Fortalaka" className="mx-auto max-w-[640px] border-b border-zinc-200 bg-white px-5 py-3 text-neutral-950">
+  return <aside aria-label="Instalação do Fortalaka" className="mx-auto max-w-[640px] border-b border-zinc-200 bg-white px-5 py-3 text-neutral-950" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
     <p className="text-sm font-bold">Fortalaka na tela de início</p>
     <p className="mt-1 text-sm text-zinc-600">Abra o racha direto pelo ícone do aplicativo.</p>
     <div className="mt-2 flex flex-wrap gap-2">
