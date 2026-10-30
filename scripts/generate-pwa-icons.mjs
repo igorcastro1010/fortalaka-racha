@@ -17,7 +17,8 @@ for (const size of [192, 512]) {
 }
 await writeFile('public/pwa/apple-touch-icon.png', await icon(180, 0.86));
 const sizes = [16, 32, 48];
-const images = await Promise.all(sizes.map(size => icon(size, 0.92)));
+// O decoder ICO do Next.js exige PNG RGBA dentro do contêiner ICO.
+const images = await Promise.all(sizes.map(async size => sharp(await icon(size, 0.92)).ensureAlpha().png().toBuffer()));
 const header = Buffer.alloc(6 + sizes.length * 16);
 header.writeUInt16LE(1, 2); header.writeUInt16LE(sizes.length, 4);
 let offset = header.length;

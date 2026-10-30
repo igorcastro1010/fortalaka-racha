@@ -19,4 +19,5 @@ for (const [file, size, maskable] of [
   assert(darkPixels>size*size*.05,'Escudo visível e não vazio');
 }
 const favicon=readFileSync('src/app/favicon.ico');assert.equal(favicon.readUInt16LE(2),1);assert.equal(favicon.readUInt16LE(4),3);
+for(let i=0;i<3;i++){const entry=6+i*16;const size=favicon.readUInt32LE(entry+8),offset=favicon.readUInt32LE(entry+12);assert.equal((await sharp(favicon.subarray(offset,offset+size)).metadata()).hasAlpha,true,'PNG interno ICO precisa ser RGBA no Next.js');}
 console.log('OK: cinco PNGs, tamanhos, opacidade, escudo visível, safe circle maskable e favicon ICO.');
