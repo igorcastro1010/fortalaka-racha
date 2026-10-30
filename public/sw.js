@@ -1,7 +1,7 @@
 'use strict';
 
 // Incrementar ao mudar a página offline ou qualquer asset desta lista.
-const CACHE = 'fortalaka-pwa-v1';
+const CACHE = 'fortalaka-pwa-v2';
 const PUBLIC_ASSETS = [
   '/offline.html', '/pwa/offline.js', '/fortalaka-escudo.jpeg',
   '/pwa/icon-192.png', '/pwa/icon-512.png', '/pwa/maskable-192.png',
