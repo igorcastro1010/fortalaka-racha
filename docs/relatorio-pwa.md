@@ -43,7 +43,7 @@
 | 37. Hashes | Código revisado em `96ab1a6`; lista abaixo. SHA final publicado obtido por `git rev-parse HEAD`. |
 | 38. Push | OK: commits publicados em origin/master. |
 | 39. Git status | Só alterações anteriores preservadas em package.json/package-lock.json e skills locais; não incorporadas à entrega. |
-| 40. Deploy | Autorizado pelo pedido direto mais recente; aguardando execução após este relatório. Registro de resultado será acrescentado. |
+| 40. Deploy | SIM: produção READY, SHA conferido e smoke test público aprovado. O pedido direto mais recente substitui o “não fazer deploy” do anexo. |
 
 ## Evidências e limites
 
@@ -108,4 +108,13 @@ c53e53d recupera atualização após troca de worker ou falha
 e66f10e verifica recursos PWA e proteção de rotas no Next
 3dc64e7 documenta instalação e manutenção da PWA
 96ab1a6 preserva rascunhos em outra aba durante atualização
+416d937 registra validação completa e limites da PWA
 ```
+
+## Verificação pública da entrega
+
+Primeira implantação validada: `dpl_83YUVUFxty6xnaPNHvJet5c9yHpY`, produção READY, SHA `416d937c609cab023c8c0ff97dd231e5ce7fd7fa`, alias https://fortalaka-racha.vercel.app. O commit deste registro só altera este relatório; ele também será publicado como revisão final, com SHA/READY conferidos na resposta de entrega.
+
+`node tests/pwa-production.test.mjs https://fortalaka-racha.vercel.app` passou. Playwright MCP em produção confirmou manifest sem erros, scope e worker ativos, fallback de `/comparar` sem rede, retorno ao login após reconexão e cache `fortalaka-pwa-v2` com exatamente os oito recursos públicos. Sem login, submissões ou escrita de dados reais. Não há SQL pendente nem alteração de RLS.
+
+Total final: 18 commits desta PWA, incluindo este registro de publicação. Alterações anteriores de dependências/skills permaneceram locais e fora dos commits.
