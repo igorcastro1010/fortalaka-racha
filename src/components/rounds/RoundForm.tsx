@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { createRound, type RoundDetails } from "@/lib/rounds/repository";
 
-export function RoundForm({ round, onSaved }: { round?: RoundDetails; onSaved: () => Promise<void> }) {
+export function RoundForm({ round, onSaved, onEditingChange }: { round?: RoundDetails; onSaved: () => Promise<void>; onEditingChange?: (editing: boolean) => void }) {
   const [date, setDate] = useState(round?.date ?? "");
   const [time, setTime] = useState(round?.time?.slice(0, 5) ?? "20:00");
   const [address, setAddress] = useState(round?.address ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const dirty = date !== (round?.date ?? '') || time !== (round?.time?.slice(0, 5) ?? '20:00') || address !== (round?.address ?? '');
+  useEffect(() => { onEditingChange?.(dirty || busy); }, [dirty, busy, onEditingChange]);
+  useEffect(() => () => onEditingChange?.(false), [onEditingChange]);
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (busy) return;
     setBusy(true); setError("");
@@ -28,5 +31,6 @@ export function RoundForm({ round, onSaved }: { round?: RoundDetails; onSaved: (
     {[{ label: "Data", type: "date", value: date, change: setDate }, { label: "Horário", type: "time", value: time, change: setTime }, { label: "Endereço", type: "text", value: address, change: setAddress }].map(field => <label key={field.label} className="block text-sm font-bold">{field.label}<input required disabled={busy} type={field.type} value={field.value} onChange={event => field.change(event.target.value)} className="fk-field mt-2 min-w-0" /></label>)}
     {error && <p role="alert" className="text-sm font-bold text-red-700">{error}</p>}
     <button disabled={busy} className="fk-primary w-full">{busy ? "SALVANDO..." : round ? "SALVAR RODADA" : "CRIAR RODADA"}</button>
+    {dirty && <button type="button" disabled={busy} className="fk-secondary w-full" onClick={() => { setDate(round?.date ?? ''); setTime(round?.time?.slice(0, 5) ?? '20:00'); setAddress(round?.address ?? ''); }}>Descartar alterações</button>}
   </form>;
 }

@@ -15,8 +15,9 @@ export function ResultsScreen({ profile }: { profile: Profile }) {
   const [rankingSort, setRankingSort] = useState<RankingSort>("geral");
   const [startedRound, setStartedRound] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const onRoundStarted = useCallback((id: string) => setStartedRound(id), []);
-  const { round, loading, error, retry } = useCurrentRound();
+  const { round, loading, error, retry } = useCurrentRound(!editing);
 
   return <section className="space-y-3.5">
     <div><h2 className="text-[29px] font-black leading-tight">Resultados</h2><p className="mt-1 text-sm font-bold text-zinc-600">Partidas, placares e desempenho</p></div>
@@ -26,7 +27,7 @@ export function ResultsScreen({ profile }: { profile: Profile }) {
       <RoundLoadStatus loading={loading} error={error} empty={!round} retry={retry} />
       {!loading && !error && round && <>
         {!historyOpen && <RoundSummary round={round.status === "times_confirmados" && startedRound === round.roundId ? { ...round, status: "em_andamento" } : round} />}
-        <MatchesPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} roundDate={round.date} onRoundStarted={onRoundStarted} onHistoryViewChange={setHistoryOpen} organizer={isOrganizer(profile) && profile.active} />
+        <MatchesPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} roundDate={round.date} onRoundStarted={onRoundStarted} onHistoryViewChange={setHistoryOpen} onEditingChange={setEditing} organizer={isOrganizer(profile) && profile.active} />
       </>}
     </div>
   </section>;

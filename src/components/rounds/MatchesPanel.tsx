@@ -9,10 +9,11 @@ import { PostRoundSummary } from "@/components/results/PostRoundSummary";
 import { RoundHistory } from "@/components/results/RoundHistory";
 import { ViewTabs } from "@/components/ui/ViewTabs";
 import { useConfirmation } from "@/components/ui/useConfirmation";
+import { useLiveRefresh } from '@/components/live/useLiveRefresh';
 
 const button = "fk-secondary min-h-11 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-bold disabled:opacity-50";
 
-export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null, onFinalizedCountChange, onRoundStarted, onHistoryViewChange }: {
+export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null, onFinalizedCountChange, onRoundStarted, onHistoryViewChange, onEditingChange }: {
   roundId: string;
   organizer: boolean;
   roundStatus: string;
@@ -20,6 +21,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   onRoundStarted?: (roundId: string) => void;
   onFinalizedCountChange?: (roundId: string, count: number | null) => void;
   onHistoryViewChange?: (history: boolean) => void;
+  onEditingChange?: (editing: boolean) => void;
 }) {
   const [state, setState] = useState<MatchesState>({ times: [], partidas: [] });
   const [loading, setLoading] = useState(true);
@@ -27,10 +29,17 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
+  const readSequence = useRef(0);
   const { confirm, confirmationDialog } = useConfirmation();
   const [teamA, setTeamA] = useState("");
   const [teamB, setTeamB] = useState("");
   const [draft, setDraft] = useState<Match | null>(null);
+  useEffect(() => { onEditingChange?.(Boolean(draft) || busy); }, [draft, busy, onEditingChange]);
+  useLiveRefresh(async isCurrent => {
+    const request = ++readSequence.current;
+    const data = await getRoundMatches(roundId);
+    if (isCurrent() && request === readSequence.current) { setState(data); setError(''); }
+  }, !loading && !busy && !draft, `${roundId}:${roundStatus}`);
   const [goalLimitTeam, setGoalLimitTeam] = useState<string | null>(null);
   const [view, setView] = useState<"auto" | "live" | "history" | "summary">("auto");
   const [historyDetailOpen, setHistoryDetailOpen] = useState(false);
@@ -49,11 +58,12 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
 
   useEffect(() => {
     let active = true;
+    const request = ++readSequence.current;
     getRoundMatches(roundId).then(data => {
-      if (active) { setState(data); setError(""); }
+      if (active && request === readSequence.current) { setState(data); setError(""); }
     }).catch(e => {
       console.error("Falha ao carregar partidas", e);
-      if (active) setError("Não foi possível carregar as partidas. Tente novamente.");
+      if (active && request === readSequence.current) setError("Não foi possível carregar as partidas. Tente novamente.");
     }).finally(() => {
       if (active) setLoading(false);
     });
@@ -71,6 +81,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
 
   async function refreshMatches() {
     if (busy || draft) return;
+    ++readSequence.current;
     setBusy(true); setError("");
     try { setState(await getRoundMatches(roundId)); }
     catch (e) { console.error("Falha ao atualizar partidas", e); setError("Não foi possível atualizar as partidas. Tente novamente."); }
@@ -79,6 +90,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
 
   async function create(next = false) {
     if (!canCreate || busy) return;
+    ++readSequence.current;
     if (!next && teamA === teamB) {
       setError("Escolha dois times diferentes.");
       return;
@@ -117,6 +129,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
     if (status === "cancelada" && !await confirm({ title: "Cancelar partida?", description: "Esta partida deixará de contar nas estatísticas." })) return;
 
     saving.current = true;
+    ++readSequence.current;
     setBusy(true);
     setError("");
     setMessage("");
@@ -140,6 +153,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
     if (match.status === "finalizada" && !await confirm({ title: "Editar resultado?", description: "Alterar uma partida finalizada pode modificar o ranking." })) {
       return;
     }
+    ++readSequence.current;
     setDraft(structuredClone(match));
     setView("live");
     setError("");

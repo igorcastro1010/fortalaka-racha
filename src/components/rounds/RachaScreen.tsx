@@ -21,6 +21,7 @@ import {
   type RoundDetails,
 } from "@/lib/rounds/repository";
 import { createClient } from "@/lib/supabase/client";
+import { useLiveRefresh } from '@/components/live/useLiveRefresh';
 import { updateRoundStatus, type RoundParticipant } from "@/lib/teams/repository";
 
 export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOpenResults?: () => void }) {
@@ -36,7 +37,12 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [editingRound, setEditingRound] = useState(false);
   const { confirm, confirmationDialog } = useConfirmation();
+  useLiveRefresh(async isCurrent => {
+    const data = await getCurrentRoundDetails(createClient());
+    if (isCurrent()) { setRound(data); setError(''); }
+  }, !isLoading && !isSaving && !confirmFinish && !editingRound);
 
   const [matchSummary, setMatchSummary] = useState<{ roundId: string; count: number | null } | null>(null);
   const onFinalizedCountChange = useCallback((roundId: string, count: number | null) => {
@@ -265,12 +271,12 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
       {error ? <Feedback tone="error" text={error} /> : null}
       {message ? <Feedback tone="success" text={message} /> : null}
 
-      {!isLoading && !round && organizer && <RoundForm onSaved={loadRound} />}
+      {!isLoading && !round && organizer && <RoundForm onSaved={loadRound} onEditingChange={setEditingRound} />}
       {!isLoading && !round && !organizer && <Feedback tone="neutral" text="Nenhuma rodada cadastrada. Aguarde um organizador." />}
       {round && <RoundSummary round={round} />}
       {organizer && <ViewTabs label="Áreas do racha" value={view} onChange={setView} items={[{ id: "lista", label: "Lista" }, { id: "gestao", label: "Gestão" }]} />}
       {round && <OwnRegistration key={round.roundId} round={round} profile={profile} onUpdated={loadRound} />}
-      {round && organizer && view === "gestao" && <details className="border-y border-zinc-200 py-2"><summary className="min-h-11 cursor-pointer content-center text-sm font-bold">{round.status === "finalizado" ? "CRIAR PRÓXIMA RODADA" : "EDITAR DADOS DA RODADA"}</summary><RoundForm key={`${round.roundId}-${round.status}`} round={round.status === "finalizado" ? undefined : round} onSaved={loadRound} /></details>}
+      {round && organizer && view === "gestao" && <details className="border-y border-zinc-200 py-2"><summary className="min-h-11 cursor-pointer content-center text-sm font-bold">{round.status === "finalizado" ? "CRIAR PRÓXIMA RODADA" : "EDITAR DADOS DA RODADA"}</summary><RoundForm key={`${round.roundId}-${round.status}-${round.date}-${round.time}-${round.address}`} round={round.status === "finalizado" ? undefined : round} onSaved={loadRound} onEditingChange={setEditingRound} /></details>}
 
       {round ? (
         <>

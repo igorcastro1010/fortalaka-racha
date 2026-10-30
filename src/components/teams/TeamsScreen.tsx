@@ -9,6 +9,7 @@ import { ViewTabs } from "@/components/ui/ViewTabs";
 import { useConfirmation } from "@/components/ui/useConfirmation";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
+import { useLiveRefresh } from '@/components/live/useLiveRefresh';
 import { drawTeams, getTeamCount, hasCompleteTeams, swapPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
 import { confirmTeams, getCurrentRoundTeamsState, saveDraftTeams, type RoundStatus, type RoundTeamsState } from "@/lib/teams/repository";
 
@@ -28,6 +29,14 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const { confirm, confirmationDialog } = useConfirmation();
+  useLiveRefresh(async isCurrent => {
+    const state = await fetchRoundTeamsState();
+    if (isCurrent()) {
+      setRoundState(state);
+      setDraw(state?.teams.length ? { teams: state.teams } : null);
+      setError('');
+    }
+  }, !isLoading && !isSaving && !adjustMode && !selectedPlayerId);
 
   useEffect(() => {
     let isMounted = true;
