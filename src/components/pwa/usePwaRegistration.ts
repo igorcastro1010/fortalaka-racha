@@ -7,6 +7,7 @@ export function usePwaRegistration() {
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
   const accepted = useRef(false);
+  const timeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production' || !('serviceWorker' in navigator) || !window.isSecureContext) return;
     let active = true;
@@ -51,6 +52,7 @@ export function usePwaRegistration() {
     else window.addEventListener('load', start, { once: true });
     return () => {
       active = false;
+      clearTimeout(timeout.current);
       window.removeEventListener('load', start);
       window.removeEventListener('focus', check);
       window.removeEventListener('online', check);
@@ -60,12 +62,25 @@ export function usePwaRegistration() {
       watched.forEach((listener, worker) => worker.removeEventListener('statechange', listener));
     };
   }, []);
-  function update() {
+  async function update() {
     if (!waiting || accepted.current) return;
     if (!navigator.onLine) { setError('Conecte-se à internet antes de atualizar.'); return; }
     accepted.current = true; setUpdating(true); setError('');
-    if (waiting.state === 'activated') window.location.reload();
-    else waiting.postMessage({ type: 'SKIP_WAITING' });
+    try {
+      // Outra aba ou publicação pode ter substituído o worker exibido no aviso.
+      const current = await navigator.serviceWorker.getRegistration();
+      const worker = current?.waiting;
+      if (!worker && current?.active?.state === 'activated') { window.location.reload(); return; }
+      if (!worker || worker.state === 'redundant') throw new Error('Worker indisponível');
+      worker.postMessage({ type: 'SKIP_WAITING' });
+      timeout.current = setTimeout(() => {
+        accepted.current = false; setUpdating(false);
+        setError('A atualização não terminou. Tente novamente quando estiver conectado.');
+      }, 15000);
+    } catch {
+      accepted.current = false; setUpdating(false);
+      setError('Não foi possível atualizar agora. Tente novamente.');
+    }
   }
   return { waiting, updating, error, update };
 }
