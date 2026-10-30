@@ -10,6 +10,16 @@ Gestão de futebol amador: da inscrição na rodada ao sorteio dos times, result
 
 [![Verificações](https://github.com/igorcastro1010/fortalaka-racha/actions/workflows/ci.yml/badge.svg)](https://github.com/igorcastro1010/fortalaka-racha/actions/workflows/ci.yml)
 
+## Vídeo de apresentação
+
+Conheça o fluxo de jogador e organizador: lista de participantes, sorteio dos times, placar, avaliações, ranking e instalação no celular.
+
+<p align="center"><a href="https://github.com/igorcastro1010/fortalaka-racha/blob/master/assets/videos/apresentacao-fortalaka.mp4"><img src="assets/videos/capa.png" alt="Assistir ao vídeo de apresentação do Racha Fortalaka" width="320"></a></p>
+
+[**▶ Assistir ao vídeo**](https://github.com/igorcastro1010/fortalaka-racha/blob/master/assets/videos/apresentacao-fortalaka.mp4) · [Baixar MP4](https://raw.githubusercontent.com/igorcastro1010/fortalaka-racha/master/assets/videos/apresentacao-fortalaka.mp4) · [Legendas em português](assets/videos/legendas.srt)
+
+Vídeo vertical em Full HD, com 1min29 e narração sintética em português. Capturas da interface real em ambiente local com dados fictícios; não representam cadastros ou resultados de produção.
+
 ## Funcionalidades em tela
 
 Capturas de demonstração local com dados fictícios, atualizadas em 28/10/2026. Não representam dados de produção. [Como foram produzidas](docs/capturas-demonstracao.md).
