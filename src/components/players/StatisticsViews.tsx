@@ -9,11 +9,16 @@ import { rankingMetric, rankingOptions, sortRanking, type RankingSort } from "@/
 import { PlayerAchievements } from "./PlayerAchievements";
 import { VisualShareCard } from "@/components/results/VisualShareCard";
 import { rankingVisualCard } from "@/lib/results/visual-card";
+import { useLiveRefresh } from '@/components/live/useLiveRefresh';
 
 function useStatistics(playerId?: string) {
   const [data, setData] = useState<PlayerStatistics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  useLiveRefresh(async isCurrent => {
+    const rows = await getPlayerStatistics(playerId);
+    if (isCurrent()) { setData(rows); setError(''); }
+  }, !loading, playerId);
   const reload = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -35,8 +40,7 @@ function useStatistics(playerId?: string) {
       }
     };
     void read();
-    window.addEventListener("focus", read);
-    return () => { active = false; window.removeEventListener("focus", read); };
+    return () => { active = false; };
   }, [playerId]);
   return { data, loading, error, reload };
 }

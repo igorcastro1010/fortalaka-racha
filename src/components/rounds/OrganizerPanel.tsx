@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, RefreshCw, ShieldCheck } from "lucide-react";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import type { RoundDetails } from "@/lib/rounds/repository";
@@ -9,6 +9,7 @@ import { getCurrentRoundTeamsState, type RoundTeamsState } from "@/lib/teams/rep
 import { getEvaluationProgress, type EvaluationProgress } from "@/lib/ratings/repository";
 import { buildOrganizerOverview, type OrganizerDestination } from "@/lib/rounds/organizer-overview";
 import { createClient } from "@/lib/supabase/client";
+import { useLiveRefresh } from '@/components/live/useLiveRefresh';
 import { RoundProgress } from "./RoundProgress";
 
 type Props = {
@@ -39,12 +40,19 @@ function dateLabel(value: string | null) {
 }
 
 function OrganizerRoundPanel({ round, matches, matchesError, loading, onRefresh, onNavigate }: Props & { round: RoundDetails }) {
+  const readSequence = useRef(0);
   const [snapshot, setSnapshot] = useState<{ round: RoundDetails; teams: RoundTeamsState | null; evaluations: EvaluationProgress | null; errors: string[] } | null>(null);
+  useLiveRefresh(async isCurrent => {
+    const request = ++readSequence.current;
+    const [teams, evaluations] = await Promise.all([getCurrentRoundTeamsState(createClient(), round), getEvaluationProgress(round.roundId)]);
+    if (isCurrent() && request === readSequence.current) setSnapshot({ round, teams, evaluations, errors: [] });
+  }, !loading, round.roundId);
   useEffect(() => {
     let active = true;
+    const request = ++readSequence.current;
     // Reaproveita a rodada da Home: não relê participantes, perfis ou avatares.
     Promise.allSettled([getCurrentRoundTeamsState(createClient(), round), getEvaluationProgress(round.roundId)]).then(([teams, evaluations]) => {
-      if (!active) return;
+      if (!active || request !== readSequence.current) return;
       setSnapshot({ round, teams: teams.status === "fulfilled" ? teams.value : null,
         evaluations: evaluations.status === "fulfilled" ? evaluations.value : null,
         errors: [teams.status === "rejected" ? "Não foi possível atualizar os times." : "", evaluations.status === "rejected" ? "Não foi possível atualizar as avaliações." : ""].filter(Boolean) });

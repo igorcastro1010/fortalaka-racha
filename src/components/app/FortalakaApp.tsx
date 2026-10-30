@@ -1,4 +1,5 @@
 "use client";
+import { useLiveRefresh } from '@/components/live/useLiveRefresh';
 
 import {
   CalendarDays,
@@ -134,18 +135,26 @@ function ProfileButton({ profile, onClick }: { profile: Profile; onClick: () => 
 function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpenTeams, onOpenProfile }: { profile: Profile; onOpenRacha: () => void; onOpenEvaluate: () => void; onOpenResults: () => void; onOpenTeams: () => void; onOpenProfile: () => void }) {
   const { round, loading, error, retry } = useCurrentRound();
   const [matches, setMatches] = useState<{ roundId: string; roundStatus: RoundDetails["status"]; revision: RoundDetails | null; data: MatchesState | null; error: string } | null>(null);
+  const matchReads = useRef(0);
   const organizer = isOrganizer(profile) && profile.active;
   const roundId = round?.roundId;
   const roundStatus = round?.status;
   // Atualizações de inscrição do jogador não precisam reler partidas.
   const matchesRevision = organizer ? round : null;
+  useLiveRefresh(async isCurrent => {
+    if (!roundId || !roundStatus) return;
+    const request = ++matchReads.current;
+    const data = await getRoundMatches(roundId);
+    if (isCurrent() && request === matchReads.current) setMatches({ roundId, roundStatus, revision: matchesRevision, data, error: '' });
+  }, !loading && Boolean(roundId), JSON.stringify(round));
   useEffect(() => {
     if (!roundId || !roundStatus) return;
     let active = true;
+    const request = ++matchReads.current;
     getRoundMatches(roundId).then(data => {
       if (data.roundStatus && data.roundStatus !== roundStatus) throw new Error("A rodada mudou durante a consulta. Atualize o painel.");
-      if (active) setMatches({ roundId, roundStatus, revision: matchesRevision, data, error: "" });
-    }).catch(() => { if (active) setMatches({ roundId, roundStatus, revision: matchesRevision, data: null, error: "Não foi possível atualizar as partidas." }); });
+      if (active && request === matchReads.current) setMatches({ roundId, roundStatus, revision: matchesRevision, data, error: "" });
+    }).catch(() => { if (active && request === matchReads.current) setMatches({ roundId, roundStatus, revision: matchesRevision, data: null, error: "Não foi possível atualizar as partidas." }); });
     return () => { active = false; };
   }, [roundId, roundStatus, matchesRevision]);
   const currentMatches = matches?.roundId === roundId && matches?.roundStatus === roundStatus && matches?.revision === matchesRevision ? matches : null;
@@ -191,13 +200,20 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
 
 function HomeEvaluationCard({ onOpenEvaluate }: { onOpenEvaluate: () => void }) {
   const [state, setState] = useState<EvaluationState | null>(null);
+  const reads = useRef(0);
+  useLiveRefresh(async isCurrent => {
+    const request = ++reads.current;
+    const data = await getEvaluationState();
+    if (isCurrent() && request === reads.current) setState(data);
+  });
 
   useEffect(() => {
     let active = true;
+    const request = ++reads.current;
     getEvaluationState().then(data => {
-      if (active) setState(data);
+      if (active && request === reads.current) setState(data);
     }).catch(() => {
-      if (active) setState(null);
+      if (active && request === reads.current) setState(null);
     });
     return () => { active = false; };
   }, []);
