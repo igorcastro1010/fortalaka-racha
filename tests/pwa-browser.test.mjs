@@ -33,7 +33,7 @@ else {
  let browser;
  try {
   browser=await chromium.launch({headless:true,channel:'chrome'});const context=await browser.newContext();
-  const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const page=await context.newPage();async function waitBrowser(predicate){for(let n=0;n<150;n++){if(await page.evaluate(predicate)===true)return;await new Promise(done=>setTimeout(done,100));}throw new Error('Estado assíncrono do navegador não alcançado');}const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(url+'/private');await page.waitForFunction(()=>navigator.serviceWorker.controller);
   const cdp=await context.newCDPSession(page);await cdp.send('Page.enable');
   const appManifest=await cdp.send('Page.getAppManifest');assert.equal(appManifest.errors.length,0);assert.equal(JSON.parse(appManifest.data).display,'standalone');
@@ -58,10 +58,20 @@ else {
   await page.evaluate(()=>document.cookie='fixture=test; path=/');
   await page.request.post(url+'/test/update');await page.evaluate(async()=>{await (await navigator.serviceWorker.getRegistration()).update()});
   await page.getByRole('button',{name:'Atualizar e recarregar'}).waitFor();assert(await page.getByText('DADO PRIVADO FICTÍCIO',{exact:true}).isVisible());
-  const changed=page.waitForEvent('load');await page.getByRole('button',{name:'Atualizar e recarregar'}).click();await changed;
-  await page.waitForFunction(async()=>{const r=await navigator.serviceWorker.getRegistration();return r.active?.state==='activated'&&!r.waiting});
+  await page.evaluate(()=>{window.originalGetRegistration=navigator.serviceWorker.getRegistration.bind(navigator.serviceWorker);navigator.serviceWorker.getRegistration=async()=>{throw new Error('Falha local de atualização')};});
+  await page.getByRole('button',{name:'Atualizar e recarregar'}).click();
+  await page.getByText('Não foi possível atualizar agora. Tente novamente.').waitFor();
+  assert.equal(await page.getByRole('button',{name:'Atualizar e recarregar'}).isEnabled(),true);
+  await page.evaluate(()=>{navigator.serviceWorker.getRegistration=window.originalGetRegistration;});
+  await waitBrowser(async()=>{const r=await navigator.serviceWorker.getRegistration();return r.waiting?.state==='installed';});
+  await page.evaluate(async()=>{window.previousWaiting=(await navigator.serviceWorker.getRegistration()).waiting;});
+  await page.request.post(url+'/test/update');
+  await page.evaluate(async()=>{await(await navigator.serviceWorker.getRegistration()).update();});
+  await waitBrowser(async()=>{const r=await navigator.serviceWorker.getRegistration();return r.waiting!==window.previousWaiting&&r.waiting?.state==='installed';});
+  await waitBrowser(async()=> (await caches.keys()).includes('fortalaka-pwa-test-3'));const changed=page.waitForEvent('load');await page.getByRole('button',{name:'Atualizar e recarregar'}).click();await changed;
+  await waitBrowser(async()=>{const r=await navigator.serviceWorker.getRegistration();return r.active?.state==='activated'&&!r.waiting});
   const cached=await page.evaluate(async()=>{const keys=await caches.keys();return Promise.all(keys.map(async key=>({key,urls:(await (await caches.open(key)).keys()).map(r=>new URL(r.url).pathname)})))});
-  assert.equal(cached.length,1);assert(cached[0].key.endsWith('2'));assert(!cached[0].urls.includes('/private'));assert(!cached[0].urls.includes('/login'));
+  assert.equal(cached.length,1);assert(cached[0].key.endsWith('3'));assert(!cached[0].urls.includes('/private'));assert(!cached[0].urls.includes('/login'));
   await context.setOffline(true);await page.goto(url+'/private');await page.getByRole('heading',{name:'Você está sem conexão.'}).waitFor();assert.equal(await page.getByText('DADO PRIVADO FICTÍCIO',{exact:true}).count(),0);
   for(const [width,height] of [[360,800],[375,812],[390,844],[430,932],[1280,900]]){await page.setViewportSize({width,height});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);}
   await context.setOffline(false);await page.getByText(/Conexão restaurada/).waitFor();await page.getByRole('button',{name:'TENTAR NOVAMENTE'}).click();await page.getByText('DADO PRIVADO FICTÍCIO',{exact:true}).waitFor();
@@ -83,5 +93,3 @@ else {
   assert.deepEqual(errors,[]);console.log('OK: manifest CDP, SW/scope, instalação/recusa, orientação iOS, standalone, atualização explícita, limpeza de cache, offline/restauração, logout sem HTML privado, cinco viewports.');
  }finally{await browser?.close();server.closeAllConnections();await new Promise(done=>server.close(done));}
 }
-
-
