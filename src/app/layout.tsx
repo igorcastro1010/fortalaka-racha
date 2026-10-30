@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -14,12 +14,17 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Racha Fortalaka",
-  description: "Sistema mobile-first para organizar o racha de quinta-feira.",
+  description: "App oficial do Racha Fortalaka.",
+  applicationName: "Racha Fortalaka",
+  appleWebApp: { capable: true, title: "FORTALAKA", statusBarStyle: "default" },
   icons: {
-    icon: "/fortalaka-escudo.jpeg",
-    shortcut: "/fortalaka-escudo.jpeg",
-    apple: "/app-icon.jpeg",
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/pwa/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width', initialScale: 1, viewportFit: 'cover', themeColor: '#171717',
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
