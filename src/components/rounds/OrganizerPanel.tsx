@@ -44,8 +44,11 @@ function OrganizerRoundPanel({ round, matches, matchesError, loading, onRefresh,
   const [snapshot, setSnapshot] = useState<{ round: RoundDetails; teams: RoundTeamsState | null; evaluations: EvaluationProgress | null; errors: string[] } | null>(null);
   useLiveRefresh(async isCurrent => {
     const request = ++readSequence.current;
-    const [teams, evaluations] = await Promise.all([getCurrentRoundTeamsState(createClient(), round), getEvaluationProgress(round.roundId)]);
-    if (isCurrent() && request === readSequence.current) setSnapshot({ round, teams, evaluations, errors: [] });
+    const [teams, evaluations] = await Promise.allSettled([getCurrentRoundTeamsState(createClient(), round), getEvaluationProgress(round.roundId)]);
+    if (isCurrent() && request === readSequence.current) setSnapshot({ round,
+      teams: teams.status === 'fulfilled' ? teams.value : null,
+      evaluations: evaluations.status === 'fulfilled' ? evaluations.value : null,
+      errors: [teams.status === 'rejected' ? 'Não foi possível atualizar os times.' : '', evaluations.status === 'rejected' ? 'Não foi possível atualizar as avaliações.' : ''].filter(Boolean) });
   }, !loading, round.roundId);
   useEffect(() => {
     let active = true;

@@ -62,6 +62,22 @@ try{
  assert(await a.getByRole('button',{name:'Salvar',exact:true}).isVisible());
  await a.getByRole('button',{name:'Fechar edicao sem salvar',exact:true}).click();
  await a.getByText('Rodada nova isolada',{exact:true}).waitFor({timeout:12000});
+ // Falha de avaliações não pode prender o painel enquanto a leitura inicial é lenta.
+ let releaseTeams,heldTeams=false;
+ await a.route('**/api',async route=>{
+   const body=route.request().postDataJSON();
+   if(body.name==='ler_progresso_avaliacoes'){
+     await route.fulfill({json:{data:null,error:{message:'Falha local de avaliações'}}});return;
+   }
+   if(body.name==='ler_times_rodada'&&!heldTeams){
+     heldTeams=true;const response=await route.fetch();await new Promise(done=>{releaseTeams=done});await route.fulfill({response});return;
+   }
+   await route.continue();
+ });
+ await nav(a,'Início');
+ await a.getByText('Não foi possível atualizar as avaliações.',{exact:false}).waitFor({timeout:12000});
+ assert.equal(await a.getByRole('region',{name:'Painel do Organizador'}).getAttribute('aria-busy'),'false');
+ releaseTeams();await a.unrouteAll({behavior:'wait'});
  assert.equal(await b.evaluate(()=>performance.getEntriesByType('navigation').length),1);
  assert.deepEqual(errors,[]);
  console.log('OK: sessões sincronizadas sem reload, formulário e placar preservados, resposta antiga descartada e nova rodada sincroniza após fechar edição.');
