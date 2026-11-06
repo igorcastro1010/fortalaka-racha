@@ -48,6 +48,10 @@ if(process.argv.includes('--history')) {
   if(i<10)await db.query('select public.finalizar_rodada($1)',[rid]);
  }
 }
+if(process.argv.includes('--payments')) {
+ await db.exec(readFileSync('supabase/correcao-inscricao-lista.sql','utf8'));
+ await db.exec(readFileSync('supabase/pagamentos.sql','utf8'));
+}
 const output=mkdtempSync(join(tmpdir(),'fortalaka-validation-'));
 const client=join(output,'client.ts');
 writeFileSync(client,`
@@ -91,6 +95,7 @@ async function api(input){
   if(input.kind==='user')data={id:uid};
   else if(input.kind==='rpc'){
    const specs={inscricao_rodada:['p_racha','p_tipo','p_entrar'],criar_proxima_partida:['p_racha','p_versao'],medias_jogador:['p_jogador'],ler_avaliacoes_atual:['p_racha'],ler_progresso_avaliacoes:['p_racha'],alterar_avaliacoes_rodada:['p_racha','p_abertas'],salvar_avaliacao:['p_racha','p_avaliado','p_passe','p_chute','p_velocidade','p_defesa','p_fisico'],finalizar_rodada:['p_racha'],ler_estatisticas_jogadores:['p_jogador'],ler_partidas_rodada:['p_racha'],criar_partida:['p_racha','p_time_a','p_time_b'],salvar_partida:['p_partida','p_versao','p_placar_a','p_placar_b','p_status','p_jogadores'],ler_times_rodada:[],avatars_da_rodada:['p_racha'],alterar_estado_rodada:['p_racha','p_estado'],salvar_rascunho_times:['p_racha','p_versao','p_times'],confirmar_rascunho_times:['p_racha','p_versao']};
+   if(process.argv.includes('--payments')) Object.assign(specs,{inscricao_rodada:['p_racha','p_tipo','p_entrar','p_forma_pagamento'],alterar_forma_pagamento:['p_participante','p_forma_pagamento'],atualizar_pagamento:['p_participante','p_status','p_valor']});
    const keys=specs[input.name];if(!keys)throw Error('RPC inválida');const values=keys.map(k=>['p_times','p_jogadores'].includes(k)?JSON.stringify(input.args[k]):input.args[k]);
    const rows=(await db.query('select * from public.'+input.name+'('+values.map((_,i)=>'$'+(i+1)).join(',')+')',values)).rows;
    data=['avatars_da_rodada','ler_estatisticas_jogadores','medias_jogador'].includes(input.name)?rows:rows[0]?.[input.name];
@@ -98,6 +103,7 @@ async function api(input){
    if(input.name==='medias_jogador')data=rows.map(row=>({...row,...Object.fromEntries(['passe','chute','velocidade','defesa','fisico'].map(key=>[key,row[key]===null?null:Number(row[key])]))}));
   }else if(input.kind==='table'){
    const fields={profiles:['id','name','email','avatar_url','role','active'],rachas:['id','nome','data','estado','horario','endereco','versao','created_at'],racha_participantes:['id','racha_id','jogador_id','nome','tipo','status','created_at'],times:['id','racha_id','nome','numero','confirmado','ativo']};
+   if(process.argv.includes('--payments')) {fields.racha_participantes.push('forma_pagamento','status_pagamento','valor_pagamento');fields.configuracoes_pagamento=['id','chave_pix','titular','banco'];}
    if(!fields[input.table])throw Error('Tabela inválida');const params=[];const clauses=(input.filters??[]).filter(([k])=>k!=='partidas.status').map(([k,v])=>{if(!fields[input.table].includes(k))throw Error('Campo inválido');params.push(v);return k+'=$'+params.length;});const where=clauses.length?' where '+clauses.join(' and '):'';
    let sql='select '+fields[input.table].join(',')+' from public.'+input.table+where;
    if(input.op==='insert'){const keys=Object.keys(input.value);if(keys.some(k=>!fields[input.table].includes(k)))throw Error('Campo inválido');sql='insert into public.'+input.table+'('+keys.join(',')+') values('+keys.map(k=>{params.push(input.value[k]);return '$'+params.length}).join(',')+') returning *';}

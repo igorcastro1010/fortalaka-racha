@@ -1,11 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DrawTeam, TeamPlayer } from "@/lib/teams/draw";
 import { getCurrentRoundDetails, type RoundDetails } from "@/lib/rounds/repository";
+import type { PaymentMethod, PaymentStatus } from "@/lib/payments/summary";
 
 export type RoundParticipant = TeamPlayer & {
   jogadorId: string | null;
   type: "goleiro" | "linha" | "suplente";
   status: "confirmado" | "ausente" | "removido";
+  paymentMethod?: PaymentMethod | null;
+  paymentStatus?: PaymentStatus;
+  paymentAmount?: number | null;
 };
 
 export type RoundStatus = "aberto" | "lista_fechada" | "times_confirmados" | "em_andamento" | "finalizado";

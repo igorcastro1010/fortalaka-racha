@@ -34,6 +34,7 @@ import { OrganizerPanel } from "@/components/rounds/OrganizerPanel";
 import { getRoundParticipantCounts } from "@/lib/rounds/organizer-overview";
 import type { RoundDetails } from "@/lib/rounds/repository";
 import { OwnRegistration } from "@/components/rounds/OwnRegistration";
+import { PixSettingsForm } from "@/components/rounds/PixSettingsForm";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { getEvaluationState, type EvaluationState } from "@/lib/ratings/repository";
 import { createClient } from "@/lib/supabase/client";
@@ -265,6 +266,7 @@ function ProfileScreen({ profile }: { profile: Profile }) {
       <div hidden={view === "stats"}><PlayerPerformance profile={profile} view={view === "ratings" ? "ratings" : "overview"} /></div>
       <div hidden={view === "ratings"}><PlayerStatisticsCard playerId={profile.id} /></div>
       <div hidden={view !== "overview"}><ProfilePhoto profile={profile} /></div>
+      {view === "overview" && isOrganizer(profile) && profile.active && <PixSettingsForm />}
 
       <button
         onClick={handleSignOut}

@@ -34,7 +34,8 @@ const server=createServer(async(request,response)=>{
     await new Promise(done=>setTimeout(done,200));response.setHeader('Content-Type','application/json');
     if(url.searchParams.has('fail')){response.statusCode=400;response.end(JSON.stringify({error:{code:'42P10',message:technical}}));return;}
     const actor=url.searchParams.get('actor')||'player';
-    participants.set(actor,{id:actor,jogadorId:actor,name:actor==='player'?'Jogador teste':'Outro jogador',status:args.p_entrar?'confirmado':'removido',type:'linha'});
+    if(args.p_entrar)assert(['pix','dinheiro'].includes(args.p_forma_pagamento));
+    participants.set(actor,{id:actor,jogadorId:actor,name:actor==='player'?'Jogador teste':'Outro jogador',status:args.p_entrar?'confirmado':'removido',type:'linha',paymentMethod:args.p_forma_pagamento??participants.get(actor)?.paymentMethod,paymentStatus:'pendente'});
     response.end(JSON.stringify({error:null}));return;
   }
   response.setHeader('Content-Type',url.pathname==='/app.js'?'text/javascript':url.pathname==='/app.css'?'text/css':'text/html; charset=utf-8');
@@ -47,12 +48,15 @@ try {
   page.setDefaultTimeout(5000);
   await page.addInitScript(() => { window.confirm = () => false; });
   const base=`http://127.0.0.1:${server.address().port}`;
-  await page.goto(base+'/?fail=1');await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).click();
+  await page.goto(base+'/?fail=1');await page.getByRole('radio',{name:'Dinheiro',exact:true}).check();await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).click();
   await page.getByRole('alert').waitFor();assert.equal(await page.getByRole('alert').textContent(),'Não foi possível entrar na lista. Tente novamente.');
   assert(!(await page.locator('body').textContent()).includes(technical));assert.equal(participants.size,0);
-  assert(consoleErrors.some(message=>message.includes(technical)),'Erro tecnico permanece no console');
+  assert(consoleErrors.some(message=>message.includes('Falha ao atualizar')),'Log de erro com codigo sem payload pessoal');
+  assert(!consoleErrors.some(message=>message.includes(technical)),'Payload tecnico nao e registrado');
   await page.goto(base);await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).waitFor();
   assert.equal(await page.getByLabel('Contador').textContent(),'0 participantes');const before=requests;
+  assert(await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).isDisabled());
+  await page.getByRole('radio',{name:'Dinheiro',exact:true}).check();
   await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).evaluate(button=>{button.click();button.click();});
   const pending=page.getByRole('button',{name:'ENTRANDO...',exact:true});await pending.waitFor();assert(await pending.isDisabled());
   await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).waitFor();
@@ -90,8 +94,8 @@ try {
   await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).waitFor();
   assert.equal(requests, beforeLeave + 1);
   assert.equal(await page.getByLabel('Contador').textContent(),'0 participantes');
-  await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).click();await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).waitFor();assert.equal(participants.size,1);
-  await page.goto(base+'/?actor=other');await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).click();await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).waitFor();
+  await page.getByRole('radio',{name:'Dinheiro',exact:true}).check();await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).click();await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).waitFor();assert.equal(participants.size,1);
+  await page.goto(base+'/?actor=other');await page.getByRole('radio',{name:'Dinheiro',exact:true}).check();await page.getByRole('button',{name:'ENTRAR NA LISTA',exact:true}).click();await page.getByRole('button',{name:'SAIR DA LISTA',exact:true}).waitFor();
   assert.equal(await page.getByLabel('Contador').textContent(),'2 participantes');
   roundStatus='lista_fechada';await page.reload();
   await page.getByText('Lista fechada para inscrições e saídas.').waitFor();

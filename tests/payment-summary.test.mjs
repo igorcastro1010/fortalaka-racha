@@ -1,0 +1,21 @@
+// node tests/payment-summary.test.mjs <deps com esbuild>
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { resolve, join } from 'node:path';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+const { build } = createRequire(resolve(process.argv[2], 'package.json'))('esbuild');
+const output = join(mkdtempSync(join(tmpdir(), 'fortalaka-payment-')), 'summary.cjs');
+await build({ entryPoints: ['src/lib/payments/summary.ts'], outfile: output, bundle: true, platform: 'node', format: 'cjs' });
+const { buildFinancialSummary, parseAmount, money } = createRequire(import.meta.url)(output);
+const player = (paymentStatus, paymentAmount, status = 'confirmado') => ({ paymentStatus, paymentAmount, status });
+assert.deepEqual(buildFinancialSummary([]), { received: 0, pending: 0, collectedCents: 0, pendingCents: 0, withoutAmount: 0 });
+assert.deepEqual(buildFinancialSummary([player('pendente', null), player('pendente', 12.35), player('recebido', 10.1), player('recebido', 0.2), player('pendente', 50, 'removido'), player('recebido', 5, 'removido')]), { received: 3, pending: 2, collectedCents: 1530, pendingCents: 1235, withoutAmount: 1 });
+assert.equal(buildFinancialSummary([player('recebido', null)]).collectedCents, 0);
+assert.equal(buildFinancialSummary([player('recebido', null)]).received, 0);
+assert.equal(parseAmount('12,50'), 12.5);
+assert.equal(parseAmount('0'), 0);
+assert.equal(parseAmount(''), null);
+for (const invalid of ['-1', '1.234', 'NaN', 'Infinity', '1e3', '2x']) assert.throws(() => parseAmount(invalid));
+assert.equal(money(1235).includes('12,35'), true);
+console.log('PASS resumo: somente recebimentos reais; pendencias ativas; centavos exatos; valores nao cadastrados e entradas invalidas');

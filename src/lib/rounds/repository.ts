@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RoundParticipant, RoundStatus } from "@/lib/teams/repository";
 import { createClient } from "@/lib/supabase/client";
+import type { PaymentMethod, PaymentStatus } from "@/lib/payments/summary";
 
 export type RoundDetails = {
   roundId: string;
@@ -10,6 +11,7 @@ export type RoundDetails = {
   time: string | null;
   address: string | null;
   participants: RoundParticipant[];
+  paymentsAvailable?: boolean;
 };
 
 export type PlayerProfileOption = {
@@ -34,6 +36,9 @@ type ParticipantRow = {
   nome: string;
   tipo: RoundParticipant["type"];
   status: RoundParticipant["status"];
+  forma_pagamento?: PaymentMethod | null;
+  status_pagamento?: PaymentStatus;
+  valor_pagamento?: number | null;
 };
 
 type ProfileRow = {
@@ -56,12 +61,22 @@ export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<
   if (roundError) throw roundError;
   if (!round) return null;
 
-  const { data: participants, error: participantsError } = await supabase
+  let { data: participants, error: participantsError } = await supabase
     .from("racha_participantes")
-    .select("id, jogador_id, nome, tipo, status")
+    .select("id, jogador_id, nome, tipo, status, forma_pagamento, status_pagamento, valor_pagamento")
     .eq("racha_id", round.id)
     .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
     .returns<ParticipantRow[]>();
+
+  const paymentsAvailable = !participantsError;
+  if (participantsError && ["42703", "PGRST204"].includes(participantsError.code) && /forma_pagamento|status_pagamento|valor_pagamento/.test(participantsError.message)) {
+    // Preserve read-only app flows until the paired database migration is applied.
+    const fallback = await supabase.from("racha_participantes").select("id, jogador_id, nome, tipo, status")
+      .eq("racha_id", round.id).order("created_at", { ascending: true }).order("id", { ascending: true }).returns<ParticipantRow[]>();
+    participants = fallback.data;
+    participantsError = fallback.error;
+  }
 
   if (participantsError) {
     throw participantsError;
@@ -78,6 +93,7 @@ export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<
     date: round.data,
     time: round.horario,
     address: round.endereco,
+    paymentsAvailable,
     participants: (participants ?? []).map((participant) => ({
       id: participant.id,
       jogadorId: participant.jogador_id,
@@ -85,6 +101,9 @@ export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<
       avatarUrl: avatarById.get(participant.jogador_id ?? "") ?? null,
       type: participant.tipo,
       status: participant.status,
+      paymentMethod: participant.forma_pagamento ?? null,
+      paymentStatus: participant.status_pagamento ?? "pendente",
+      paymentAmount: participant.valor_pagamento == null ? null : Number(participant.valor_pagamento),
     })),
   };
 }
@@ -150,16 +169,25 @@ export async function addRoundParticipant(supabase: SupabaseClient, input: {
   player: PlayerProfileOption;
   type: RoundParticipant["type"];
   status: RoundParticipant["status"];
+  paymentMethod: PaymentMethod;
+  listOpen: boolean;
 }) {
-  const existing = await supabase.from("racha_participantes").select("id").eq("racha_id", input.roundId).eq("jogador_id", input.player.id).maybeSingle<{ id: string }>();
+  const existing = await supabase.from("racha_participantes").select("id, forma_pagamento").eq("racha_id", input.roundId).eq("jogador_id", input.player.id).maybeSingle<{ id: string; forma_pagamento: PaymentMethod | null }>();
   if (existing.error) throw existing.error;
-  if (existing.data) return updateRoundParticipant(supabase, existing.data.id, { type: input.type, status: input.status });
+  if (existing.data) {
+    const method = input.listOpen ? input.paymentMethod : existing.data.forma_pagamento;
+    if (!method) throw new Error("Reabra a lista para selecionar uma forma de pagamento desta inscrição.");
+    const { error } = await supabase.from("racha_participantes").update({ tipo: input.type, status: input.status, forma_pagamento: method }).eq("id", existing.data.id);
+    if (error) throw new Error("Não foi possível atualizar a inscrição.");
+    return;
+  }
   const { error } = await supabase.from("racha_participantes").insert({
     racha_id: input.roundId,
     jogador_id: input.player.id,
     nome: input.player.name,
     tipo: input.type,
     status: input.status,
+    forma_pagamento: input.paymentMethod,
   });
 
   if (error) {
@@ -192,12 +220,14 @@ export async function removeRoundParticipant(supabase: SupabaseClient, participa
   }
 }
 
-export async function setOwnRegistration(roundId: string, join: boolean) {
+export async function setOwnRegistration(roundId: string, join: boolean, paymentMethod?: PaymentMethod | null, paymentsAvailable = true) {
+  if (join && paymentMethod !== "pix" && paymentMethod !== "dinheiro") throw new Error("Selecione PIX ou Dinheiro.");
+  if (join && !paymentsAvailable) throw new Error("Inscrições temporariamente indisponíveis.");
   try {
-    const { error } = await createClient().rpc("inscricao_rodada", { p_racha: roundId, p_tipo: "linha", p_entrar: join });
+    const { error } = await createClient().rpc("inscricao_rodada", { p_racha: roundId, p_tipo: "linha", p_entrar: join, ...(paymentsAvailable ? { p_forma_pagamento: paymentMethod ?? null } : {}) });
     if (error) throw error;
   } catch (error) {
-    console.error("Falha ao atualizar inscrição da rodada", error);
+    console.error("Falha ao atualizar inscrição da rodada", { code: typeof error === "object" && error !== null && "code" in error ? error.code : "UNKNOWN" });
     throw new Error(join ? "Não foi possível entrar na lista. Tente novamente." : "Não foi possível sair da lista. Tente novamente.");
   }
 }

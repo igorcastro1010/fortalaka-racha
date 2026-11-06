@@ -8,6 +8,10 @@ import { useConfirmation } from "@/components/ui/useConfirmation";
 import { getRoundMatches } from "@/lib/matches/repository";
 import { RoundForm } from "./RoundForm";
 import { OwnRegistration } from "./OwnRegistration";
+import { PaymentChoice } from "./PaymentChoice";
+import { RoundFinance } from "./RoundFinance";
+import { changePaymentMethod } from "@/lib/payments/repository";
+import { paymentMethodLabel, type PaymentMethod } from "@/lib/payments/summary";
 import { LoadingCards, EmptyState } from "@/components/ui/ScreenState";
 import { RoundSummary } from "./RoundSummary";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
@@ -30,6 +34,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
   const [round, setRound] = useState<RoundDetails | null>(null);
   const [profiles, setProfiles] = useState<PlayerProfileOption[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState("");
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod | null>(null);
   const [selectedType, setSelectedType] = useState<RoundParticipant["type"]>("linha");
   const [selectedStatus, setSelectedStatus] = useState<RoundParticipant["status"]>("confirmado");
   const [isLoading, setIsLoading] = useState(true);
@@ -121,12 +126,15 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
   const availableProfiles = profiles.filter((player) => {
     return !(round?.participants ?? []).some((participant) => participant.jogadorId === player.id && participant.status !== "removido");
   });
+  const previousPayment = round?.status !== "aberto" ? round?.participants.find(player => player.jogadorId === selectedProfileId)?.paymentMethod : null;
+  const effectivePayment = previousPayment ?? selectedPayment;
 
   async function handleAddParticipant() {
     const player = availableProfiles.find((profileOption) => profileOption.id === selectedProfileId);
 
-    if (!round || !player) {
-      setError("Selecione um jogador cadastrado.");
+    if (isSaving) return;
+    if (!round || !player || !effectivePayment) {
+      setError("Selecione um jogador cadastrado e uma forma de pagamento.");
       return;
     }
 
@@ -141,8 +149,11 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
         player,
         type: selectedType,
         status: selectedStatus,
+        paymentMethod: effectivePayment,
+        listOpen: round.status === "aberto",
       });
       setSelectedProfileId("");
+      setSelectedPayment(null);
       await loadRound();
     } catch {
       setError("Nao foi possivel adicionar o jogador. Confira se ele ja esta na rodada.");
@@ -188,6 +199,14 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function handlePaymentMethod(participant: RoundParticipant, method: PaymentMethod) {
+    if (isSaving) return;
+    setIsSaving(true); setError(""); setMessage("");
+    try { await changePaymentMethod(participant.id, method); await loadRound(); setMessage("Forma de pagamento atualizada."); }
+    catch { setError("Não foi possível alterar a forma de pagamento. Confira se a lista está aberta."); }
+    finally { setIsSaving(false); }
   }
 
   async function handleCloseList() {
@@ -277,6 +296,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
       {organizer && <ViewTabs label="Áreas do racha" value={view} onChange={setView} items={[{ id: "lista", label: "Lista" }, { id: "gestao", label: "Gestão" }]} />}
       {round && <OwnRegistration key={round.roundId} round={round} profile={profile} onUpdated={loadRound} />}
       {round && organizer && view === "gestao" && <details className="border-y border-zinc-200 py-2"><summary className="min-h-11 cursor-pointer content-center text-sm font-bold">{round.status === "finalizado" ? "CRIAR PRÓXIMA RODADA" : "EDITAR DADOS DA RODADA"}</summary><RoundForm key={`${round.roundId}-${round.status}-${round.date}-${round.time}-${round.address}`} round={round.status === "finalizado" ? undefined : round} onSaved={loadRound} onEditingChange={setEditingRound} /></details>}
+      {round && round.paymentsAvailable !== false && organizer && view === "gestao" && <RoundFinance participants={round.participants} onUpdated={loadRound} />}
 
       {round ? (
         <>
@@ -321,9 +341,11 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
                   <option value="removido">Removido</option>
                 </select>
               </div>
+              <PaymentChoice value={effectivePayment} onChange={setSelectedPayment} disabled={isSaving || Boolean(previousPayment)} />
+              {previousPayment && <p className="text-sm text-zinc-600">Lista fechada: a forma de pagamento cadastrada será preservada.</p>}
               <button
                 onClick={handleAddParticipant}
-                disabled={isSaving || !selectedProfileId}
+                disabled={isSaving || !selectedProfileId || !effectivePayment || round.paymentsAvailable === false}
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-red-600 text-sm font-black uppercase tracking-normal text-white shadow-md shadow-red-600/20 transition hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Plus size={18} />
@@ -387,6 +409,9 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
             editable={organizer && view === "gestao" && round.status !== "finalizado"}
             onUpdate={handleUpdateParticipant}
             onRemove={handleRemoveParticipant}
+            paymentEditable={organizer && view === "gestao" && round.status === "aberto"}
+            busy={isSaving}
+            onPaymentMethod={handlePaymentMethod}
           />
           <ParticipantSection
             title="Suplentes"
@@ -394,6 +419,9 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
             editable={organizer && view === "gestao" && round.status !== "finalizado"}
             onUpdate={handleUpdateParticipant}
             onRemove={handleRemoveParticipant}
+            paymentEditable={organizer && view === "gestao" && round.status === "aberto"}
+            busy={isSaving}
+            onPaymentMethod={handlePaymentMethod}
           />
         </>
       ) : null}
@@ -407,12 +435,18 @@ function ParticipantSection({
   editable,
   onUpdate,
   onRemove,
+  paymentEditable,
+  busy,
+  onPaymentMethod,
 }: {
   title: string;
   participants: RoundParticipant[];
   editable: boolean;
   onUpdate: (participant: RoundParticipant, field: "type" | "status", value: string) => void;
   onRemove: (participant: RoundParticipant) => void;
+  paymentEditable: boolean;
+  busy: boolean;
+  onPaymentMethod: (participant: RoundParticipant, method: PaymentMethod) => void;
 }) {
   return (
     <Card>
@@ -429,6 +463,7 @@ function ParticipantSection({
               <div className={`min-w-0 flex-1 ${editable ? "pr-11" : ""}`}>
                 <PlayerIdentity playerId={participant.jogadorId} name={participant.name} avatarUrl={participant.avatarUrl} size="md" className="text-sm [&>span]:font-black" />
                 <div className="mt-1 ml-12 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-bold text-zinc-500"><span>{getParticipantStatusLabel(participant.status)}</span><span>{participant.type === "suplente" ? "Suplente" : "Participante"}</span></div>
+                <p className="mt-1 ml-12 text-xs font-bold text-zinc-700">{paymentMethodLabel(participant.paymentMethod)} · {participant.paymentStatus === "recebido" ? "Recebido" : "Pendente"}</p>
               </div>
             </div>
             {editable ? (
@@ -454,7 +489,8 @@ function ParticipantSection({
                   <option value="ausente">Ausente</option>
                   <option value="removido">Removido</option>
                 </select>
-                <button onClick={() => onRemove(participant)} className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white text-xs font-black text-red-600 transition hover:bg-red-50"><Trash2 size={15} /> Remover da rodada</button>
+                {paymentEditable && <label className="col-span-2 text-xs font-bold">Forma de pagamento<select aria-label={`Forma de pagamento de ${participant.name}`} className="fk-field mt-1" value={participant.paymentMethod ?? ""} disabled={busy} onChange={event => onPaymentMethod(participant, event.target.value as PaymentMethod)}><option value="" disabled>Não informada</option><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option></select></label>}
+                <button disabled={busy} onClick={() => onRemove(participant)} className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white text-xs font-black text-red-600 transition hover:bg-red-50"><Trash2 size={15} /> Remover da rodada</button>
               </div>
               </details>
             ) : null}
