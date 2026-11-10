@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, CheckCheck } from 'lucide-react';
+import { PushSettings } from './PushSettings';
 import { getNotifications, markNotificationsRead, notificationHref, type AppNotification } from '@/lib/notifications/repository';
 
 export function NotificationCenter() {
@@ -51,6 +52,6 @@ export function NotificationCenter() {
     <ul className="divide-y divide-zinc-200">{rows.map(row => <li key={row.id} className="min-w-0 space-y-2 py-4"><div className="flex items-start gap-3"><Bell size={18} aria-hidden="true" className="mt-1 shrink-0 text-red-700" /><div className="min-w-0 flex-1"><h2 className="break-words text-base font-black">{row.title}</h2><p className="mt-1 break-words text-sm text-zinc-600">{row.body}</p><p className="mt-2 text-xs text-zinc-600"><time dateTime={row.created_at}>{new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Fortaleza' }).format(new Date(row.created_at))}</time> · {row.read_at ? 'Lida' : 'Não lida'}</p></div></div><div className="flex flex-wrap gap-2"><a href={notificationHref(row)} className="fk-secondary">{{ racha: 'Ver racha', teams: 'Ver times', results: 'Ver resultados', evaluate: 'Ver avaliações', profile: 'Ver conquistas' }[row.destination]}</a>{!row.read_at && <button onClick={() => mark([row.id])} disabled={busy || loading} className="fk-tertiary">Marcar como lida</button>}</div></li>)}</ul>
     {hasMore && <button onClick={() => load(rows.length)} disabled={loading || busy} className="fk-secondary w-full">Carregar mais avisos</button>}
     {message && <p role="status" className="text-sm text-zinc-600">{message}</p>}
-    <p className="fk-section text-xs text-zinc-600">Avisos disponíveis dentro do app. Push no celular ainda não está ativado.</p>
+    <PushSettings />
   </section>;
 }

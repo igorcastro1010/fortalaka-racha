@@ -10,7 +10,7 @@ import { spawn } from 'node:child_process';
 const dependencies = createRequire(resolve(process.argv[2], 'package.json'));
 const { build } = dependencies('esbuild');
 const { JSDOM } = dependencies('jsdom');
-const fixture = spawn(process.execPath, ['tests/preview-sorteio.mjs', process.argv[2], process.argv[2], '--app'], { stdio: ['ignore', 'pipe', 'inherit'] });
+const fixture = spawn(process.execPath, ['tests/preview-sorteio.mjs', process.argv[2], process.argv[2], '--app', '--payments'], { stdio: ['ignore', 'pipe', 'inherit'] });
 const originalFetch = globalThis.fetch;
 const requests=[];
 globalThis.fetch=async(input,options)=>{
@@ -62,6 +62,11 @@ try {
     await waitFor(()=>button(name) && !button(name).disabled);
     await act(async()=>button(name).click());
   }
+  async function selectMoney() {
+    const radio = [...document.querySelectorAll('input[type="radio"]')].find(input => input.closest('label')?.textContent.includes('Dinheiro'));
+    assert(radio, 'Selecao de pagamento obrigatoria disponivel');
+    await act(async () => radio.click());
+  }
   async function mount(role) {
     if(root) await act(async()=>root.unmount());
     window?.close();
@@ -90,9 +95,11 @@ try {
   await click('SAIR DA LISTA');
   await click('Confirmar');
   await waitFor(()=>button('ENTRAR NA LISTA'));
+  await selectMoney();
   await click('ENTRAR NA LISTA');
   await waitFor(()=>button('SAIR DA LISTA'));
   await click('SAIR DA LISTA');await click('Confirmar');await waitFor(()=>button('ENTRAR NA LISTA'));
+  await selectMoney();
   await click('ENTRAR NA LISTA');
   await waitFor(()=>button('SAIR DA LISTA'));
   assert.equal(requests.filter(r=>r.name==='ler_partidas_rodada').length,1,'Inscrições do jogador não disparam leituras extras de partidas');

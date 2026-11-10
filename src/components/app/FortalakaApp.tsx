@@ -39,6 +39,7 @@ import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { getEvaluationState, type EvaluationState } from "@/lib/ratings/repository";
 import { createClient } from "@/lib/supabase/client";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { cleanupPushOnLogout } from "@/lib/notifications/push";
 
 type Tab = "home" | "racha" | "teams" | "evaluate" | "results" | "profile";
 
@@ -250,12 +251,21 @@ function ProfileScreen({ profile }: { profile: Profile }) {
   const router = useRouter();
   const [view, setView] = useState<"overview" | "stats" | "ratings">("overview");
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
   async function handleSignOut() {
+    if (isSigningOut) return;
     setIsSigningOut(true);
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.replace("/login");
-    router.refresh();
+    setSignOutError('');
+    try { await cleanupPushOnLogout(); } catch { /* Push indisponível não pode impedir sair da conta. */ }
+    try {
+      const { error } = await createClient().auth.signOut();
+      if (error) throw error;
+      router.replace("/login");
+      router.refresh();
+    } catch {
+      setSignOutError('Não foi possível sair da conta. Tente novamente.');
+      setIsSigningOut(false);
+    }
   }
 
   return (
@@ -268,6 +278,7 @@ function ProfileScreen({ profile }: { profile: Profile }) {
       <div hidden={view !== "overview"}><ProfilePhoto profile={profile} /></div>
       {view === "overview" && isOrganizer(profile) && profile.active && <PixSettingsForm />}
 
+      {signOutError && <p role="alert" className="text-sm text-red-700">{signOutError}</p>}
       <button
         onClick={handleSignOut}
         disabled={isSigningOut}
