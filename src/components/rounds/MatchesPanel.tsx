@@ -10,6 +10,7 @@ import { RoundHistory } from "@/components/results/RoundHistory";
 import { ViewTabs } from "@/components/ui/ViewTabs";
 import { useConfirmation } from "@/components/ui/useConfirmation";
 import { useLiveRefresh } from '@/components/live/useLiveRefresh';
+import { LiveMatchScoring } from './LiveMatchScoring';
 
 const button = "fk-secondary min-h-11 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-bold disabled:opacity-50";
 
@@ -137,7 +138,8 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
     const tieDescription = waiting.length >= 2 ? "Empate: saem os dois times e entram os próximos dois da fila. Confirmar?"
       : waiting.length === 1 ? "O vencedor dos pênaltis permanece; o próximo time da fila entra. O placar continua empatado."
       : "Empate sem times aguardando: os dois permanecem, sem pênaltis.";
-    if ((!confirmed || decidingTie) && status === "finalizada" && draft.status !== "finalizada" && !await confirm({ title: "Finalizar partida?", description: decidingTie ? tieDescription : "Depois de finalizada, as estatísticas entrarão no ranking." })) {
+    const resultSummary = `${draft.timeA} ${draft.placarA} × ${draft.placarB} ${draft.timeB}. Gols individuais: ${sumGoals(draft, draft.timeAId)} e ${sumGoals(draft, draft.timeBId)}. `;
+    if ((!confirmed || decidingTie) && status === "finalizada" && draft.status !== "finalizada" && !await confirm({ title: "Finalizar partida?", description: resultSummary + (decidingTie ? tieDescription : "Depois de finalizada, as estatísticas entrarão no ranking.") })) {
       return;
     }
     if (status === "cancelada" && !await confirm({ title: "Cancelar partida?", description: "Esta partida deixará de contar nas estatísticas." })) return;
@@ -198,15 +200,15 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
     {loading && <LoadingCards label="Carregando partidas..." />}
     {error && <div role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700"><p>{error}</p><button className={`${button} mt-2`} disabled={busy} onClick={refreshMatches}>Atualizar partidas</button></div>}
     {message && <p role="status" className="border-l-2 border-red-600 py-2 pl-3 text-sm text-zinc-800">{message}</p>}
-    {activeView === "live" && (state.fila || currentMatch) && (["times_confirmados", "em_andamento", "finalizado"].includes(currentStatus)) && !loading && !error && <div className="space-y-4 rounded-lg bg-neutral-950 p-4 text-white">
+    {activeView === "live" && !draft && (state.fila || currentMatch) && (["times_confirmados", "em_andamento", "finalizado"].includes(currentStatus)) && !loading && !error && <div className="space-y-4 rounded-lg bg-neutral-950 p-4 text-white">
       <p className="text-xs font-black uppercase text-red-400">{currentMatch ? "EM CAMPO" : currentStatus === "finalizado" ? "FILA PRESERVADA" : "PRÓXIMA PARTIDA"}</p>
       {currentMatch ? <>
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-center">
-          <div className="min-w-0"><p className="break-words text-xs font-bold text-zinc-300">{currentMatch.timeA}</p><p className="mt-2 text-6xl font-black tabular-nums">{draft?.id === currentMatch.id ? draft.placarA : currentMatch.placarA}</p></div>
+          <div className="min-w-0"><p className="break-words text-xs font-bold text-zinc-300">{currentMatch.timeA}</p><p className="mt-2 text-6xl font-black tabular-nums">{currentMatch.placarA}</p></div>
           <span className="text-lg font-bold text-zinc-500">×</span>
-          <div className="min-w-0"><p className="break-words text-xs font-bold text-zinc-300">{currentMatch.timeB}</p><p className="mt-2 text-6xl font-black tabular-nums">{draft?.id === currentMatch.id ? draft.placarB : currentMatch.placarB}</p></div>
+          <div className="min-w-0"><p className="break-words text-xs font-bold text-zinc-300">{currentMatch.timeB}</p><p className="mt-2 text-6xl font-black tabular-nums">{currentMatch.placarB}</p></div>
         </div>
-        {organizer && draft?.id !== currentMatch.id && <button disabled={busy} onClick={() => editMatch(currentMatch)} className="min-h-12 w-full rounded-lg bg-red-600 px-3 text-xs font-black disabled:opacity-50">LANÇAR PLACAR E EVENTOS</button>}
+        {organizer && <button disabled={busy} onClick={() => editMatch(currentMatch)} className="min-h-12 w-full rounded-lg bg-red-600 px-3 text-xs font-black disabled:opacity-50">LANÇAR PLACAR E EVENTOS</button>}
       </> : <p className="break-words text-center text-lg font-black">{state.fila?.order.slice(0, 2).map(teamName).join(" x ") || "Confirme os times"}</p>}
       {(currentMatch ? waiting : waiting.slice(2)).length > 0 && <div className="border-t border-white/15 pt-3">
         <p className="text-xs font-black uppercase text-zinc-300">Próximos</p>
@@ -260,7 +262,8 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
       {organizer && <button disabled={busy} onClick={() => editMatch(match)} className={`${button} mt-2 w-full`}>{match.status === "finalizada" ? "Editar resultado" : "Editar partida"}</button>}
     </article>)}</details>}
 
-    {activeView === "live" && organizer && draft && <div className="fk-panel order-1 space-y-4 rounded-lg border border-zinc-200 bg-white p-3">
+    {activeView === "live" && organizer && draft?.status === "aberta" && <LiveMatchScoring key={draft.id} match={draft} roundId={roundId} disabled={busy} penaltyRequired={needsPenalties} penaltyWinner={penaltyWinner} onPenaltyWinner={setPenaltyWinner} onSaved={data => { setState(data); setDraft(data.partidas.find(item => item.id === draft.id && item.status === "aberta") ?? null); setError(""); }} onFinish={() => void save("finalizada")} onClose={() => setDraft(null)} onCancel={() => void save("cancelada")} onGoalLimit={setGoalLimitTeam} />}
+    {activeView === "live" && organizer && draft && draft.status !== "aberta" && <div className="fk-panel order-1 space-y-4 rounded-lg border border-zinc-200 bg-white p-3">
       <div>
         <p className="text-xs font-black uppercase text-red-700">Lançamento</p>
         <h4 className="text-base font-black">{draft.timeA} x {draft.timeB}</h4>
