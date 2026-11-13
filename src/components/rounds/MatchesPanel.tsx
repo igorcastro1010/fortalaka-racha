@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createMatch, createNextMatch, getRoundMatches, saveMatch, type Match, type MatchPlayer, type MatchesState } from "@/lib/matches/repository";
-import { Minus, Plus, Trophy } from "lucide-react";
+import { createMatch, createNextMatch, getRoundMatches, saveMatch, type Match, type MatchesState } from "@/lib/matches/repository";
+import { Trophy } from "lucide-react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { PostRoundSummary } from "@/components/results/PostRoundSummary";
@@ -14,7 +14,7 @@ import { LiveMatchScoring } from './LiveMatchScoring';
 
 const button = "fk-secondary min-h-11 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-bold disabled:opacity-50";
 
-export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null, onFinalizedCountChange, onRoundStarted, onHistoryViewChange, onEditingChange, showRoundHistory = true }: {
+export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null, onFinalizedCountChange, onRoundStarted, onHistoryViewChange, onEditingChange, showRoundHistory = true, initialView = "auto" }: {
   roundId: string;
   organizer: boolean;
   roundStatus: string;
@@ -24,6 +24,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   onHistoryViewChange?: (history: boolean) => void;
   onEditingChange?: (editing: boolean) => void;
   showRoundHistory?: boolean;
+  initialView?: "auto" | "live" | "history" | "summary";
 }) {
   const [state, setState] = useState<MatchesState>({ times: [], partidas: [] });
   const [loading, setLoading] = useState(true);
@@ -44,9 +45,9 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
     if (isCurrent() && request === readSequence.current) { setState(data); setError(''); }
   }, !loading && !busy && !draft, `${roundId}:${roundStatus}`);
   const [goalLimitTeam, setGoalLimitTeam] = useState<string | null>(null);
-  const [view, setView] = useState<"auto" | "live" | "history" | "summary">("auto");
+  const [view, setView] = useState<"auto" | "live" | "history" | "summary">(initialView);
   const [historyDetailOpen, setHistoryDetailOpen] = useState(false);
-  const [historyMatchesExpanded, setHistoryMatchesExpanded] = useState(false);
+  const [historyMatchesExpanded, setHistoryMatchesExpanded] = useState(initialView === "history");
   const [historicalEdit, setHistoricalEdit] = useState<{ id: string; date: string | null } | null>(null);
   const goalDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -177,21 +178,12 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
     setMessage("");
   }
 
-  function updatePlayer(id: string, patch: Partial<MatchPlayer>) {
-    setDraft(current => current ? { ...current, jogadores: current.jogadores.map(player => player.jogador_id === id ? { ...player, ...patch } : player) } : null);
-  }
-
-  function changeScore(key: "placarA" | "placarB", delta: number) {
-    if (draft && draft.status === "aberta" && delta > 0 && draft[key] === 1) setGoalLimitTeam(key === "placarA" ? draft.timeA : draft.timeB);
-    setDraft(current => current ? { ...current, [key]: Math.max(0, current[key] + delta) } : null);
-  }
-
   return <>
     {confirmationDialog}
     {!historicalEdit && <ViewTabs label="Visão das partidas" value={activeView} onChange={next => { setView(next); onHistoryViewChange?.(next === "history"); }} items={[{ id: "live", label: "Ao vivo" }, { id: "history", label: "Histórico" }, { id: "summary", label: "Resumo" }]} />}
     {historicalEdit ? <>
       <button className={button} onClick={() => { setHistoricalEdit(null); setHistoryDetailOpen(false); }}>Voltar às rodadas</button>
-      <MatchesPanel key={historicalEdit.id} roundId={historicalEdit.id} roundDate={historicalEdit.date} organizer={organizer} roundStatus="finalizado" showRoundHistory={false} />
+      <MatchesPanel key={historicalEdit.id} roundId={historicalEdit.id} roundDate={historicalEdit.date} organizer={organizer} roundStatus="finalizado" showRoundHistory={false} initialView="history" />
     </> : showRoundHistory && <div hidden={activeView !== "history"}><RoundHistory active={activeView === "history"} onDetailChange={setHistoryDetailOpen} onEditRound={organizer ? (id, date) => setHistoricalEdit({ id, date }) : undefined} /></div>}
     <section hidden={Boolean(historicalEdit) || (activeView === "history" && historyDetailOpen)} className="fk-section flex flex-col gap-4" aria-label="Partidas da rodada">
 
@@ -262,88 +254,8 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
       {organizer && <button disabled={busy} onClick={() => editMatch(match)} className={`${button} mt-2 w-full`}>{match.status === "finalizada" ? "Editar resultado" : "Editar partida"}</button>}
     </article>)}</details>}
 
-    {activeView === "live" && organizer && draft?.status === "aberta" && <LiveMatchScoring key={draft.id} match={draft} roundId={roundId} disabled={busy} penaltyRequired={needsPenalties} penaltyWinner={penaltyWinner} onPenaltyWinner={setPenaltyWinner} onSaved={data => { setState(data); setDraft(data.partidas.find(item => item.id === draft.id && item.status === "aberta") ?? null); setError(""); }} onFinish={() => void save("finalizada")} onClose={() => setDraft(null)} onCancel={() => void save("cancelada")} onGoalLimit={setGoalLimitTeam} />}
-    {activeView === "live" && organizer && draft && draft.status !== "aberta" && <div className="fk-panel order-1 space-y-4 rounded-lg border border-zinc-200 bg-white p-3">
-      <div>
-        <p className="text-xs font-black uppercase text-red-700">Lançamento</p>
-        <h4 className="text-base font-black">{draft.timeA} x {draft.timeB}</h4>
-        <p className="mt-1 text-xs font-semibold text-zinc-600">{statusLabel(draft.status)}</p>
-      </div>
-
-      <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
-        <ScoreControl label={draft.timeA} value={draft.placarA} disabled={busy} onMinus={() => changeScore("placarA", -1)} onPlus={() => changeScore("placarA", 1)} />
-        <span className="pb-4 text-xl font-black">x</span>
-        <ScoreControl label={draft.timeB} value={draft.placarB} disabled={busy} onMinus={() => changeScore("placarB", -1)} onPlus={() => changeScore("placarB", 1)} />
-      </div>
-
-      <details className="border-y border-zinc-200 py-2">
-        <summary className="min-h-11 cursor-pointer content-center text-xs font-black">Participação · {draft.jogadores.filter(player => player.participou).length} jogadores</summary>
-        <div className="mt-2 space-y-3">
-        {[draft.timeAId, draft.timeBId].map(teamId => <div key={teamId}>
-          <p className="mb-2 text-xs font-black uppercase text-zinc-600">{teamId === draft.timeAId ? draft.timeA : draft.timeB}</p>
-          {draft.jogadores.filter(player => player.time_id === teamId).map(player => <div key={player.jogador_id} className="flex items-center gap-2 border-t border-zinc-200 py-2">
-            <PlayerIdentity playerId={player.jogador_id} name={player.nome} avatarUrl={player.avatar_url} size="sm" className="flex-1 text-sm font-bold" />
-            <label className="flex min-h-11 items-center gap-2 text-xs font-semibold"><input type="checkbox" disabled={busy || currentStatus === "finalizado"} checked={player.participou} onChange={event => updatePlayer(player.jogador_id, { participou: event.target.checked, ...(!event.target.checked ? { gols: 0, assistencias: 0 } : {}) })} className="h-5 w-5 accent-red-600" />Participou</label>
-          </div>)}
-        </div>)}
-        </div>
-      </details>
-
-      <EventEditor title="Gols" field="gols" draft={draft} busy={busy} updatePlayer={updatePlayer} />
-      <EventEditor title="Assistencias" field="assistencias" draft={draft} busy={busy} updatePlayer={updatePlayer} />
-
-      {goalWarning(draft) && <p className="border-l-2 border-amber-500 bg-amber-50 p-3 text-xs font-bold text-amber-800">{goalWarning(draft)}</p>}
-      {needsPenalties && <fieldset className="space-y-2 border-t border-zinc-200 pt-3" disabled={busy}>
-        <legend className="text-sm font-bold">Vencedor dos pênaltis alternados</legend>
-        {[{ id: draft.timeAId, name: draft.timeA }, { id: draft.timeBId, name: draft.timeB }].map(team => <label key={team.id} className="flex min-h-11 items-center gap-3 text-sm font-bold">
-          <input type="radio" name={`penaltis-${draft.id}`} value={team.id} checked={penaltyWinner === team.id} onChange={() => setPenaltyWinner(team.id)} className="h-5 w-5 shrink-0 accent-red-600" /><span className="min-w-0 break-words">{team.name}</span>
-        </label>)}
-      </fieldset>}
-
-      <div className="grid gap-2">
-        <button disabled={busy} onClick={() => save(draft.status)} className={button}>Salvar</button>
-        {currentStatus !== "finalizado" && <button disabled={busy} onClick={() => save("finalizada")} className="fk-primary min-h-12 rounded-lg bg-red-600 text-xs font-black uppercase text-white disabled:opacity-50">Finalizar partida</button>}
-        {currentStatus !== "finalizado" && <button disabled={busy} className={button} onClick={() => save("cancelada")}>Cancelar partida</button>}
-        <button disabled={busy} className={button} onClick={() => setDraft(null)}>Fechar edicao sem salvar</button>
-      </div>
-    </div>}
+    {activeView === "live" && organizer && draft && <LiveMatchScoring key={draft.id} match={draft} roundId={roundId} disabled={busy} roundClosed={currentStatus === "finalizado"} penaltyRequired={needsPenalties} penaltyWinner={penaltyWinner} onPenaltyWinner={setPenaltyWinner} onSaved={data => { setState(data); setDraft(data.partidas.find(item => item.id === draft.id && item.status === draft.status) ?? null); setError(""); }} onFinish={() => void save("finalizada")} onClose={() => { setDraft(null); if (draft.status !== "aberta") { setView("history"); setHistoryMatchesExpanded(true); } }} onCancel={() => void save("cancelada")} onGoalLimit={setGoalLimitTeam} />}
   </section></>;
-}
-
-function ScoreControl({ label, value, disabled, onMinus, onPlus }: { label: string; value: number; disabled: boolean; onMinus: () => void; onPlus: () => void }) {
-  return <div className="text-center">
-    <p className="mb-2 min-h-8 break-words text-xs font-black">{label}</p>
-    <p className="mb-3 text-4xl font-black tabular-nums">{value}</p>
-    <div className="grid grid-cols-2 gap-2">
-      <button className="flex h-11 items-center justify-center rounded-lg border border-zinc-200 bg-white disabled:opacity-40" disabled={disabled || value <= 0} onClick={onMinus} aria-label={`Diminuir placar de ${label}`} title={`Diminuir placar de ${label}`}><Minus size={20} /></button>
-      <button className="flex h-11 items-center justify-center rounded-lg bg-neutral-950 text-white disabled:opacity-40" disabled={disabled} onClick={onPlus} aria-label={`Aumentar placar de ${label}`} title={`Aumentar placar de ${label}`}><Plus size={20} /></button>
-    </div>
-  </div>;
-}
-
-function EventEditor({ title, field, draft, busy, updatePlayer }: { title: string; field: "gols" | "assistencias"; draft: Match; busy: boolean; updatePlayer: (id: string, patch: Partial<MatchPlayer>) => void }) {
-  const players = draft.jogadores.filter(player => player.participou);
-  return <details className="border-b border-zinc-200 py-2">
-    <summary className="min-h-11 cursor-pointer content-center text-xs font-black">{title} · {players.reduce((total, player) => total + player[field], 0)} registrados</summary>
-    <div className="mt-2 space-y-2">
-    {!players.length && <p className="text-xs text-zinc-500">Marque participantes para lancar {title.toLowerCase()}.</p>}
-    {players.map(player => <div key={player.jogador_id} className="flex items-center gap-1 border-t border-zinc-100 py-3">
-      <PlayerIdentity playerId={player.jogador_id} name={player.nome} avatarUrl={player.avatar_url} size="sm" className="flex-1 text-sm font-bold" />
-      <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-zinc-200 disabled:opacity-40" disabled={busy || player[field] <= 0} onClick={() => updatePlayer(player.jogador_id, { [field]: player[field] - 1 })} aria-label={`Diminuir ${title.toLowerCase()} de ${player.nome}`} title={`Diminuir ${title.toLowerCase()}`}><Minus size={18} /></button>
-      <span className="w-8 text-center text-base font-black tabular-nums">{player[field]}</span>
-      <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-zinc-200 disabled:opacity-40" disabled={busy} onClick={() => updatePlayer(player.jogador_id, { [field]: player[field] + 1 })} aria-label={`Adicionar ${title.toLowerCase()} de ${player.nome}`} title={`Adicionar ${title.toLowerCase()}`}><Plus size={18} /></button>
-    </div>)}
-    </div>
-  </details>;
-}
-
-function goalWarning(match: Match) {
-  const goalsA = sumGoals(match, match.timeAId);
-  const goalsB = sumGoals(match, match.timeBId);
-  const warnings = [];
-  if (goalsA !== match.placarA) warnings.push(`O placar do ${match.timeA} e ${match.placarA}, mas foram registrados ${goalsA} gols individuais.`);
-  if (goalsB !== match.placarB) warnings.push(`O placar do ${match.timeB} e ${match.placarB}, mas foram registrados ${goalsB} gols individuais.`);
-  return warnings.join(" ");
 }
 
 function sumGoals(match: Match, teamId: string) {

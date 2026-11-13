@@ -7,10 +7,11 @@ import {createServer} from 'node:http';
 const deps=createRequire(resolve(process.argv[2],'package.json'));
 const {build}=deps('esbuild'),{chromium}=deps('playwright');
 const out=mkdtempSync(join(tmpdir(),'fortalaka-empates-'));
-const bundle=await build({stdin:{contents:`import {createRoot} from 'react-dom/client';import {MatchesPanel} from './src/components/rounds/MatchesPanel';import {EvaluationAdminPanel} from './src/components/ratings/EvaluationAdminPanel';const q=new URLSearchParams(location.search);createRoot(document.getElementById('root')).render(q.has('ratings')?<EvaluationAdminPanel roundId="r" organizer={!q.has('player')} roundStatus="finalizado" onOpenEvaluate={()=>{}} personalState={null}/>:<MatchesPanel roundId="r" organizer={true} roundStatus={q.has('closed')?'finalizado':'em_andamento'} showRoundHistory={false}/>);`,loader:'tsx',resolveDir:process.cwd()},bundle:true,write:false,jsx:'automatic',tsconfig:resolve('tsconfig.json'),nodePaths:[resolve('node_modules')],define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'fixture',setup(b){
+const bundle=await build({stdin:{contents:`import {createRoot} from 'react-dom/client';import {MatchesPanel} from './src/components/rounds/MatchesPanel';import {EvaluationAdminPanel} from './src/components/ratings/EvaluationAdminPanel';const q=new URLSearchParams(location.search);createRoot(document.getElementById('root')).render(q.has('ratings')?<EvaluationAdminPanel roundId="r" organizer={!q.has('player')} roundStatus="finalizado" onOpenEvaluate={()=>{}} personalState={null}/>:<MatchesPanel roundId="r" organizer={true} roundStatus={q.has('closed')?'finalizado':'em_andamento'} showRoundHistory={q.has('history')}/>);`,loader:'tsx',resolveDir:process.cwd()},bundle:true,write:false,jsx:'automatic',tsconfig:resolve('tsconfig.json'),nodePaths:[resolve('node_modules')],define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'fixture',setup(b){
  b.onResolve({filter:/^@\/lib\/supabase\/client$/},()=>({path:'client',namespace:'fixture'}));
  b.onResolve({filter:/\/PostRoundSummary$/},()=>({path:'summary',namespace:'fixture'}));
- b.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='client'?'export const createClient=()=>({rpc:window.rpc});':'export const PostRoundSummary=()=>null;',loader:'js'}));
+ b.onResolve({filter:/^@\/lib\/results\/round-history$/},()=>({path:'history',namespace:'fixture'}));
+ b.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='history'?`const round={id:'r',data:'2026-11-12',nome:'Rodada de teste',participantCount:1,matchCount:1,totalGoals:2};export const historyDate=()=> '12 de novembro';export const getRoundHistory=async()=>({rounds:[round],hasMore:false});export const getHistoricalRound=async()=>({round,matches:[],participants:[],teams:[]});`:args.path==='client'?'export const createClient=()=>({rpc:window.rpc});':'export const PostRoundSummary=()=>null;',loader:'js'}));
 }}]});
 const css=readdirSync('.next/static/chunks').filter(n=>n.endsWith('.css')).map(n=>readFileSync(join('.next/static/chunks',n),'utf8')).join('\n');
 const server=createServer((req,res)=>{if(req.url==='/app.js'){res.setHeader('Content-Type','application/javascript');res.end(bundle.outputFiles[0].text);}else{res.setHeader('Content-Type','text/html; charset=utf-8');res.end(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body><main class="mx-auto max-w-[640px] p-4"><div id="root"></div></main><script src="/app.js"></script></body></html>`);}});
@@ -65,11 +66,25 @@ try{
    const call=await page.evaluate(()=>calls.find(c=>c.name==='salvar_partida_com_desempate'));assert.equal(call.args.p_vencedor_penaltis,waiting===1?'b':null);assert.equal(call.args.p_placar_a,1);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   }
+  await page.goto(`${base}/?closed&history`);
+  await page.getByRole('tab',{name:'Histórico',exact:true}).click();
+  await page.getByRole('button',{name:/12 de novembro/}).click();
+  await page.getByRole('button',{name:'Editar partidas desta rodada',exact:true}).click();
+  await page.getByRole('button',{name:'Editar resultado',exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Editar resultados da rodada',exact:true}).count(),0);
   await page.goto(`${base}/?closed`);await page.getByRole('button',{name:'Editar resultados da rodada'}).click();await page.getByRole('button',{name:'Editar resultado',exact:true}).click();await page.getByRole('button',{name:'Confirmar',exact:true}).click();
   assert.equal(await page.getByRole('button',{name:'Cancelar partida',exact:true}).count(),0);
-  await page.getByText('Participação ·',{exact:false}).click();assert.equal(await page.getByRole('checkbox').isDisabled(),true);
-  await page.getByRole('button',{name:'Aumentar placar de Time Vermelho'}).click();await page.getByRole('button',{name:'Salvar',exact:true}).click();
-  await page.getByText('Partida finalizada.',{exact:false}).waitFor();
+  await page.getByRole('heading',{name:'Editar resultado',exact:true}).waitFor();
+  await page.getByText('Ajustar participantes',{exact:true}).click();assert.equal(await page.getByRole('checkbox',{name:'Participação de Jogador com nome comprido da rodada'}).isDisabled(),true);
+  await page.getByRole('button',{name:'Aumentar placar de Time Vermelho'}).click();await page.getByText('Placar atualizado.',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('dialog').count(),0);
+  assert.equal(await page.getByRole('button',{name:'Finalizar partida',exact:true}).count(),0);
+  await page.getByRole('button',{name:'Adicionar gols de Jogador com nome comprido da rodada',exact:true}).click();await page.getByText('Gol de Jogador com nome comprido da rodada registrado.',{exact:true}).waitFor();
+  const correction=await page.evaluate(()=>calls.filter(c=>c.name==='salvar_partida_com_desempate').at(-1).args);
+  assert.equal(correction.p_status,'finalizada');assert.equal(correction.p_placar_a,2);assert.equal(correction.p_jogadores[0].participou,true);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await page.screenshot({path:join(out,`correcao-${width}.png`)});
+  await page.getByRole('button',{name:'Voltar às partidas'}).click();await page.getByRole('button',{name:'Editar resultado',exact:true}).waitFor();
   await page.goto(`${base}/?ratings`);await page.getByText('Avaliações pendentes · 2').click();await page.getByText('Não iniciou',{exact:true}).waitFor();await page.getByText('1/3 concluídas',{exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await page.screenshot({path:join(out,`pendencias-${width}.png`)});
  }

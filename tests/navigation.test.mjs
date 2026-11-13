@@ -174,6 +174,8 @@ try {
   await click('GERENCIAR PARTIDAS');
   await click('LANÇAR PLACAR E EVENTOS');
   await click('Aumentar placar de Time 1');
+  await waitFor(()=>document.body.textContent.includes('Placar atualizado.'));
+  if (!button('Adicionar gols de Conta teste')) await click('Time 2');
   await waitFor(()=>button('Adicionar gols de Conta teste'));
   await click('Adicionar gols de Conta teste');
   await click('Aumentar placar de Time 1');
