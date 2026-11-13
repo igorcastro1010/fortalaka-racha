@@ -13,7 +13,7 @@ import { useLiveRefresh } from '@/components/live/useLiveRefresh';
 
 const button = "fk-secondary min-h-11 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-bold disabled:opacity-50";
 
-export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null, onFinalizedCountChange, onRoundStarted, onHistoryViewChange, onEditingChange }: {
+export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null, onFinalizedCountChange, onRoundStarted, onHistoryViewChange, onEditingChange, showRoundHistory = true }: {
   roundId: string;
   organizer: boolean;
   roundStatus: string;
@@ -22,6 +22,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   onFinalizedCountChange?: (roundId: string, count: number | null) => void;
   onHistoryViewChange?: (history: boolean) => void;
   onEditingChange?: (editing: boolean) => void;
+  showRoundHistory?: boolean;
 }) {
   const [state, setState] = useState<MatchesState>({ times: [], partidas: [] });
   const [loading, setLoading] = useState(true);
@@ -34,6 +35,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   const [teamA, setTeamA] = useState("");
   const [teamB, setTeamB] = useState("");
   const [draft, setDraft] = useState<Match | null>(null);
+  const [penaltyWinner, setPenaltyWinner] = useState("");
   useEffect(() => { onEditingChange?.(Boolean(draft) || busy); }, [draft, busy, onEditingChange]);
   useLiveRefresh(async isCurrent => {
     const request = ++readSequence.current;
@@ -44,6 +46,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   const [view, setView] = useState<"auto" | "live" | "history" | "summary">("auto");
   const [historyDetailOpen, setHistoryDetailOpen] = useState(false);
   const [historyMatchesExpanded, setHistoryMatchesExpanded] = useState(false);
+  const [historicalEdit, setHistoricalEdit] = useState<{ id: string; date: string | null } | null>(null);
   const goalDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (goalLimitTeam) goalDialog.current?.showModal();
@@ -55,6 +58,8 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   const currentMatch = state.partidas.find(match => match.id === state.fila?.currentMatchId) ?? state.partidas.find(match => match.status === "aberta");
   const teamName = (id: string) => state.times.find(team => team.id === id)?.nome ?? "Time";
   const waiting = state.fila?.order.filter(id => !currentMatch || (id !== currentMatch.timeAId && id !== currentMatch.timeBId)) ?? [];
+  const decidingTie = Boolean(draft && draft.status === "aberta" && draft.placarA === draft.placarB);
+  const needsPenalties = decidingTie && waiting.length === 1;
 
   useEffect(() => {
     let active = true;
@@ -104,6 +109,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
       setState(data);
       if (data.roundStatus === "em_andamento") onRoundStarted?.(roundId);
       setDraft(data.partidas.find(match => match.id === id) ?? null);
+      setPenaltyWinner("");
       setView("live");
       setTeamA("");
       setTeamB("");
@@ -123,7 +129,15 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
       return;
     }
 
-    if (!confirmed && status === "finalizada" && draft.status !== "finalizada" && !await confirm({ title: "Finalizar partida?", description: "Depois de finalizada, as estatísticas entrarão no ranking." })) {
+    if (status === "finalizada" && needsPenalties && !penaltyWinner) {
+      setGoalLimitTeam(null);
+      setError("Disputem os pênaltis alternados e selecione o time vencedor para finalizar.");
+      return;
+    }
+    const tieDescription = waiting.length >= 2 ? "Empate: saem os dois times e entram os próximos dois da fila. Confirmar?"
+      : waiting.length === 1 ? "O vencedor dos pênaltis permanece; o próximo time da fila entra. O placar continua empatado."
+      : "Empate sem times aguardando: os dois permanecem, sem pênaltis.";
+    if ((!confirmed || decidingTie) && status === "finalizada" && draft.status !== "finalizada" && !await confirm({ title: "Finalizar partida?", description: decidingTie ? tieDescription : "Depois de finalizada, as estatísticas entrarão no ranking." })) {
       return;
     }
     if (status === "cancelada" && !await confirm({ title: "Cancelar partida?", description: "Esta partida deixará de contar nas estatísticas." })) return;
@@ -134,7 +148,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
     setError("");
     setMessage("");
     try {
-      const result = await saveMatch(draft, status);
+      const result = await saveMatch(draft, status, status === "finalizada" && needsPenalties ? penaltyWinner : null);
       setState(await getRoundMatches(roundId));
       setDraft(null);
       setGoalLimitTeam(null);
@@ -155,6 +169,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
     }
     ++readSequence.current;
     setDraft(structuredClone(match));
+    setPenaltyWinner("");
     setView("live");
     setError("");
     setMessage("");
@@ -171,9 +186,12 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
 
   return <>
     {confirmationDialog}
-    <ViewTabs label="Visão das partidas" value={activeView} onChange={next => { setView(next); onHistoryViewChange?.(next === "history"); }} items={[{ id: "live", label: "Ao vivo" }, { id: "history", label: "Histórico" }, { id: "summary", label: "Resumo" }]} />
-    <div hidden={activeView !== "history"}><RoundHistory active={activeView === "history"} onDetailChange={setHistoryDetailOpen} /></div>
-    <section hidden={activeView === "history" && historyDetailOpen} className="fk-section flex flex-col gap-4" aria-label="Partidas da rodada">
+    {!historicalEdit && <ViewTabs label="Visão das partidas" value={activeView} onChange={next => { setView(next); onHistoryViewChange?.(next === "history"); }} items={[{ id: "live", label: "Ao vivo" }, { id: "history", label: "Histórico" }, { id: "summary", label: "Resumo" }]} />}
+    {historicalEdit ? <>
+      <button className={button} onClick={() => { setHistoricalEdit(null); setHistoryDetailOpen(false); }}>Voltar às rodadas</button>
+      <MatchesPanel key={historicalEdit.id} roundId={historicalEdit.id} roundDate={historicalEdit.date} organizer={organizer} roundStatus="finalizado" showRoundHistory={false} />
+    </> : showRoundHistory && <div hidden={activeView !== "history"}><RoundHistory active={activeView === "history"} onDetailChange={setHistoryDetailOpen} onEditRound={organizer ? (id, date) => setHistoricalEdit({ id, date }) : undefined} /></div>}
+    <section hidden={Boolean(historicalEdit) || (activeView === "history" && historyDetailOpen)} className="fk-section flex flex-col gap-4" aria-label="Partidas da rodada">
 
     {activeView !== "history" && !loading && !error && state.partidas.length > 0 && <p className="text-xs font-bold text-zinc-500">{state.partidas.length} partidas · {state.partidas.filter(match => match.status === "finalizada").length} finalizadas</p>}
 
@@ -223,6 +241,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
     {activeView === "live" && !loading && !error && !state.partidas.length && <EmptyState icon={Trophy} title="Nenhuma partida ainda" description={organizer && state.times.length < 2 ? "Confirme os times para começar. Quando o racha começar, os resultados aparecem aqui." : "Quando o racha começar, os resultados aparecem aqui."} />}
     {activeView === "summary" && currentStatus !== "finalizado" && !loading && <EmptyState icon={Trophy} title="Resumo após o apito final" description="O resumo estará disponível quando o racha for finalizado." />}
     {currentStatus === "finalizado" && !loading && !error && !busy && !draft && <div hidden={activeView !== "summary"}><PostRoundSummary roundId={roundId} date={roundDate} matches={state.partidas} /></div>}
+    {organizer && currentStatus === "finalizado" && activeView === "summary" && <button className={button} onClick={() => { setView("history"); setHistoryMatchesExpanded(true); onHistoryViewChange?.(true); }}>Editar resultados da rodada</button>}
 
     {activeView === "history" && state.partidas.some(match => match.status !== "aberta") && <details open={historyMatchesExpanded} onToggle={event => setHistoryMatchesExpanded(event.currentTarget.open)} className="order-2 border-t border-zinc-200"><summary className="min-h-12 cursor-pointer content-center text-sm font-bold">Partidas da rodada atual</summary>{state.partidas.map((match, index) => match.status !== "aberta" && <article key={match.id} className="border-b border-zinc-200 py-4">
       <p className="text-xs font-black uppercase text-zinc-600">Partida {index + 1}</p>
@@ -261,7 +280,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
           <p className="mb-2 text-xs font-black uppercase text-zinc-600">{teamId === draft.timeAId ? draft.timeA : draft.timeB}</p>
           {draft.jogadores.filter(player => player.time_id === teamId).map(player => <div key={player.jogador_id} className="flex items-center gap-2 border-t border-zinc-200 py-2">
             <PlayerIdentity playerId={player.jogador_id} name={player.nome} avatarUrl={player.avatar_url} size="sm" className="flex-1 text-sm font-bold" />
-            <label className="flex min-h-11 items-center gap-2 text-xs font-semibold"><input type="checkbox" disabled={busy} checked={player.participou} onChange={event => updatePlayer(player.jogador_id, { participou: event.target.checked, ...(!event.target.checked ? { gols: 0, assistencias: 0 } : {}) })} className="h-5 w-5 accent-red-600" />Participou</label>
+            <label className="flex min-h-11 items-center gap-2 text-xs font-semibold"><input type="checkbox" disabled={busy || currentStatus === "finalizado"} checked={player.participou} onChange={event => updatePlayer(player.jogador_id, { participou: event.target.checked, ...(!event.target.checked ? { gols: 0, assistencias: 0 } : {}) })} className="h-5 w-5 accent-red-600" />Participou</label>
           </div>)}
         </div>)}
         </div>
@@ -271,11 +290,17 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
       <EventEditor title="Assistencias" field="assistencias" draft={draft} busy={busy} updatePlayer={updatePlayer} />
 
       {goalWarning(draft) && <p className="border-l-2 border-amber-500 bg-amber-50 p-3 text-xs font-bold text-amber-800">{goalWarning(draft)}</p>}
+      {needsPenalties && <fieldset className="space-y-2 border-t border-zinc-200 pt-3" disabled={busy}>
+        <legend className="text-sm font-bold">Vencedor dos pênaltis alternados</legend>
+        {[{ id: draft.timeAId, name: draft.timeA }, { id: draft.timeBId, name: draft.timeB }].map(team => <label key={team.id} className="flex min-h-11 items-center gap-3 text-sm font-bold">
+          <input type="radio" name={`penaltis-${draft.id}`} value={team.id} checked={penaltyWinner === team.id} onChange={() => setPenaltyWinner(team.id)} className="h-5 w-5 shrink-0 accent-red-600" /><span className="min-w-0 break-words">{team.name}</span>
+        </label>)}
+      </fieldset>}
 
       <div className="grid gap-2">
         <button disabled={busy} onClick={() => save(draft.status)} className={button}>Salvar</button>
-        <button disabled={busy} onClick={() => save("finalizada")} className="fk-primary min-h-12 rounded-lg bg-red-600 text-xs font-black uppercase text-white disabled:opacity-50">Finalizar partida</button>
-        <button disabled={busy} className={button} onClick={() => save("cancelada")}>Cancelar partida</button>
+        {currentStatus !== "finalizado" && <button disabled={busy} onClick={() => save("finalizada")} className="fk-primary min-h-12 rounded-lg bg-red-600 text-xs font-black uppercase text-white disabled:opacity-50">Finalizar partida</button>}
+        {currentStatus !== "finalizado" && <button disabled={busy} className={button} onClick={() => save("cancelada")}>Cancelar partida</button>}
         <button disabled={busy} className={button} onClick={() => setDraft(null)}>Fechar edicao sem salvar</button>
       </div>
     </div>}

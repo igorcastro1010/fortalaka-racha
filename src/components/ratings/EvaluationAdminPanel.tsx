@@ -1,6 +1,8 @@
 "use client";
 
 import { Star } from "lucide-react";
+import { PlayerIdentity } from "@/components/players/PlayerIdentity";
+import { getEvaluationPending, type EvaluationPending } from "@/lib/ratings/repository";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { useEffect, useId, useRef, useState } from "react";
 import { subscribeLiveRefresh } from '@/lib/live/refresh';
@@ -8,6 +10,8 @@ import { getEvaluationProgress, getEvaluationState, setRoundEvaluationsOpen, typ
 
 export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEvaluate, onUpdated, personalState, personalLoading = true, personalError = "" }: { roundId: string; organizer: boolean; roundStatus: string; onOpenEvaluate: (roundId: string) => void; onUpdated?: () => void; personalState?: EvaluationState | null; personalLoading?: boolean; personalError?: string }) {
   const [progress, setProgress] = useState<EvaluationProgress | null>(null);
+  const [pending, setPending] = useState<EvaluationPending[] | null>(null);
+  const [pendingError, setPendingError] = useState("");
   const [loadedPersonal, setPersonal] = useState<EvaluationState | null>(null);
   const personal = personalState === undefined ? loadedPersonal : personalState;
   const sharedPersonal = personalState !== undefined;
@@ -35,6 +39,13 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
         if (organizer) {
           const data = await getEvaluationProgress(roundId);
           if (active && currentRequest === readSequence.current) { setProgress(data); setError(""); }
+          try {
+            const people = await getEvaluationPending(roundId);
+            if (active && currentRequest === readSequence.current) { setPending(people); setPendingError(""); }
+          } catch (e) {
+            console.error("Pendências de avaliações", e);
+            if (active && currentRequest === readSequence.current) { setPending(null); setPendingError("Não foi possível carregar as pendências."); }
+          }
         } else {
           const data = await getEvaluationState(roundId);
           if (active && currentRequest === readSequence.current) { setPersonal(data); setError(""); }
@@ -83,6 +94,13 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
     </div>
     {organizer && progress ? <p className="text-base font-bold tabular-nums text-zinc-800">{progress.respondentes} de {progress.total} jogadores responderam</p> : !organizer && personal ? <p className="text-base font-bold tabular-nums text-zinc-800">{completed} de {personal.players.length} companheiros avaliados</p> : !organizer && personalError ? <p role="alert" className="text-sm text-red-700">{personalError}</p> : !organizer && !personalLoading ? <EmptyState title="Nenhuma avaliação disponível" description="O progresso aparece quando houver uma rodada disponível para avaliar." /> : !error && <LoadingCards label="Carregando progresso..." />}
     {(progress || personal) && <progress aria-label="Progresso das avaliações" value={organizer ? progress?.respondentes ?? 0 : completed} max={Math.max(1, organizer ? progress?.total ?? 0 : personal?.players.length ?? 0)} className="h-1.5 w-full accent-red-700" />}
+    {organizer && <details className="border-t border-zinc-200 pt-2">
+      <summary className="min-h-12 cursor-pointer content-center text-sm font-bold">Avaliações pendentes{pending ? ` · ${pending.length}` : ""}</summary>
+      {pendingError ? <p role="alert" className="text-sm text-red-700">{pendingError}</p> : pending === null ? <p className="text-sm">Carregando pendências...</p> : pending.length === 0 ? <p className="py-2 text-sm text-zinc-600">Nenhuma avaliação pendente.</p> : <ul className="divide-y divide-zinc-200">{pending.map(player => <li key={player.id} className="flex min-w-0 items-center gap-2 py-3">
+        <PlayerIdentity playerId={player.id} name={player.nome} avatarUrl={player.avatar_url} size="sm" className="min-w-0 flex-1 text-sm font-bold" />
+        <span className="shrink-0 text-right text-xs tabular-nums">{player.respondidas === 0 ? "Não iniciou" : `${player.respondidas}/${player.total} concluídas`}</span>
+      </li>)}</ul>}
+    </details>}
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p>}
     {message && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
     {organizer && roundStatus !== "finalizado" && <EmptyState icon={Star} title="As avaliações ainda não estão abertas." description="Finalize pelo menos uma partida e encerre a rodada antes de abrir avaliações." />}

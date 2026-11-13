@@ -20,7 +20,7 @@ create table storage.objects(id uuid primary key default gen_random_uuid(),bucke
 alter table storage.objects enable row level security;
 create function storage.foldername(text) returns text[] language sql immutable as $$select string_to_array($1,'/')$$;
 grant usage on schema storage to authenticated,anon;grant select,insert,update,delete on storage.objects to authenticated;`);
-for(const path of ['supabase/schema.sql','supabase/sorteio-times.sql','supabase/validacao-sorteio-avatars.sql','supabase/partidas-estatisticas.sql','supabase/avaliacoes.sql','supabase/finalizar-rodada.sql','supabase/entrada-avaliacoes.sql','supabase/fluxo-principal.sql','supabase/fluxo-sem-posicoes.sql','supabase/avaliacoes-elegibilidade.sql'])await db.exec(readFileSync(path,'utf8'));
+for(const path of ['supabase/schema.sql','supabase/sorteio-times.sql','supabase/validacao-sorteio-avatars.sql','supabase/partidas-estatisticas.sql','supabase/avaliacoes.sql','supabase/finalizar-rodada.sql','supabase/entrada-avaliacoes.sql','supabase/fluxo-principal.sql','supabase/fluxo-sem-posicoes.sql','supabase/avaliacoes-elegibilidade.sql','supabase/empates-e-correcoes.sql'])await db.exec(readFileSync(path,'utf8'));
 const organizer=randomUUID(),viewer=randomUUID();const ids=Array.from({length:14},()=>randomUUID());
 for(const [i,id] of [organizer,viewer,...ids].entries())await db.query('insert into auth.users values($1,$2,$3)',[id,'test@example.invalid',JSON.stringify({name:i<2?'Conta teste':`Pessoa ${i-2}`})]);
 await db.query("update public.profiles set role='organizador' where id=$1",[organizer]);
@@ -95,6 +95,7 @@ async function api(input){
   if(input.kind==='user')data={id:uid};
   else if(input.kind==='rpc'){
    const specs={inscricao_rodada:['p_racha','p_tipo','p_entrar'],criar_proxima_partida:['p_racha','p_versao'],medias_jogador:['p_jogador'],ler_avaliacoes_atual:['p_racha'],ler_progresso_avaliacoes:['p_racha'],alterar_avaliacoes_rodada:['p_racha','p_abertas'],salvar_avaliacao:['p_racha','p_avaliado','p_passe','p_chute','p_velocidade','p_defesa','p_fisico'],finalizar_rodada:['p_racha'],ler_estatisticas_jogadores:['p_jogador'],ler_partidas_rodada:['p_racha'],criar_partida:['p_racha','p_time_a','p_time_b'],salvar_partida:['p_partida','p_versao','p_placar_a','p_placar_b','p_status','p_jogadores'],ler_times_rodada:[],avatars_da_rodada:['p_racha'],alterar_estado_rodada:['p_racha','p_estado'],salvar_rascunho_times:['p_racha','p_versao','p_times'],confirmar_rascunho_times:['p_racha','p_versao']};
+   Object.assign(specs,{salvar_partida_com_desempate:['p_partida','p_versao','p_placar_a','p_placar_b','p_status','p_jogadores','p_vencedor_penaltis'],ler_pendencias_avaliacoes:['p_racha']});
    if(process.argv.includes('--payments')) Object.assign(specs,{inscricao_rodada:['p_racha','p_tipo','p_entrar','p_forma_pagamento'],alterar_forma_pagamento:['p_participante','p_forma_pagamento'],atualizar_pagamento:['p_participante','p_status','p_valor']});
    const keys=specs[input.name];if(!keys)throw Error('RPC inválida');const values=keys.map(k=>['p_times','p_jogadores'].includes(k)?JSON.stringify(input.args[k]):input.args[k]);
    const rows=(await db.query('select * from public.'+input.name+'('+values.map((_,i)=>'$'+(i+1)).join(',')+')',values)).rows;

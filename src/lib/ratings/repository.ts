@@ -28,6 +28,14 @@ export type EvaluationProgress = {
   abertas: boolean;
 };
 
+export type EvaluationPending = { id: string; nome: string; avatar_url: string | null; respondidas: number; total: number };
+
+export async function getEvaluationPending(roundId: string): Promise<EvaluationPending[]> {
+  const { data, error } = await createClient().rpc("ler_pendencias_avaliacoes", { p_racha: roundId });
+  check(error);
+  return (data ?? []) as EvaluationPending[];
+}
+
 export type EvaluationScores = {
   passe: number;
   chute: number;

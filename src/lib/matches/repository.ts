@@ -52,10 +52,11 @@ export async function createNextMatch(roundId: string, version: number) {
   if (error) throw new Error(error.code === "PGRST202" ? "Aplique fluxo-principal.sql no Supabase para liberar a fila." : error.message);
   return data as string;
 }
-export async function saveMatch(match: Match, status: Match["status"]) {
-  const { data, error } = await createClient().rpc("salvar_partida", {
+export async function saveMatch(match: Match, status: Match["status"], penaltyWinner: string | null = null) {
+  const { data, error } = await createClient().rpc("salvar_partida_com_desempate", {
     p_partida: match.id, p_versao: match.versao, p_placar_a: match.placarA, p_placar_b: match.placarB, p_status: status,
     p_jogadores: match.jogadores.map(({ jogador_id, participou, gols, assistencias }) => ({ jogador_id, participou, gols, assistencias })),
+    p_vencedor_penaltis: penaltyWinner,
   });
   check(error); return data as { aviso: string | null };
 }

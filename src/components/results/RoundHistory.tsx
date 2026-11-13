@@ -7,7 +7,7 @@ import { LoadingCards, EmptyState } from "@/components/ui/ScreenState";
 import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { PostRoundSummary } from "./PostRoundSummary";
 
-export function RoundHistory({ active, onDetailChange }: { active: boolean; onDetailChange: (detail: boolean) => void }) {
+export function RoundHistory({ active, onDetailChange, onEditRound }: { active: boolean; onDetailChange: (detail: boolean) => void; onEditRound?: (id: string, date: string | null) => void }) {
   const [page, setPage] = useState<HistoryPage | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<HistoricalRound | null>(null);
@@ -58,6 +58,7 @@ export function RoundHistory({ active, onDetailChange }: { active: boolean; onDe
     {selected ? <>
       <button type="button" onClick={back} className="fk-secondary flex min-h-11 items-center gap-2 px-3 text-sm font-bold"><ArrowLeft size={18} aria-hidden="true" />Voltar ao histórico</button>
       {detail && <>
+        {onEditRound && <button type="button" className="fk-secondary min-h-12 w-full px-3 text-sm font-bold" onClick={() => onEditRound(detail.round.id, detail.round.data)}>Editar partidas desta rodada</button>}
         <header className="border-b border-zinc-200 pb-4"><p className="text-xs font-bold uppercase text-red-700">Rodada finalizada</p><h3 ref={title} tabIndex={-1} className="mt-2 text-xl font-black focus-visible:outline-2 focus-visible:outline-red-600">{historyDate(detail.round.data)}</h3><p className="mt-1 break-words text-sm font-bold">{detail.round.nome ?? "Racha Fortalaka"}</p>{detail.round.horario && <p className="mt-2 text-sm text-zinc-600">{detail.round.horario.slice(0, 5)}</p>}{detail.round.endereco && <p className="mt-1 break-words text-sm text-zinc-600">{detail.round.endereco}</p>}</header>
         <PostRoundSummary roundId={detail.round.id} date={detail.round.data} matches={detail.matches} historical participants={detail.participants}>
           {detail.teams.length > 0 && <section aria-label="Times da rodada" className="border-b border-zinc-200 py-5"><h3 className="text-sm font-black uppercase">Times da rodada</h3><div className="mt-3 space-y-2">{detail.teams.map(team => <details key={team.id} className="border-t border-zinc-100"><summary className="min-h-12 cursor-pointer content-center break-words text-sm font-bold">{team.name} · {team.players.length}</summary><ul>{team.players.map(player => <li key={player.id} className="py-2"><PlayerIdentity playerId={player.registeredId} name={player.name} avatarUrl={player.avatarUrl} size="sm" /></li>)}</ul></details>)}</div></section>}
