@@ -95,12 +95,14 @@ try {
   await click('SAIR DA LISTA');
   await click('Confirmar');
   await waitFor(()=>button('ENTRAR NA LISTA'));
-  await selectMoney();
   await click('ENTRAR NA LISTA');
+  await selectMoney();
+  await click('CONFIRMAR INSCRIÇÃO');
   await waitFor(()=>button('SAIR DA LISTA'));
   await click('SAIR DA LISTA');await click('Confirmar');await waitFor(()=>button('ENTRAR NA LISTA'));
-  await selectMoney();
   await click('ENTRAR NA LISTA');
+  await selectMoney();
+  await click('CONFIRMAR INSCRIÇÃO');
   await waitFor(()=>button('SAIR DA LISTA'));
   assert.equal(requests.filter(r=>r.name==='ler_partidas_rodada').length,1,'Inscrições do jogador não disparam leituras extras de partidas');
   requests.length=0;

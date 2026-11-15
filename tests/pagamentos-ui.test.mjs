@@ -33,7 +33,10 @@ try {
   }
   await page.goto('http://127.0.0.1:3011/');
   const enter = page.getByRole('button', { name: 'ENTRAR NA LISTA', exact: true });
-  await enter.waitFor(); assert(await enter.isDisabled());
+  await enter.waitFor(); assert.equal(await page.getByRole('radio').count(),0);
+  await enter.click();
+  const confirmEntry=page.getByRole('button',{name:'CONFIRMAR INSCRIÇÃO',exact:true});
+  assert(await confirmEntry.isDisabled());
   await page.getByText('Sua entrada na lista só será confirmada após selecionar uma forma de pagamento.', { exact: true }).waitFor();
   await page.getByRole('radio', { name: 'PIX', exact: true }).check();
   const pix = page.getByRole('complementary', { name: 'Dados para pagamento PIX' });
@@ -42,10 +45,12 @@ try {
   assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^\d{11}$/);
   await mobile('escolha-pix');
   const before = calls.filter(c => c.name === 'inscricao_rodada').length;
-  await enter.evaluate(button => { button.click(); button.click(); });
+  await confirmEntry.evaluate(button => { button.click(); button.click(); });
   await page.getByRole('button', { name: 'SAIR DA LISTA', exact: true }).waitFor();
   assert.equal(calls.filter(c => c.name === 'inscricao_rodada').length, before + 1);
   await page.reload(); await page.getByText('PIX · Pendente', { exact: true }).waitFor();
+  assert.equal(await pix.count(),0);assert.equal(await page.getByRole('radio').count(),0);
+  await mobile('pagamento-registrado');
   await nav('Racha'); await page.getByRole('tab', { name: 'Gestão', exact: true }).click();
   const finance = page.getByRole('region', { name: 'Financeiro da rodada' });
   await finance.waitFor(); assert((await finance.locator('dt').filter({ hasText: /^Total arrecadado$/ }).locator('..').textContent()).includes('0,00'));
@@ -85,22 +90,25 @@ try {
   const settings = page.getByRole('form', { name: 'Configuração PIX' }); await settings.getByLabel('Banco', { exact: true }).waitFor();
   await settings.getByLabel('Banco', { exact: true }).fill('Santander atualizado'); await settings.getByRole('button', { name: 'Salvar dados PIX', exact: true }).click();
   await settings.getByText('Dados PIX atualizados.', { exact: true }).waitFor(); await mobile('configuracoes');
-  await nav('Início'); await pix.getByText('Santander atualizado', { exact: true }).waitFor();
+  await nav('Início'); await page.getByRole('button',{name:'Ver ou alterar pagamento',exact:true}).click(); await pix.getByText('Santander atualizado', { exact: true }).waitFor();
   console.log('PASS organizador: escolha obrigatoria, PIX/copiar, dupla requisicao, refresh, resumo real, valor obrigatorio, baixa/reversao, configuracao editavel');
 
   await page.goto('http://127.0.0.1:3011/?role=jogador');
   await page.getByRole('button', { name: 'SAIR DA LISTA', exact: true }).waitFor();
   await nav('Racha'); assert.equal(await page.getByRole('tab', { name: 'Gestão', exact: true }).count(), 0); assert.equal(await finance.count(), 0);
   const rosterBefore = (await api({ role: 'jogador', kind: 'table', table: 'racha_participantes', op: 'select', orders: [['created_at', { ascending: true }], ['id', { ascending: true }]] })).data.map(p => p.id);
+  await page.getByRole('button',{name:'Ver ou alterar pagamento',exact:true}).click();
   await page.getByRole('radio', { name: 'Dinheiro', exact: true }).check();
   await page.getByRole('button', { name: 'SALVAR FORMA DE PAGAMENTO', exact: true }).click(); await page.getByRole('status').filter({ hasText: 'Forma de pagamento atualizada.' }).waitFor();
   const rosterAfter = (await api({ role: 'jogador', kind: 'table', table: 'racha_participantes', op: 'select', orders: [['created_at', { ascending: true }], ['id', { ascending: true }]] })).data.map(p => p.id);
   assert.deepEqual(rosterAfter, rosterBefore);
   await page.reload(); await page.getByText('Dinheiro · Pendente', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('radio').count(),0);
+  await page.getByRole('button',{name:'Ver ou alterar pagamento',exact:true}).click();
   await page.getByRole('radio', { name: 'PIX', exact: true }).check();
   await page.getByRole('button', { name: 'SALVAR FORMA DE PAGAMENTO', exact: true }).click(); await page.getByRole('status').filter({ hasText: 'Forma de pagamento atualizada.' }).waitFor();
   await page.getByRole('button', { name: 'SAIR DA LISTA', exact: true }).click(); await page.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click();
-  await enter.waitFor(); await page.getByRole('radio', { name: 'Dinheiro', exact: true }).check(); await enter.click();
+  await enter.waitFor(); await enter.click(); await page.getByRole('radio', { name: 'Dinheiro', exact: true }).check(); await confirmEntry.click();
   await page.getByRole('button', { name: 'SAIR DA LISTA', exact: true }).waitFor();
   assert.equal((await api({ role: 'jogador', kind: 'table', table: 'racha_participantes', op: 'select' })).data.length, rosterBefore.length);
   const rounds = await api({ role: 'organizador', kind: 'table', table: 'rachas', op: 'select' });
