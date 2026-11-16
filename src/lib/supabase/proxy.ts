@@ -1,14 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import { getSupabaseEnv, isSupabaseConfigured } from "@/lib/supabase/env";
+import { isInvalidSession } from '@/lib/auth/session-error';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
   const publicRoutes = ["/login", "/cadastro", "/reset-password"];
   const isPublicRoute = publicRoutes.includes(request.nextUrl.pathname);
-  const isLoginRoute = request.nextUrl.pathname === "/login";
-  const isSignupRoute = request.nextUrl.pathname === "/cadastro";
-  const isResetPasswordRoute = request.nextUrl.pathname === "/reset-password";
 
   if (!isSupabaseConfigured()) {
     if (!isPublicRoute) {
@@ -38,23 +36,18 @@ export async function updateSession(request: NextRequest) {
   });
 
   const {
-    data: { user },
+    data: { user }, error,
   } = await supabase.auth.getUser();
 
+  // A página distingue perfil ausente/inativo de falha transitória. Nunca
+  // redirecionar /login para / apenas porque Auth tem um usuário.
+  if (error && !isInvalidSession(error)) return supabaseResponse;
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
-  if (user && (isLoginRoute || isSignupRoute)) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
-  }
-
-  if (isResetPasswordRoute) {
-    return supabaseResponse;
+    const response = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach(cookie => response.cookies.set(cookie));
+    return response;
   }
 
   return supabaseResponse;

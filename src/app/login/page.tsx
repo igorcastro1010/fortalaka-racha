@@ -21,5 +21,5 @@ export default async function LoginPage() {
     return <LoginForm initialError="Seu acesso esta desativado. Procure um dos organizadores." />;
   }
 
-  return <LoginForm />;
+  return <LoginForm initialError={user && !profile ? 'Seu perfil não foi encontrado. Procure um dos organizadores ou entre com outra conta.' : undefined} />;
 }

@@ -13,14 +13,14 @@ writeFileSync(client, `
 export async function createClient() {
   const fixture = globalThis.__profileFixture;
   return {
-    auth: { getUser: async () => ({ data: { user: fixture.user } }) },
+    auth: { getUser: async () => ({ data: { user: fixture.user }, error: fixture.authError }) },
     from(table) {
       fixture.tables.push(table);
       const query = {
         select(fields) { fixture.fields = fields.split(',').map(s => s.trim()); return query; },
         eq(key, value) { fixture.filter = [key, value]; return query; },
         async maybeSingle() {
-          return { data: fixture.profile && Object.fromEntries(fixture.fields.map(k => [k, fixture.profile[k]])) };
+          return { data: fixture.profile && Object.fromEntries(fixture.fields.map(k => [k, fixture.profile[k]])), error: fixture.profileError };
         }
       };
       return query;
@@ -49,6 +49,12 @@ try {
   assert.deepEqual(globalThis.__profileFixture.tables, [], 'Anônimo não consulta profiles');
   globalThis.__profileFixture = { user: { id: profile.id }, profile: null, tables: [] };
   assert.equal((await getCurrentUserProfile()).profile, null);
+  globalThis.__profileFixture = { user: { id: profile.id }, profile: null, tables: [], profileError: { code: '503' } };
+  await assert.rejects(getCurrentUserProfile(), /temporariamente/);
+  globalThis.__profileFixture = { user: null, tables: [], authError: { status: 503 } };
+  await assert.rejects(getCurrentUserProfile(), /temporariamente/);
+  globalThis.__profileFixture = { user: null, tables: [], authError: { status: 401 } };
+  assert.deepEqual(await getCurrentUserProfile(), { user: null, profile: null });
   console.log('PASS perfil autenticado preserva foto, filtra identidade e não consulta dados como anônimo');
 } finally {
   delete globalThis.__profileFixture;

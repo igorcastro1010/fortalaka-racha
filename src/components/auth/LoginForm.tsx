@@ -35,12 +35,14 @@ export function LoginForm({ initialError }: { initialError?: string }) {
         return;
       }
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id, name, email, role, active")
         .eq("id", data.user.id)
         .maybeSingle<Profile>();
 
+      if (profileError) { setError('Não foi possível consultar seu perfil agora. Tente novamente.'); return; }
+      if (!profile) { setError('Seu perfil não foi encontrado. Procure um dos organizadores.'); return; }
       if (!profile?.active) {
         await supabase.auth.signOut();
         setError("Seu acesso esta desativado. Procure um dos organizadores.");

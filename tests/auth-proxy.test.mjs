@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+import vm from 'node:vm';
+const { build } = createRequire(resolve(process.argv[2], 'package.json'))('esbuild');
+const bundle = await build({entryPoints:['src/lib/supabase/proxy.ts'], bundle:true, write:false, format:'cjs', platform:'node', plugins:[{name:'auth-fixture',setup(b){
+  b.onResolve({filter:/^(@supabase\/ssr|next\/server|@\/lib\/supabase\/env)$/},args=>({path:args.path,namespace:'fixture'}));
+  b.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='@supabase/ssr' ? 'export const createServerClient=()=>globalThis.client' : args.path==='next/server' ? 'export const NextResponse={next:()=>({kind:"next",cookies:{getAll:()=>[]}}),redirect:url=>({kind:"redirect",url})}' : 'export const isSupabaseConfigured=()=>true;export const getSupabaseEnv=()=>({supabaseUrl:"fixture",supabaseAnonKey:"fixture"})',loader:'js'}));
+}}]});
+const context={module:{exports:{}},exports:{},client:{auth:{getUser:async()=>({data:{user:{id:'user'}}})}}};context.exports=context.module.exports;
+vm.runInNewContext(bundle.outputFiles[0].text,context);
+const request=path=>({cookies:{getAll:()=>[]},nextUrl:{pathname:path,clone:()=>({pathname:path})}});
+const update=context.module.exports.updateSession;
+assert.equal((await update(request('/login'))).kind,'next','Perfil ausente não pode voltar para / pelo proxy');
+assert.equal((await update(request('/cadastro'))).kind,'next');
+context.client.auth.getUser=async()=>({data:{user:null},error:{status:503}});
+assert.equal((await update(request('/'))).kind,'next','Falha temporária deve chegar à recuperação da página');
+context.client.auth.getUser=async()=>({data:{user:null},error:{status:401}});
+assert.equal((await update(request('/'))).url.pathname,'/login');
+console.log('PASS proxy sem loop em páginas públicas, falha transitória sem logout, sessão inválida redireciona');
