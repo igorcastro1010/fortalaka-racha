@@ -1,4 +1,6 @@
 "use client";
+
+import { homeHeading } from '@/lib/rounds/home-heading';
 import { useLiveRefresh } from '@/components/live/useLiveRefresh';
 
 import {
@@ -163,10 +165,18 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
   const counts = getRoundParticipantCounts(round?.participants ?? []);
   const displayName = getDisplayName(profile);
   const firstName = getFirstName(displayName);
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    const refresh = () => setNow(new Date());
+    const initial = setTimeout(refresh, 0);
+    const timer = setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+    return () => { clearTimeout(initial); clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, []);
 
   return <section className="space-y-5">
     <AppHeader profile={profile} onOpenProfile={onOpenProfile} />
-    <div><p className="text-sm text-zinc-600">Olá, {firstName}</p><h2 className="mt-1">{round?.status === "finalizado" ? "Dentro e fora de campo." : "É dia de Fortalaka."}</h2></div>
+    <div><p className="text-sm text-zinc-600">Fala, {firstName}!</p><h2 className="mt-1 text-2xl font-black leading-tight">{homeHeading(round, now)}</h2></div>
     <RoundLoadStatus loading={loading && !round} error={error} empty={!round} retry={retry} />
     {organizer && !round && !error && <OrganizerPanel profile={profile} round={round} loading={loading}
       matches={currentMatches?.data ?? null} matchesError={currentMatches?.error ?? ""} onRefresh={retry}

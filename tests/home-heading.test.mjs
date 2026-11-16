@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {stripTypeScriptTypes} from 'node:module';
+const code=stripTypeScriptTypes(readFileSync('src/lib/rounds/home-heading.ts','utf8'));
+const {homeHeading}=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+const round={date:'2026-11-19',status:'aberto'};
+assert.equal(homeHeading(round,new Date('2026-11-16T20:00:00Z')),'Quinta tem racha.');
+assert.equal(homeHeading(round,new Date('2026-11-19T02:59:59Z')),'Amanhã tem racha.');
+assert.equal(homeHeading(round,new Date('2026-11-19T03:00:00Z')),'Hoje tem Fortalaka!');
+assert.equal(homeHeading(round,new Date('2026-11-20T03:00:00Z')),'Confira a rodada.');
+assert.equal(homeHeading({...round,status:'em_andamento'},null),'Bola rolando.');
+assert.equal(homeHeading({...round,status:'finalizado'},null),'Confira como foi o racha.');
+assert.equal(homeHeading(null,null),'Seu próximo racha começa aqui.');
+assert.equal(homeHeading({...round,date:null},new Date()),'Prepare-se para o próximo racha.');
+assert.equal(homeHeading({...round,date:'invalid'},new Date()),'Confira a rodada.');
+assert.equal(homeHeading({date:'2027-01-01',status:'aberto'},new Date('2026-12-31T15:00:00Z')),'Amanhã tem racha.');
+assert.equal(homeHeading(round,new Date('2026-11-01T15:00:00Z')),'Racha em 19/11.');
+console.log('PASS: data, fuso Fortaleza, virada do dia/ano, estados, data ausente/inválida e rodada distante.');
