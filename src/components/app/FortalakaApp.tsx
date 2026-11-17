@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Activity, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Activity, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { setMemorySession } from '@/lib/live/cache';
 import { readMatchesView } from '@/lib/live/reads';
 import { LogoMark } from "@/components/brand/LogoMark";
@@ -59,6 +59,11 @@ const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
 export function FortalakaApp({ profile, initialPlayerId = null, initialTab = "home" }: { profile: Profile; initialPlayerId?: string | null; initialTab?: Tab }) {
   useLayoutEffect(() => { setMemorySession(profile.id); }, [profile.id]);
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<Tab>>(() => new Set([initialTab]));
+  const visit = useCallback((tab: Tab) => {
+    setVisitedTabs(current => current.has(tab) ? current : new Set([...current, tab]));
+    setActiveTab(tab);
+  }, []);
   const [publicPlayerId, setPublicPlayerId] = useState<string | null>(initialPlayerId);
   const [underlyingReady, setUnderlyingReady] = useState(!initialPlayerId);
   const origin = useRef<{ url: string; scroll: number; focus: HTMLElement | null } | null>(null);
@@ -67,7 +72,7 @@ export function FortalakaApp({ profile, initialPlayerId = null, initialTab = "ho
       const match = window.location.pathname.match(/^\/perfil\/([^/]+)\/?$/);
       setPublicPlayerId(match ? match[1] : null);
       const tab = new URLSearchParams(window.location.search).get('tab');
-      if (tab && ['home','racha','teams','evaluate','results','profile'].includes(tab)) setActiveTab(tab as Tab);
+      if (tab && ['home','racha','teams','evaluate','results','profile'].includes(tab)) visit(tab as Tab);
       if (!match) setUnderlyingReady(true);
       if (!match && origin.current) {
         const previous = origin.current;
@@ -76,7 +81,7 @@ export function FortalakaApp({ profile, initialPlayerId = null, initialTab = "ho
     }
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
-  }, []);
+  }, [visit]);
   function openPlayer(id: string) {
     if (publicPlayerId === id) return;
     origin.current = { url: window.location.pathname + window.location.search, scroll: window.scrollY, focus: document.activeElement instanceof HTMLElement ? document.activeElement : null };
@@ -91,7 +96,7 @@ export function FortalakaApp({ profile, initialPlayerId = null, initialTab = "ho
   function navigate(tab: Tab) {
     setUnderlyingReady(true);
     if (publicPlayerId) { window.history.replaceState(window.history.state, "", origin.current?.url ?? "/"); setPublicPlayerId(null); }
-    setActiveTab(tab);
+    visit(tab);
     const url = new URL(window.location.href);
     url.pathname = '/'; url.searchParams.set('tab', tab);
     window.history.replaceState(window.history.state, '', url);
@@ -105,12 +110,12 @@ export function FortalakaApp({ profile, initialPlayerId = null, initialTab = "ho
           <div hidden={Boolean(publicPlayerId)}>
           {underlyingReady && <>
           <Activity mode={publicPlayerId ? 'hidden' : 'visible'}><AppHeader profile={profile} onOpenProfile={() => navigate("profile")} /></Activity>
-          <div hidden={activeTab !== 'home'}><Activity mode={activeTab === 'home' && !publicPlayerId ? 'visible' : 'hidden'}><HomeScreen profile={profile} onOpenProfile={() => navigate("profile")} onOpenRacha={() => navigate("racha")} onOpenEvaluate={() => navigate("evaluate")} onOpenResults={() => navigate("results")} onOpenTeams={() => navigate("teams")} /></Activity></div>
-          <div hidden={activeTab !== 'racha'}><Activity mode={activeTab === 'racha' && !publicPlayerId ? 'visible' : 'hidden'}><RachaScreen profile={profile} onOpenResults={() => navigate("results")} /></Activity></div>
-          <div hidden={activeTab !== 'teams'}><Activity mode={activeTab === 'teams' && !publicPlayerId ? 'visible' : 'hidden'}><TeamsScreen profile={profile} /></Activity></div>
-          <div hidden={activeTab !== 'results'}><Activity mode={activeTab === 'results' && !publicPlayerId ? 'visible' : 'hidden'}><ResultsScreen profile={profile} /></Activity></div>
-          <div hidden={activeTab !== 'profile'}><Activity mode={activeTab === 'profile' && !publicPlayerId ? 'visible' : 'hidden'}><ProfileScreen profile={profile} /></Activity></div>
-          <div hidden={activeTab !== 'evaluate'}><Activity mode={activeTab === 'evaluate' && !publicPlayerId ? 'visible' : 'hidden'}><EvaluationArea profile={profile} /></Activity></div>
+          {visitedTabs.has('home') && <div hidden={activeTab !== 'home'}><Activity mode={activeTab === 'home' && !publicPlayerId ? 'visible' : 'hidden'}><HomeScreen profile={profile} onOpenProfile={() => navigate("profile")} onOpenRacha={() => navigate("racha")} onOpenEvaluate={() => navigate("evaluate")} onOpenResults={() => navigate("results")} onOpenTeams={() => navigate("teams")} /></Activity></div>}
+          {visitedTabs.has('racha') && <div hidden={activeTab !== 'racha'}><Activity mode={activeTab === 'racha' && !publicPlayerId ? 'visible' : 'hidden'}><RachaScreen profile={profile} onOpenResults={() => navigate("results")} /></Activity></div>}
+          {visitedTabs.has('teams') && <div hidden={activeTab !== 'teams'}><Activity mode={activeTab === 'teams' && !publicPlayerId ? 'visible' : 'hidden'}><TeamsScreen profile={profile} /></Activity></div>}
+          {visitedTabs.has('results') && <div hidden={activeTab !== 'results'}><Activity mode={activeTab === 'results' && !publicPlayerId ? 'visible' : 'hidden'}><ResultsScreen profile={profile} /></Activity></div>}
+          {visitedTabs.has('profile') && <div hidden={activeTab !== 'profile'}><Activity mode={activeTab === 'profile' && !publicPlayerId ? 'visible' : 'hidden'}><ProfileScreen profile={profile} /></Activity></div>}
+          {visitedTabs.has('evaluate') && <div hidden={activeTab !== 'evaluate'}><Activity mode={activeTab === 'evaluate' && !publicPlayerId ? 'visible' : 'hidden'}><EvaluationArea profile={profile} /></Activity></div>}
           </>}
           </div>
           {publicPlayerId && <><AppHeader profile={profile} onOpenProfile={() => navigate("profile")} /><PublicPlayerProfile key={publicPlayerId} playerId={publicPlayerId} viewer={profile} onBack={backFromPlayer} /></>}
@@ -180,7 +185,7 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
   }, []);
 
   return <section className="space-y-5">
-    <div><p className="text-sm text-zinc-600">Fala, {firstName}!</p><h2 className="mt-1 text-2xl font-black leading-tight">{homeHeading(round, now)}</h2></div>
+    <div><p className="text-sm text-zinc-600">Fala, {firstName}!</p><h2 className="mt-1 text-2xl font-black leading-tight">{homeHeading(round, now, error ? 'error' : loading ? 'loading' : 'ready')}</h2></div>
     <RoundLoadStatus loading={loading && !round} error={error} empty={!round} retry={retry} />
     {organizer && !round && !error && <OrganizerPanel profile={profile} round={round} loading={loading}
       matches={currentMatches?.data ?? null} matchesError={currentMatches?.error ?? ""} onRefresh={retry}

@@ -10,6 +10,9 @@ assert.equal(homeHeading(round,new Date('2026-11-19T03:00:00Z')),'Hoje tem Forta
 assert.equal(homeHeading(round,new Date('2026-11-20T03:00:00Z')),'Confira a rodada.');
 assert.equal(homeHeading({...round,status:'em_andamento'},null),'Bola rolando.');
 assert.equal(homeHeading({...round,status:'finalizado'},null),'Confira como foi o racha.');
+assert.equal(homeHeading(null,null,'loading'),'Carregando seu racha…');
+assert.equal(homeHeading(null,null,'error'),'Não foi possível carregar o racha.');
+assert.equal(homeHeading(round,new Date('2026-11-16T20:00:00Z'),'loading'),'Quinta tem racha.');
 assert.equal(homeHeading(null,null),'Seu próximo racha começa aqui.');
 assert.equal(homeHeading({...round,date:null},new Date()),'Prepare-se para o próximo racha.');
 assert.equal(homeHeading({...round,date:'invalid'},new Date()),'Confira a rodada.');

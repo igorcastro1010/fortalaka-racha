@@ -1,4 +1,6 @@
-export function homeHeading(round: { date: string | null; status: string } | null, now: Date | null): string {
+export function homeHeading(round: { date: string | null; status: string } | null, now: Date | null, state: 'ready' | 'loading' | 'error' = 'ready'): string {
+  if (!round && state === 'loading') return 'Carregando seu racha…';
+  if (!round && state === 'error') return 'Não foi possível carregar o racha.';
   if (!round) return 'Seu próximo racha começa aqui.';
   if (round.status === 'finalizado') return 'Confira como foi o racha.';
   if (round.status === 'em_andamento') return 'Bola rolando.';
