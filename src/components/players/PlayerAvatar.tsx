@@ -3,6 +3,10 @@
 import Image from "next/image";
 import { useState } from "react";
 
+const avatarPrefix = process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith('https:')
+  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/public/avatars/`
+  : null;
+
 type PlayerAvatarProps = {
   name: string;
   avatarUrl?: string | null;
@@ -29,7 +33,7 @@ export function PlayerAvatar({ name, avatarUrl, size = "md" }: PlayerAvatarProps
           width={size === "sm" ? 40 : size === "xl" ? 80 : size === "lg" ? 56 : 44}
           height={size === "sm" ? 40 : size === "xl" ? 80 : size === "lg" ? 56 : 44}
           onError={() => setFailedUrl(avatarUrl)}
-          unoptimized
+          unoptimized={!avatarPrefix || !avatarUrl.startsWith(avatarPrefix)}
           className="h-full w-full object-cover"
         />
       </span>
