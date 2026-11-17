@@ -41,7 +41,7 @@ try {
   const bundle = join(output, 'app.cjs');
   await build({ entryPoints: [entry], outfile: bundle, bundle: true, platform: 'node', jsx: 'automatic', tsconfig: resolve('tsconfig.json'), nodePaths: [resolve('node_modules')], plugins: [{name:'local-only',setup(b){b.onResolve({filter:/^@\/lib\/supabase\/client$/},()=>({path:client}));b.onResolve({filter:/^next\/navigation$/},()=>({path:router}));}}] });
   window = new JSDOM('<div></div>',{url:'http://127.0.0.1:3011/'}).window;
-  globalThis.window=window;globalThis.document=window.document;
+  globalThis.window=window;globalThis.self=window;globalThis.document=window.document;
   const { act, createElement, createRoot, FortalakaApp } = createRequire(import.meta.url)(bundle);
   testAct=act;
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -68,7 +68,7 @@ try {
     if(root) await act(async()=>root.unmount());
     window?.close();
     window = new JSDOM('<div id="root"></div>', {url:`http://127.0.0.1:3011/?role=${role}`}).window;
-    for(const key of ['window','document','location','HTMLElement','HTMLDialogElement'])globalThis[key]=key==='window'?window:window[key];
+    for(const key of ['window','self','document','location','HTMLElement','HTMLDialogElement'])globalThis[key]=(key==='window'||key==='self')?window:window[key];
     window.confirm=()=>{throw new Error('Native confirmation is blocked');};
     window.scrollTo=()=>{};
     window.matchMedia=()=>({matches:true});
