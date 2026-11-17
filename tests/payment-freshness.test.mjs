@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {resolve} from 'node:path';
+import vm from 'node:vm';
+const {build}=createRequire(resolve(process.argv[2],'package.json'))('esbuild');
+const bundle=await build({entryPoints:['src/lib/payments/repository.ts'],bundle:true,write:false,format:'cjs',platform:'node',plugins:[{name:'client',setup(b){b.onResolve({filter:/lib\/supabase\/client/},()=>({path:'fake',namespace:'fake'}));b.onLoad({filter:/.*/,namespace:'fake'},()=>({contents:'export const createClient=()=>globalThis.client'}));}}]});
+let writes=0,readError=null;
+let current={status_pagamento:'pendente',valor_pagamento:null,status:'confirmado',forma_pagamento:'pix'};
+const c={module:{exports:{}},exports:{},client:{from(){const q={select(){return q},eq(){return q},async maybeSingle(){return {data:current,error:readError}}};return q},async rpc(){writes++;return {error:null}}}};c.exports=c.module.exports;vm.runInNewContext(bundle.outputFiles[0].text,c);
+const update=c.module.exports.updatePayment,source={status:'pendente',amount:null};
+current={...current,status_pagamento:'recebido',valor_pagamento:20};
+await assert.rejects(update('p','recebido',10,source),/mudou/);assert.equal(writes,0,'Snapshot antigo não confirma pagamento');
+readError={code:'503'};await assert.rejects(update('p','recebido',10,source));assert.equal(writes,0,'Sem leitura fresca não grava');
+readError=null;current={...current,status_pagamento:'pendente',valor_pagamento:null};await update('p','recebido',10,source);assert.equal(writes,1);
+console.log('PASS pagamento: preflight fresco, mudança externa e indisponibilidade bloqueiam confirmação antiga');

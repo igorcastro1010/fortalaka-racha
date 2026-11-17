@@ -3,7 +3,7 @@
 import { Save } from "lucide-react";
 import { useRef, useState } from "react";
 import { PlayerIdentity } from "@/components/players/PlayerIdentity";
-import { updatePayment } from "@/lib/payments/repository";
+import { PaymentConflictError, updatePayment } from "@/lib/payments/repository";
 import { buildFinancialSummary, money, parseAmount, paymentMethodLabel, type PaymentStatus } from "@/lib/payments/summary";
 import type { RoundParticipant } from "@/lib/teams/repository";
 
@@ -56,11 +56,14 @@ function PaymentFields({ participant, onUpdated }: { participant: RoundParticipa
     } catch (e) { setError(e instanceof Error ? e.message : "Confira o valor informado."); return; }
     submitting.current = true; setBusy(true);
     try {
-      await updatePayment(participant.id, status, value);
+      await updatePayment(participant.id, status, value, source);
       setSource({ status, amount: value });
       await onUpdated();
       setMessage("Pagamento atualizado.");
-    } catch { setError("Não foi possível salvar o pagamento. Confira o valor e tente novamente."); }
+    } catch (error) {
+      setError(error instanceof PaymentConflictError ? error.message : 'Não foi possível salvar o pagamento. Confira o valor e tente novamente.');
+      if (error instanceof PaymentConflictError) await onUpdated();
+    }
     finally { submitting.current = false; setBusy(false); }
   }
   return <form onSubmit={save} aria-label={`Pagamento de ${participant.name}`} aria-busy={busy} className="mt-3 space-y-3">
