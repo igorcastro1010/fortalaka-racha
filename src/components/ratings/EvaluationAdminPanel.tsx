@@ -45,6 +45,7 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
             const people = await readEvaluationPendingView(roundId, controller.signal);
             if (active && currentRequest === readSequence.current) { setPending(people); setPendingError(""); }
           } catch (e) {
+            if (!active || controller.signal.aborted) return;
             console.error("Pendências de avaliações", e);
             if (active && currentRequest === readSequence.current) { setPending(null); setPendingError("Não foi possível carregar as pendências."); }
           }
@@ -53,6 +54,7 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
           if (active && currentRequest === readSequence.current) { setPersonal(data); setError(""); }
         }
       } catch (e) {
+        if (!active || controller.signal.aborted) return;
         console.error("Progresso de avaliações", e);
         if (active && currentRequest === readSequence.current) setError("Não foi possível carregar as avaliações. Tente novamente.");
       }

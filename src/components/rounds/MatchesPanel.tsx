@@ -71,6 +71,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
     readMatchesView(roundId, controller.signal).then(data => {
       if (active && request === readSequence.current) { setState(data); setError(""); }
     }).catch(e => {
+      if (!active || controller.signal.aborted) return;
       console.error("Falha ao carregar partidas", e);
       if (active && request === readSequence.current) setError("Não foi possível carregar as partidas. Tente novamente.");
     }).finally(() => {

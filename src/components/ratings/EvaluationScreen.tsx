@@ -51,6 +51,7 @@ export function EvaluationScreen({ roundId, onStateChange, onReadStatusChange, r
         const data = await readEvaluationView(roundId, controller.signal);
         if (active && currentRequest === readSequence.current && !savingRef.current) { setState(data); onStateChange?.(data); onReadStatusChange?.({ loading: false, error: "" }); setError(""); }
       } catch (e) {
+        if (!active || controller.signal.aborted) return;
         console.error("Atualizar avaliações", e);
         if (active && currentRequest === readSequence.current && !savingRef.current) { setError("Não foi possível carregar as avaliações. Tente novamente."); onReadStatusChange?.({ loading: false, error: "Não foi possível carregar as avaliações. Tente novamente." }); }
       } finally {
