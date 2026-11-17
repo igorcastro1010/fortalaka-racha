@@ -3,7 +3,7 @@ import { ALL_DOMAINS, invalidateMemory, type Domain } from './cache';
 
 // Somente invalidar leituras. Nunca aplicar payload de socket como dado do app.
 export const LIVE_TABLES = ['rachas', 'racha_participantes', 'times', 'time_jogadores', 'partidas', 'partida_jogadores', 'eventos_partida', 'fila_times'] as const;
-type Listener = { refresh: () => Promise<unknown> | void; pending: boolean; active: boolean; dirty: boolean; domains: readonly Domain[] };
+type Listener = { refresh: () => Promise<unknown> | void; pending: boolean; active: boolean; dirty: boolean; domains: readonly Domain[]; retry?: ReturnType<typeof setTimeout>; failures: number };
 const listeners = new Set<Listener>();
 let stop: (() => void) | undefined;
 let wake: (() => void) | undefined;
@@ -20,7 +20,9 @@ const RECONCILE: Domain[] = ['ratings', 'notifications', 'profile', 'payments'];
 
 export function invalidateLive(domains: readonly Domain[] = ALL_DOMAINS) {
   invalidateMemory(domains);
-  for (const listener of listeners) if (listener.domains.some(domain => domains.includes(domain))) listener.dirty = true;
+  for (const listener of listeners) if (listener.domains.some(domain => domains.includes(domain))) {
+    listener.dirty = true; clearTimeout(listener.retry); listener.retry = undefined;
+  }
   wake?.();
 }
 
@@ -34,19 +36,21 @@ function start() {
     batch = undefined;
     if (!visible()) return;
     for (const listener of listeners) {
-      if (listener.pending || !listener.active || !listener.dirty) continue;
+      if (listener.pending || listener.retry || !listener.active || !listener.dirty) continue;
       listener.pending = true; listener.dirty = false;
-      void Promise.resolve().then(() => listener.active && listener.refresh()).catch(() => {
-        // O componente conserva seus dados e trata o erro pela leitura normal.
-      }).finally(() => { listener.pending = false; if (listener.active && listener.dirty) schedule(); });
+      void Promise.resolve().then(() => listener.active && listener.refresh()).then(() => { listener.failures = 0; }).catch(() => {
+        if (!listener.active) return;
+        listener.dirty = true;
+        listener.retry = setTimeout(() => { listener.retry = undefined; schedule(); }, Math.min(1000 * 2 ** listener.failures++, 30000));
+      }).finally(() => { listener.pending = false; if (listener.active && listener.dirty && !listener.retry) schedule(); });
     }
   };
   const schedule = () => { if (!stopped && visible() && !batch) batch = setTimeout(flush, 300); };
   wake = schedule;
   const fallbackTick = () => {
-    clearTimeout(fallback);
-    if (stopped || connected) return;
+    if (stopped || connected || fallback) return;
     fallback = setTimeout(() => {
+      fallback = undefined;
       if (visible()) invalidateLive();
       delay = Math.min(delay * 2, 60000); fallbackTick();
     }, delay);
@@ -66,8 +70,8 @@ function start() {
     channel.subscribe(status => {
       if (stopped) return;
       connected = status === 'SUBSCRIBED';
-      if (connected) { clearTimeout(fallback); delay = 10000; invalidateLive(); }
-      else { delay = 10000; fallbackTick(); }
+      if (connected) { clearTimeout(fallback); fallback = undefined; delay = 10000; invalidateLive(); }
+      else fallbackTick();
     });
     disconnect = () => { void client.removeChannel(channel).catch(() => {}); };
   } catch { /* O fallback abaixo mantém sincronização sem WebSocket. */ }
@@ -82,12 +86,14 @@ function start() {
   };
 }
 
-export function subscribeLiveRefresh(refresh: Listener['refresh'], domains: readonly Domain[] = ALL_DOMAINS) {
-  const listener: Listener = { refresh, pending: false, active: true, dirty: false, domains };
+export function subscribeLiveRefresh(refresh: Listener['refresh'], domains: readonly Domain[] = ALL_DOMAINS, initial = true) {
+  const listener: Listener = { refresh, pending: false, active: true, dirty: initial, domains, failures: 0 };
   listeners.add(listener);
   if (!stop) stop = start();
+  wake?.();
   return () => {
     listener.active = false;
+    clearTimeout(listener.retry);
     listeners.delete(listener);
     if (!listeners.size) { stop?.(); stop = undefined; }
   };

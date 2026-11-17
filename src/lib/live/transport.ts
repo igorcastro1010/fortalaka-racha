@@ -9,6 +9,8 @@ export function mutationDomains(url: string, method: string): readonly Domain[] 
   if (resource.startsWith('rpc/')) {
     const name = resource.slice(4);
     if (/^(ler_|avatars_da_rodada$|medias_jogador$|push_ativo$|chave_publica_push$)/.test(name)) return [];
+    if (['inscricao_rodada', 'alterar_forma_pagamento', 'atualizar_pagamento'].includes(name)) return TABLE_DOMAINS.racha_participantes;
+    if (['marcar_notificacoes_lidas', 'limpar_notificacoes_lidas'].includes(name)) return ['notifications'];
     return ALL_DOMAINS;
   }
   return TABLE_DOMAINS[resource] ?? ALL_DOMAINS;

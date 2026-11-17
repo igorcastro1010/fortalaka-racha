@@ -26,8 +26,10 @@ events.find(e=>e.filter.table==='partidas').handler();await tick(300);events.fin
 finish();await tick(0);await tick(300);assert.equal(reads,2,'Evento durante leitura exige nova consulta');off();
 document.visibilityState='hidden';const count=matches;events[0].handler();await tick(60000);assert.equal(matches,count);
 document.visibilityState='visible';document.dispatchEvent(new Event('visibilitychange'));await tick(300);assert(matches>count);
-channel.status('CHANNEL_ERROR');rounds=0;await tick(10000);await tick(300);assert.equal(rounds,1);await tick(10000);assert.equal(rounds,1,'Fallback aplica backoff');await tick(10300);assert.equal(rounds,2);
+channel.status('CHANNEL_ERROR');rounds=0;await tick(5000);channel.status('TIMED_OUT');await tick(5000);await tick(300);assert.equal(rounds,1,'Erros repetidos não adiam fallback');await tick(10000);assert.equal(rounds,1,'Fallback aplica backoff');await tick(10300);assert.equal(rounds,2);
 channel.status('SUBSCRIBED');await tick(300);rounds=0;await tick(60000);assert.equal(rounds,0,'Reconexão desliga fallback');
+let failures=0;const retry=subscribeLiveRefresh(()=>{if(++failures===1)throw Error('rede temporária')},['matches']);await tick(300);await tick(1300);assert.equal(failures,2,'Falha transitória não perde invalidação');retry();
+let resumed=0;const pause=subscribeLiveRefresh(()=>{resumed++},['teams']);await tick(300);pause();const resume=subscribeLiveRefresh(()=>{resumed++},['teams']);await tick(300);assert.equal(resumed,2,'Retomada após edição revalida');resume();
 navigator.onLine=false;window.dispatchEvent(new Event('offline'));const before=notifications;await tick(60000);assert.equal(notifications,before);
 a();b();n();assert.equal(removed,1);assert.equal(timers.size,0);
 console.log('PASS hub: 12→0 ciclos operacionais/min saudável; reconciliação 2/min, invalidação específica, backoff, replay, offline e cleanup');

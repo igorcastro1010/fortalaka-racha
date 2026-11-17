@@ -13,6 +13,8 @@ for(const name of ['atualizar_pagamento','inscricao_rodada','salvar_rascunho_tim
   assert(mutationDomains(rpc+name,'POST').length);
   const first=await performanceFetch(rpc+name,{method:'POST'});const second=await performanceFetch(rpc+name,{method:'POST'});assert.notEqual(first.value,second.value,'Operação crítica sempre chega ao transporte');
 }
+assert(!mutationDomains(rpc+'inscricao_rodada','POST').includes('matches'),'Inscrição não invalida partidas');
+assert.deepEqual(Array.from(mutationDomains(rpc+'marcar_notificacoes_lidas','POST')),['notifications']);
 let loads=0;await readMemory('round',['round'],async()=>++loads);
 await performanceFetch(rpc+'inscricao_rodada',{method:'POST'});await readMemory('round',['round'],async()=>++loads);assert.equal(loads,2);
 fail=true;await assert.rejects(performanceFetch(rpc+'inscricao_rodada',{method:'POST'}));await readMemory('round',['round'],async()=>++loads);assert.equal(loads,3,'Falha ambígua também invalida');

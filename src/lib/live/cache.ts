@@ -20,7 +20,13 @@ export function readMemory<T>(key: string, tags: readonly Domain[], load: (signa
   if (signal?.aborted) return Promise.reject(aborted());
   if (typeof window === 'undefined' || !session) return load(signal ?? new AbortController().signal);
   let entry = entries.get(key);
-  if (entry?.ready && Date.now() - entry.at < ttl) return Promise.resolve(entry.value as T);
+  if (entry?.ready && Date.now() - entry.at < ttl) {
+    const ready = entry;
+    return Promise.resolve().then(() => {
+      if (signal?.aborted || entries.get(key) !== ready) throw aborted();
+      return ready.value as T;
+    });
+  }
   if (entry?.ready) { entries.delete(key); entry = undefined; }
   if (!entry) {
     // Limite de memória: remover apenas entradas concluídas, nunca leitores ativos.
