@@ -53,7 +53,8 @@ try {
   await mobile('pagamento-registrado');
   await nav('Racha'); await page.getByRole('tab', { name: 'Gestão', exact: true }).click();
   const finance = page.getByRole('region', { name: 'Financeiro da rodada' });
-  await finance.waitFor(); assert((await finance.locator('dt').filter({ hasText: /^Total arrecadado$/ }).locator('..').textContent()).includes('0,00'));
+  try { await finance.waitFor(); } catch (error) { console.error(JSON.stringify({ screen: await page.locator('body').innerText(), errors, logs, recent: calls.slice(-12).map(c => c.name ?? c.table) })); throw error; }
+  assert((await finance.locator('dt').filter({ hasText: /^Total arrecadado$/ }).locator('..').textContent()).includes('0,00'));
   await finance.locator('summary').filter({ hasText: 'Conta teste' }).click();
   const form = finance.getByRole('form', { name: 'Pagamento de Conta teste' });
   await form.getByLabel('Status financeiro').selectOption('recebido');

@@ -1,8 +1,9 @@
+import { readBuiltCss } from './built-css.mjs';
 // Browser isolado: componentes e repository reais, sem acesso a dados remotos.
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {resolve,join} from 'node:path';
-import {mkdtempSync,readFileSync,readdirSync} from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import {tmpdir} from 'node:os';
 import {createServer} from 'node:http';
 const deps=createRequire(resolve(process.argv[2],'package.json'));
@@ -14,7 +15,7 @@ const bundle=await build({stdin:{contents:`import {createRoot} from 'react-dom/c
  b.onResolve({filter:/^\.\/PushSettings$/},()=>({path:'push',namespace:'fixture'}));
  b.onLoad({filter:/.*/,namespace:'fixture'},({path})=>({contents:path==='client'?'export const createClient=()=>window.client;':path==='link'?"export default 'a';":'export const PushSettings=()=>null;',loader:'tsx'}));
 }}]});
-const css=readdirSync('.next/static/chunks').filter(f=>f.endsWith('.css')).map(f=>readFileSync(join('.next/static/chunks',f),'utf8')).join('\n');
+const css = readBuiltCss();
 const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'application/javascript':'text/html; charset=utf-8');res.end(req.url==='/app.js'?bundle.outputFiles[0].text:`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body><main class="mx-auto max-w-[640px] p-4"><div id="root"></div></main><script src="/app.js"></script></body></html>`);});
 await new Promise(done=>server.listen(0,'127.0.0.1',done));let browser;
 try {

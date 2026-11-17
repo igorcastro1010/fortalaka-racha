@@ -17,7 +17,9 @@ const bundle = await build({
       import { act, createElement } from 'react';
       import { createRoot } from 'react-dom/client';
       import { EvaluationArea } from ${JSON.stringify(resolve(root, 'src/components/ratings/EvaluationArea.tsx'))};
+      import { setMemorySession } from './src/lib/live/cache';
       globalThis.harness = { act, mount(profile) {
+        setMemorySession(profile.id);
         const root = createRoot(document.getElementById('root'));
         root.render(createElement(EvaluationArea, { profile }));
         return root;
@@ -40,11 +42,13 @@ const bundle = await build({
       builder.onResolve({ filter: /^@\/lib\/ratings\/repository$/ }, () => ({ path: 'ratings', namespace: 'fixture' }));
       builder.onResolve({ filter: /^@\/components\/rounds\/useCurrentRound$/ }, () => ({ path: 'round', namespace: 'fixture' }));
       builder.onLoad({ filter: /.*/, namespace: 'fixture' }, ({ path }) => ({
+        resolveDir: root,
         contents: path === 'round' ? `
           export function useCurrentRound() {
             return { round: globalThis.fixture.round, loading: false, error: '', retry() {} };
           }
         ` : `
+          import { invalidateLive } from './src/lib/live/refresh';
           const fixture = () => globalThis.fixture;
           export async function getEvaluationState(roundId) {
             const f = fixture(); f.reads.push(roundId);
@@ -55,11 +59,13 @@ const bundle = await build({
             const f = fixture(); f.progressReads.push(roundId);
             return { total: 2, respondentes: 0, abertas: f.state.open };
           }
+          export async function getEvaluationPending() { return []; }
           export async function setRoundEvaluationsOpen(roundId, open) {
             const f = fixture(); f.toggles.push({ roundId, open });
             if (f.toggleError) throw new Error(f.toggleError);
             if (f.toggleWait) await f.toggleWait;
             f.state.open = open; f.state.canEvaluate = open;
+            invalidateLive(['ratings']);
             return { total: 2, respondentes: 0, abertas: open };
           }
           export async function saveEvaluation(...args) { fixture().saves.push(args); }
@@ -169,9 +175,9 @@ test('Progresso exposes a failed shared read instead of an infinite spinner', as
     await app.click(app.tab('Progresso'));
     assert.match(app.progress().querySelector('[role="alert"]')?.textContent ?? '', /carregar as avalia/);
     assert.equal(app.progress().querySelector('[role="status"][aria-label="Carregando progresso..."]'), null);
-    assert.equal(app.fixture.reads.length, 1);
+    assert.equal(app.fixture.reads.length, 2, 'Falha não é cacheada; a área visível tenta novamente');
     assert.equal(app.fixture.progressReads.length, 0);
-    assert.equal(app.errors.length, 1, 'Only the mocked read failure is expected');
+    assert.equal(app.errors.length, 2, 'Somente as duas tentativas de leitura simuladas podem falhar');
   } finally { await app.close(); }
 });
 
@@ -203,8 +209,9 @@ test('Opening/closing evaluations refreshes state without losing the unsaved sco
       await app.click(app.find('button', element => element.textContent === label));
       assert.equal(app.fixture.reads.length, before, 'Opening confirmation must not mutate the round');
       await app.click(app.find('dialog[open] button', element => element.textContent === 'Confirmar'));
-      assert.equal(app.fixture.reads.length, before + 1, 'Mutation must refresh the mounted screen exactly once');
+      assert.equal(app.fixture.reads.length, before, 'Tela oculta não consulta após mutação');
       await app.click(app.tab('Avaliar'));
+      assert.equal(app.fixture.reads.length, before + 1, 'Retomada revalida a alteração exatamente uma vez');
       assert.equal(app.find('button[aria-label="Passe: 5 de 5"]'), score, 'Score button must retain DOM identity');
       assert.equal(score.closest('[tabindex="-1"]'), form, 'Selected player form must remain mounted');
       assert.equal(score.getAttribute('aria-pressed'), 'true');
@@ -217,7 +224,7 @@ test('Opening/closing evaluations refreshes state without losing the unsaved sco
     assert.equal(app.confirmations.length, 0, 'Blocked native browser confirmations must not prevent the action');
     assert.equal(app.fixture.saves.length, 0, 'The draft must not be saved implicitly');
     assert.equal(app.fixture.state.players[0].passe, null);
-    assert.equal(app.fixture.progressReads.length, 1);
+    assert.equal(app.fixture.progressReads.length, 3, 'Cada mutação invalida o progresso antes da retomada');
     assert.equal(app.errors.length, 0);
   } finally { await app.close(); }
 });

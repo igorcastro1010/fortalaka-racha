@@ -1,7 +1,8 @@
+import { readBuiltCss } from './built-css.mjs';
 // Somente dados fictícios e servidor local. --serve mantém a demonstração para MCPs.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -37,7 +38,7 @@ await build({entryPoints:[entry],outfile:join(output,'app.js'),bundle:true,jsx:'
  b.onResolve({filter:/^@\/lib\/matches\/repository$/},()=>({path:'stats',namespace:'fixture'}));
  b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:`export async function getPlayerStatistics(id){const rows=${JSON.stringify(players)};return id?rows.filter(p=>p.jogador_id===id):rows;}`}));
 }}]});
-const css=readdirSync('.next/static/chunks').filter(n=>n.endsWith('.css')).map(n=>readFileSync(join('.next/static/chunks',n),'utf8')).join('\n');
+const css = readBuiltCss();
 const server=createServer((request,response)=>{
  const path=new URL(request.url,'http://localhost').pathname;
  if(path==='/fortalaka-escudo.jpeg'){response.setHeader('Content-Type','image/jpeg');response.end(readFileSync('public/fortalaka-escudo.jpeg'));return;}

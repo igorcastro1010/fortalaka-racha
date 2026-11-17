@@ -3,9 +3,10 @@
 // Adicione --app para validar as cinco abas do app principal.
 import { createRequire } from 'node:module';
 import { basename, resolve, join } from 'node:path';
-import { mkdtempSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createServer } from 'node:http';
+import { readBuiltCss } from './built-css.mjs';
 import { randomUUID } from 'node:crypto';
 const { build }=createRequire(resolve(process.argv[2],'package.json'))('esbuild');
 const { PGlite }=createRequire(resolve(process.argv[3],'package.json'))('@electric-sql/pglite');
@@ -53,16 +54,12 @@ if(process.argv.includes('--payments')) {
  await db.exec(readFileSync('supabase/pagamentos.sql','utf8'));
 }
 const output=mkdtempSync(join(tmpdir(),'fortalaka-validation-'));
+await db.exec(readFileSync('supabase/notificacoes.sql','utf8'));
 const client=join(output,'client.ts');
 writeFileSync(client,`
+import {createFixtureClient} from ${JSON.stringify(resolve('tests/fixture-client.mjs'))};
 const role=new URLSearchParams(location.search).get('role')==='jogador'?'jogador':'organizador';
-async function request(body){const r=await fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,role})});return r.json();}
-export function createClient(){return {
- rpc:(name,args)=>request({kind:'rpc',name,args}),
- from(table){let body={kind:'table',table,op:'select',filters:[],single:false};const q={select(columns){body.columns=columns;return q},eq(k,v){body.filters.push([k,v]);return q},order(k,o){body.orders??=[];body.orders.push([k,o]);return q},range(from,to){body.range=[from,to];return q},limit(n){body.limit=n;return q},returns(){return q},maybeSingle(){body.single=true;return q},single(){body.single=true;return q},insert(value){body.op='insert';body.value=value;return q},update(value){body.op='update';body.value=value;return q},delete(){body.op='delete';return q},then(a,b){return request(body).then(a,b)}};return q},
- auth:{async getUser(){const r=await request({kind:'user'});return {data:{user:r.data},error:r.error}}},
- storage:{from(){return {async upload(path,file){const bytes=new Uint8Array(await file.arrayBuffer());let text='';for(const b of bytes)text+=String.fromCharCode(b);return request({kind:'upload',path,type:file.type,base64:btoa(text)})},getPublicUrl(path){return {data:{publicUrl:location.origin+'/avatar/'+path}}},remove(paths){return request({kind:'remove',paths})}}}}
-};}
+export function createClient(){return createFixtureClient(location.origin,role);}
 `);
 writeFileSync(join(output,'main.tsx'),`
 import { useState } from 'react';import { createRoot } from 'react-dom/client';
@@ -80,8 +77,7 @@ createRoot(document.getElementById('root')!).render(location.pathname==='/compar
 const navigation=join(output,'navigation.ts');
 writeFileSync(navigation,`export function useRouter(){return {replace(){},refresh(){}};}`);
 await build({entryPoints:[join(output,'main.tsx')],outfile:join(output,'app.js'),bundle:true,jsx:'automatic',define:{'process.env':'{}'},tsconfig:resolve('tsconfig.json'),nodePaths:[resolve('node_modules')],plugins:[{name:'isolated-client',setup(b){b.onResolve({filter:/^@\/lib\/supabase\/client$/},()=>({path:client}));b.onResolve({filter:/^next\/navigation$/},()=>({path:navigation}));}}]});
-const chunks=resolve('.next/static/chunks');const css=readdirSync(chunks).find(n=>n.endsWith('.css'));
-writeFileSync(join(output,'app.css'),readFileSync(join(chunks,css)));
+writeFileSync(join(output,'app.css'),readBuiltCss());
 writeFileSync(join(output,'index.html'),'<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Validação isolada</title><link rel="stylesheet" href="/app.css"></head><body style="--font-geist-sans:Geist,Arial,sans-serif"><div id="root"></div><script src="/app.js"></script></body></html>');
 const photo=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
 const uploaded=new Map();let queue=Promise.resolve();
@@ -103,9 +99,9 @@ async function api(input){
    // PGlite retorna numeric como texto; PostgREST serializa numeric como número JSON.
    if(input.name==='medias_jogador')data=rows.map(row=>({...row,...Object.fromEntries(['passe','chute','velocidade','defesa','fisico'].map(key=>[key,row[key]===null?null:Number(row[key])]))}));
   }else if(input.kind==='table'){
-   const fields={profiles:['id','name','email','avatar_url','role','active'],rachas:['id','nome','data','estado','horario','endereco','versao','created_at'],racha_participantes:['id','racha_id','jogador_id','nome','tipo','status','created_at'],times:['id','racha_id','nome','numero','confirmado','ativo']};
+   const fields={notifications:['id','recipient_id','read_at','created_at'],profiles:['id','name','email','avatar_url','role','active'],rachas:['id','nome','data','estado','horario','endereco','versao','created_at'],racha_participantes:['id','racha_id','jogador_id','nome','tipo','status','created_at'],times:['id','racha_id','nome','numero','confirmado','ativo']};
    if(process.argv.includes('--payments')) {fields.racha_participantes.push('forma_pagamento','status_pagamento','valor_pagamento');fields.configuracoes_pagamento=['id','chave_pix','titular','banco'];}
-   if(!fields[input.table])throw Error('Tabela inválida');const params=[];const clauses=(input.filters??[]).filter(([k])=>k!=='partidas.status').map(([k,v])=>{if(!fields[input.table].includes(k))throw Error('Campo inválido');params.push(v);return k+'=$'+params.length;});const where=clauses.length?' where '+clauses.join(' and '):'';
+   if(!fields[input.table])throw Error('Tabela inválida');const params=[];const clauses=(input.filters??[]).filter(([k])=>k!=='partidas.status').map(([k,v])=>{if(!fields[input.table].includes(k))throw Error('Campo inválido');if(v===null)return k+' is null';params.push(v);return k+'=$'+params.length;});const where=clauses.length?' where '+clauses.join(' and '):'';
    let sql='select '+fields[input.table].join(',')+' from public.'+input.table+where;
    if(input.op==='insert'){const keys=Object.keys(input.value);if(keys.some(k=>!fields[input.table].includes(k)))throw Error('Campo inválido');sql='insert into public.'+input.table+'('+keys.join(',')+') values('+keys.map(k=>{params.push(input.value[k]);return '$'+params.length}).join(',')+') returning *';}
    if(input.op==='update'){const keys=Object.keys(input.value);if(keys.some(k=>!fields[input.table].includes(k)))throw Error('Campo inválido');sql='update public.'+input.table+' set '+keys.map(k=>{params.push(input.value[k]);return k+'=$'+params.length}).join(',')+where+' returning *';}
@@ -122,19 +118,23 @@ async function api(input){
     if(row.data instanceof Date)row.data=row.data.toISOString().slice(0,10);
     if(input.table==='rachas'&&input.columns?.includes('partidas('))row.partidas=(await db.query("select p.id,p.status,p.placar_a,p.placar_b,p.time_a_id,p.time_b_id,coalesce((select jsonb_agg(jsonb_build_object('jogador_id',j.jogador_id,'time_id',j.time_id,'participou',j.participou)) from public.partida_jogadores j where j.partida_id=p.id),'[]'::jsonb) as partida_jogadores from public.partidas p where p.racha_id=$1 and p.status='finalizada'",[row.id])).rows;
     if(input.table==='times'&&input.columns?.includes('time_jogadores('))row.time_jogadores=(await db.query('select jogador_id,ativo from public.time_jogadores where time_id=$1',[row.id])).rows;
-   }data=input.single?(rows[0]??null):rows;
+   }data=input.count==='exact'?{fixtureCount:rows.length}:input.single?(rows[0]??null):rows;
   }else if(input.kind==='upload'){
    const bytes=Buffer.from(input.base64,'base64');if(bytes.length>2097152||!['image/png','image/jpeg','image/webp'].includes(input.type))throw Error('Imagem inválida');
    await db.query("insert into storage.objects(bucket_id,name) values('avatars',$1)",[input.path]);uploaded.set(input.path,{bytes,type:input.type});data={path:input.path};
   }else if(input.kind==='remove'){for(const path of input.paths){await db.query('delete from storage.objects where name=$1',[path]);uploaded.delete(path);}data=[];}
-  await db.exec('commit');return {data,error:null};
+  await db.exec('commit');return data?.fixtureCount!==undefined?{data:null,count:data.fixtureCount,error:null}:{data,error:null};
  }catch(error){await db.exec('rollback');return {data:null,error:{message:error.message,code:error.code}};}
 }
+const eventClients = new Set();
 createServer(async(req,res)=>{
+ if(req.url==='/test/events') { res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-store'});res.write(': ready\n\n');eventClients.add(res);req.on('close',()=>eventClients.delete(res));return; }
  if(req.url?.endsWith('.woff2')){res.setHeader('Content-Type','font/woff2');res.end(readFileSync(join('.next/static/media',basename(req.url))));return;}
  if(req.url==='/api'){
   const parts=[];for await(const chunk of req)parts.push(chunk);const input=JSON.parse(Buffer.concat(parts).toString());const job=queue.then(()=>api(input));queue=job.catch(()=>{});
-  res.setHeader('Content-Type','application/json');res.end(JSON.stringify(await job));return;
+  const result=await job;
+  if(!result.error && ((input.kind==='rpc'&&!/^(ler_|avatars_da_rodada$|medias_jogador$)/.test(input.name)) || (input.kind==='table'&&input.op!=='select')))for(const client of eventClients)client.write('data: '+JSON.stringify(input.kind==='table'?input.table:['inscricao_rodada','alterar_forma_pagamento','atualizar_pagamento'].includes(input.name)?'racha_participantes':'*')+'\n\n');
+  res.setHeader('Content-Type','application/json');res.end(JSON.stringify(result));return;
  }
  const assetUrl=new URL(req.url??'/','http://127.0.0.1:3011');
  if(assetUrl.pathname==='/fortalaka-escudo.jpeg'||(assetUrl.pathname==='/_next/image'&&assetUrl.searchParams.get('url')==='/fortalaka-escudo.jpeg')){res.setHeader('Content-Type','image/jpeg');res.end(readFileSync(resolve('public/fortalaka-escudo.jpeg')));return;}

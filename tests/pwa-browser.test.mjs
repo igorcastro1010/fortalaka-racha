@@ -1,3 +1,4 @@
+import { readBuiltCss } from './built-css.mjs';
 // PWA real em Chromium, com sessão fictícia isolada. Nunca acessa Supabase.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -10,7 +11,7 @@ const deps=createRequire(resolve(process.argv[2],'package.json'));
 const {build}=deps('esbuild');const {chromium}=deps('playwright');
 const dir=mkdtempSync(join(tmpdir(),'fortalaka-pwa-'));
 await build({stdin:{contents:`import {createRoot} from 'react-dom/client';import {PwaExperience} from './src/components/pwa/PwaExperience';createRoot(document.getElementById('pwa')).render(<PwaExperience/>);`,resolveDir:process.cwd(),loader:'tsx'},outfile:join(dir,'client.js'),bundle:true,jsx:'automatic',define:{'process.env.NODE_ENV':'"production"'},tsconfig:resolve('tsconfig.json'),nodePaths:[resolve('node_modules')]});
-const css=readdirSync('.next/static/chunks').filter(n=>n.endsWith('.css')).map(n=>readFileSync(join('.next/static/chunks',n),'utf8')).join('\n');
+const css = readBuiltCss();
 let version=1,authenticated=true;const assetCredentials=[];
 const server=createServer((req,res)=>{
  const path=new URL(req.url,'http://localhost').pathname;

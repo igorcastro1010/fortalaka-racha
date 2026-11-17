@@ -1,7 +1,8 @@
+import { readBuiltCss } from './built-css.mjs';
 // node tests/ranking-ui.test.mjs <node_modules com esbuild e playwright>
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
@@ -31,8 +32,7 @@ await build({entryPoints:[entry],outfile:bundle,bundle:true,platform:'browser',j
   builder.onResolve({filter:/^@\/lib\/matches\/repository$/},()=>({path:'statistics',namespace:'test'}));
   builder.onLoad({filter:/.*/,namespace:'test'},()=>({contents:"export async function getPlayerStatistics(){return fetch('/stats').then(response=>response.json());}"}));
 }}]});
-const chunks=resolve('.next/static/chunks');
-const css=readdirSync(chunks).filter(name=>name.endsWith('.css')).map(name=>readFileSync(join(chunks,name),'utf8')).join('\n');
+const css = readBuiltCss();
 let requests=0;
 const server=createServer((request,response)=>{
   if(request.url?.endsWith('.woff2')){response.setHeader('Content-Type','font/woff2');response.end(readFileSync(join('.next/static/media',basename(request.url))));return;}

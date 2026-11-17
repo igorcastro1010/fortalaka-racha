@@ -1,7 +1,8 @@
+import { readBuiltCss } from './built-css.mjs';
 // Isolated UI fixture: no Supabase connection and no real push subscription.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { createServer } from 'node:http';
@@ -18,7 +19,7 @@ const bundle = await build({
     builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: 'export const createClient=()=>({rpc:window.fixtureRpc})', loader: 'js' }));
   } }],
 });
-const css = readdirSync('.next/static/chunks').filter(name => name.endsWith('.css')).map(name => readFileSync(join('.next/static/chunks', name), 'utf8')).join('\n');
+const css = readBuiltCss();
 const server = createServer((req, res) => {
   if (req.url === '/client.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(bundle.outputFiles[0].text); return; }
   if (req.url === '/style.css') { res.setHeader('Content-Type', 'text/css'); res.end(css); return; }

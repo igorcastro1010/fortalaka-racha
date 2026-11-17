@@ -1,7 +1,8 @@
+import { readBuiltCss } from './built-css.mjs';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {resolve,join} from 'node:path';
-import {readFileSync,readdirSync,mkdtempSync} from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import {tmpdir} from 'node:os';
 import {createServer} from 'node:http';
 const deps=createRequire(resolve(process.argv[2],'package.json'));
@@ -13,7 +14,7 @@ const bundle=await build({stdin:{contents:`import {createRoot} from 'react-dom/c
  b.onResolve({filter:/^@\/lib\/results\/round-history$/},()=>({path:'history',namespace:'fixture'}));
  b.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='history'?`const round={id:'r',data:'2026-11-12',nome:'Rodada de teste',participantCount:1,matchCount:1,totalGoals:2};export const historyDate=()=> '12 de novembro';export const getRoundHistory=async()=>({rounds:[round],hasMore:false});export const getHistoricalRound=async()=>({round,matches:[],participants:[],teams:[]});`:args.path==='client'?'export const createClient=()=>({rpc:window.rpc});':'export const PostRoundSummary=()=>null;',loader:'js'}));
 }}]});
-const css=readdirSync('.next/static/chunks').filter(n=>n.endsWith('.css')).map(n=>readFileSync(join('.next/static/chunks',n),'utf8')).join('\n');
+const css = readBuiltCss();
 const server=createServer((req,res)=>{if(req.url==='/app.js'){res.setHeader('Content-Type','application/javascript');res.end(bundle.outputFiles[0].text);}else{res.setHeader('Content-Type','text/html; charset=utf-8');res.end(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body><main class="mx-auto max-w-[640px] p-4"><div id="root"></div></main><script src="/app.js"></script></body></html>`);}});
 await new Promise(done=>server.listen(0,'127.0.0.1',done));
 let browser,diagnosticPage;

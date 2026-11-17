@@ -1,7 +1,8 @@
+import { readBuiltCss } from './built-css.mjs';
 // node tests/inscricao-ui.test.mjs <node_modules com esbuild e playwright>
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -22,7 +23,7 @@ await build({entryPoints:[entry],outfile:bundle,bundle:true,platform:'browser',j
   builder.onResolve({filter:/^@\/lib\/supabase\/client$/},()=>({path:'client',namespace:'test'}));
   builder.onLoad({filter:/.*/,namespace:'test'},()=>({contents:"export function createClient(){return {rpc:(name,args)=>fetch('/registration'+location.search,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,args})}).then(response=>response.json())};}"}));
 }}]});
-const chunks=resolve('.next/static/chunks');const css=readdirSync(chunks).filter(name=>name.endsWith('.css')).map(name=>readFileSync(join(chunks,name),'utf8')).join('\n');
+const css = readBuiltCss();
 const participants=new Map();let requests=0;let roundStatus='aberto';
 const technical='there is no unique or exclusion constraint matching the ON CONFLICT specification';
 const server=createServer(async(request,response)=>{

@@ -41,6 +41,9 @@ try{
    const gate=new Promise(done=>{release=done});started();await gate;
    await route.fulfill({response});finished();
  });
+ // V1.1 não consulta partidas ociosas a cada 5 s. Uma retomada explícita
+ // inicia a leitura que este cenário segura para testar concorrência.
+ await b.evaluate(()=>window.dispatchEvent(new Event('focus')));
  await pending;
  await a.getByRole('button',{name:'INICIAR PRIMEIRA PARTIDA',exact:true}).click();
  await b.locator('p.text-6xl').first().waitFor({timeout:12000});
@@ -49,9 +52,10 @@ try{
  assert.equal(await b.locator('p.text-6xl').count(),2,'Resposta antiga não apaga a partida nova');
  await b.unroute('**/api');
  await a.getByRole('button',{name:/Aumentar placar de/}).first().click();
- await a.getByRole('button',{name:'Salvar',exact:true}).click();
+ // O placar atual persiste cada lançamento, sem botão Salvar.
  await b.locator('p.text-6xl').filter({hasText:/^1$/}).waitFor({timeout:12000});
  // Uma nova rodada não pode desmontar a edição em andamento no outro aparelho.
+ await a.getByRole('button',{name:'Voltar às partidas',exact:true}).click();
  await a.getByRole('button',{name:'LANÇAR PLACAR E EVENTOS',exact:true}).click();
  await a.getByRole('button',{name:/Aumentar placar de/}).last().click();
  const scores=await a.locator('p.text-6xl').allTextContents();
@@ -59,8 +63,8 @@ try{
  assert.equal((await r.json()).error,null);
  await b.getByText('Rodada nova isolada',{exact:true}).waitFor({timeout:12000});
  assert.deepEqual(await a.locator('p.text-6xl').allTextContents(),scores);
- assert(await a.getByRole('button',{name:'Salvar',exact:true}).isVisible());
- await a.getByRole('button',{name:'Fechar edicao sem salvar',exact:true}).click();
+ assert(await a.getByRole('button',{name:'Voltar às partidas',exact:true}).isVisible());
+ await a.getByRole('button',{name:'Voltar às partidas',exact:true}).click();
  await a.getByText('Rodada nova isolada',{exact:true}).waitFor({timeout:12000});
  // Falha de avaliações não pode prender o painel enquanto a leitura inicial é lenta.
  let releaseTeams,heldTeams=false;

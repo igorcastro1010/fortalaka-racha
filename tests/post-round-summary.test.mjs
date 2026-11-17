@@ -1,7 +1,8 @@
+import { readBuiltCss } from './built-css.mjs';
 // node tests/post-round-summary.test.mjs <node_modules com esbuild e playwright>
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -28,8 +29,7 @@ await build({ entryPoints: [entry], outfile: bundle, bundle: true, platform: 'br
   builder.onResolve({ filter: /^@\/lib\/matches\/repository$/ }, () => ({ path: 'statistics', namespace: 'test' }));
   builder.onLoad({ filter: /.*/, namespace: 'test' }, () => ({ contents: 'export async function getPlayerStatistics() { return []; }' }));
 } }] });
-const chunks = resolve('.next/static/chunks');
-const css = readdirSync(chunks).filter(name => name.endsWith('.css')).map(name => readFileSync(join(chunks, name), 'utf8')).join('\n');
+const css = readBuiltCss();
 const html = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body style="margin:0;background:#f4f4f5"><main id="root" style="max-width:430px;margin:auto;padding:16px"></main><script src="/app.js"></script></body></html>';
 const server = createServer((request, response) => {
   response.setHeader('Content-Type', request.url === '/app.js' ? 'text/javascript' : request.url === '/app.css' ? 'text/css' : 'text/html; charset=utf-8');
