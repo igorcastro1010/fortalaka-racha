@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { withReadSignal } from '@/lib/live/read-signal';
 
 export type EvaluationPlayer = {
   jogador_id: string;
@@ -30,8 +31,8 @@ export type EvaluationProgress = {
 
 export type EvaluationPending = { id: string; nome: string; avatar_url: string | null; respondidas: number; total: number };
 
-export async function getEvaluationPending(roundId: string): Promise<EvaluationPending[]> {
-  const { data, error } = await createClient().rpc("ler_pendencias_avaliacoes", { p_racha: roundId });
+export async function getEvaluationPending(roundId: string, signal?: AbortSignal): Promise<EvaluationPending[]> {
+  const { data, error } = await withReadSignal(createClient().rpc("ler_pendencias_avaliacoes", { p_racha: roundId }), signal);
   check(error);
   return (data ?? []) as EvaluationPending[];
 }
@@ -48,8 +49,8 @@ function check(error: { message: string; code?: string } | null) {
   if (error) throw new Error(error.code === "PGRST202" ? "Execute o SQL de avaliacoes no Supabase." : error.message);
 }
 
-export async function getEvaluationState(roundId?: string): Promise<EvaluationState | null> {
-  const { data, error } = await createClient().rpc("ler_avaliacoes_atual", { p_racha: roundId ?? null });
+export async function getEvaluationState(roundId?: string, signal?: AbortSignal): Promise<EvaluationState | null> {
+  const { data, error } = await withReadSignal(createClient().rpc("ler_avaliacoes_atual", { p_racha: roundId ?? null }), signal);
   check(error);
   return data as EvaluationState | null;
 }
@@ -67,8 +68,8 @@ export async function saveEvaluation(roundId: string, playerId: string, scores: 
   check(error);
 }
 
-export async function getEvaluationProgress(roundId: string): Promise<EvaluationProgress> {
-  const { data, error } = await createClient().rpc("ler_progresso_avaliacoes", { p_racha: roundId });
+export async function getEvaluationProgress(roundId: string, signal?: AbortSignal): Promise<EvaluationProgress> {
+  const { data, error } = await withReadSignal(createClient().rpc("ler_progresso_avaliacoes", { p_racha: roundId }), signal);
   check(error);
   return data as EvaluationProgress;
 }

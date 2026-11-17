@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
+import { withReadSignal } from '@/lib/live/read-signal';
 
 export type AppNotification = { id: string; round_id: string | null; title: string; body: string; destination: 'racha' | 'teams' | 'results' | 'evaluate' | 'profile'; created_at: string; read_at: string | null };
 export const NOTIFICATIONS_PAGE_SIZE = 20;
@@ -10,8 +11,8 @@ export async function getNotifications(offset = 0, filter: 'unread' | 'read' = '
   const rows = (data ?? []) as AppNotification[];
   return { rows: rows.slice(0, NOTIFICATIONS_PAGE_SIZE), hasMore: rows.length > NOTIFICATIONS_PAGE_SIZE };
 }
-export async function getUnreadCount() {
-  const { count, error } = await createClient().from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null);
+export async function getUnreadCount(signal?: AbortSignal) {
+  const { count, error } = await withReadSignal(createClient().from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null), signal);
   if (error) throw error;
   return count ?? 0;
 }

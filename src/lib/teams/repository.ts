@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DrawTeam, TeamPlayer } from "@/lib/teams/draw";
 import { getCurrentRoundDetails, type RoundDetails } from "@/lib/rounds/repository";
 import type { PaymentMethod, PaymentStatus } from "@/lib/payments/summary";
+import { withReadSignal } from '@/lib/live/read-signal';
 
 export type RoundParticipant = TeamPlayer & {
   jogadorId: string | null;
@@ -32,10 +33,10 @@ function checkError(error: { message: string; code?: string } | null) {
   throw new Error(error.message);
 }
 
-export async function getCurrentRoundTeamsState(supabase: SupabaseClient, loadedRound?: RoundDetails): Promise<RoundTeamsState | null> {
-  const round = loadedRound ?? await getCurrentRoundDetails(supabase);
+export async function getCurrentRoundTeamsState(supabase: SupabaseClient, loadedRound?: RoundDetails, signal?: AbortSignal): Promise<RoundTeamsState | null> {
+  const round = loadedRound ?? await getCurrentRoundDetails(supabase, signal);
   if (!round) return null;
-  const { data, error } = await supabase.rpc("ler_times_rodada", {});
+  const { data, error } = await withReadSignal(supabase.rpc("ler_times_rodada", {}), signal);
   checkError(error);
   const state = data as RoundTeamsState | null;
   if (!state || state.roundId !== round.roundId || state.status !== round.status) {

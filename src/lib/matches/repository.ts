@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { withReadSignal } from '@/lib/live/read-signal';
 
 export type PlayerStatistics = {
   jogador_id: string;
@@ -33,13 +34,13 @@ export type MatchesState = {
 function check(error: { message: string; code?: string } | null) {
   if (error) throw new Error(error.code === "PGRST202" ? "Execute o SQL de partidas e estatísticas no Supabase." : error.message);
 }
-export async function getPlayerStatistics(playerId?: string): Promise<PlayerStatistics[]> {
-  const { data, error } = await createClient().rpc("ler_estatisticas_jogadores", { p_jogador: playerId ?? null });
+export async function getPlayerStatistics(playerId?: string, signal?: AbortSignal): Promise<PlayerStatistics[]> {
+  const { data, error } = await withReadSignal(createClient().rpc("ler_estatisticas_jogadores", { p_jogador: playerId ?? null }), signal);
   check(error);
   return (data ?? []) as PlayerStatistics[];
 }
-export async function getRoundMatches(roundId: string): Promise<MatchesState> {
-  const { data, error } = await createClient().rpc("ler_partidas_rodada", { p_racha: roundId });
+export async function getRoundMatches(roundId: string, signal?: AbortSignal): Promise<MatchesState> {
+  const { data, error } = await withReadSignal(createClient().rpc("ler_partidas_rodada", { p_racha: roundId }), signal);
   check(error);
   return data as MatchesState;
 }

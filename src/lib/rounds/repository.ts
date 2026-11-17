@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RoundParticipant, RoundStatus } from "@/lib/teams/repository";
 import { createClient } from "@/lib/supabase/client";
 import type { PaymentMethod, PaymentStatus } from "@/lib/payments/summary";
+import { withReadSignal } from '@/lib/live/read-signal';
 
 export type RoundDetails = {
   roundId: string;
@@ -48,41 +49,46 @@ type ProfileRow = {
   avatar_url?: string | null;
 };
 
-export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<RoundDetails | null> {
-  const { data: round, error: roundError } = await supabase
+export async function getCurrentRoundDetails(supabase: SupabaseClient, signal?: AbortSignal): Promise<RoundDetails | null> {
+  const { data: round, error: roundError } = await withReadSignal(supabase
     .from("rachas")
     .select("id, nome, estado, data, horario, endereco")
     .order("data", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(1)
-    .maybeSingle<RoundRow>();
+    .maybeSingle<RoundRow>(), signal);
 
   if (roundError) throw roundError;
   if (!round) return null;
 
-  let { data: participants, error: participantsError } = await supabase
-    .from("racha_participantes")
-    .select("id, jogador_id, nome, tipo, status, forma_pagamento, status_pagamento, valor_pagamento")
-    .eq("racha_id", round.id)
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true })
-    .returns<ParticipantRow[]>();
+  const readParticipants = async () => {
+    let { data: participants, error: participantsError } = await withReadSignal(supabase
+      .from("racha_participantes")
+      .select("id, jogador_id, nome, tipo, status, forma_pagamento, status_pagamento, valor_pagamento")
+      .eq("racha_id", round.id)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .returns<ParticipantRow[]>(), signal);
 
-  const paymentsAvailable = !participantsError;
-  if (participantsError && ["42703", "PGRST204"].includes(participantsError.code) && /forma_pagamento|status_pagamento|valor_pagamento/.test(participantsError.message)) {
-    // Preserve read-only app flows until the paired database migration is applied.
-    const fallback = await supabase.from("racha_participantes").select("id, jogador_id, nome, tipo, status")
-      .eq("racha_id", round.id).order("created_at", { ascending: true }).order("id", { ascending: true }).returns<ParticipantRow[]>();
-    participants = fallback.data;
-    participantsError = fallback.error;
-  }
+    const paymentsAvailable = !participantsError;
+    if (participantsError && ["42703", "PGRST204"].includes(participantsError.code) && /forma_pagamento|status_pagamento|valor_pagamento/.test(participantsError.message)) {
+      // Preserve read-only app flows until the paired database migration is applied.
+      const fallback = await withReadSignal(supabase.from("racha_participantes").select("id, jogador_id, nome, tipo, status")
+        .eq("racha_id", round.id).order("created_at", { ascending: true }).order("id", { ascending: true }).returns<ParticipantRow[]>(), signal);
+      participants = fallback.data;
+      participantsError = fallback.error;
+    }
 
-  if (participantsError) {
-    throw participantsError;
-  }
+    if (participantsError) {
+      throw participantsError;
+    }
 
-  const { data: avatars, error: avatarError } = await supabase.rpc("avatars_da_rodada", { p_racha: round.id });
+    return { participants, paymentsAvailable };
+  };
+  const [{ participants, paymentsAvailable }, { data: avatars, error: avatarError }] = await Promise.all([
+    readParticipants(), withReadSignal(supabase.rpc("avatars_da_rodada", { p_racha: round.id }), signal),
+  ]);
   if (avatarError) throw avatarError;
   const avatarById = new Map<string, string | null>((avatars ?? []).map((p: { jogador_id: string; avatar_url: string | null }) => [p.jogador_id, p.avatar_url]));
 
@@ -108,21 +114,21 @@ export async function getCurrentRoundDetails(supabase: SupabaseClient): Promise<
   };
 }
 
-export async function getAvailableProfiles(supabase: SupabaseClient) {
-  let { data, error } = await supabase
+export async function getAvailableProfiles(supabase: SupabaseClient, signal?: AbortSignal) {
+  let { data, error } = await withReadSignal(supabase
     .from("profiles")
     .select("id, name, email, avatar_url")
     .eq("active", true)
     .order("name", { ascending: true })
-    .returns<ProfileRow[]>();
+    .returns<ProfileRow[]>(), signal);
 
   if (error && isAvatarColumnError(error)) {
-    const fallback = await supabase
+    const fallback = await withReadSignal(supabase
       .from("profiles")
       .select("id, name, email")
       .eq("active", true)
       .order("name", { ascending: true })
-      .returns<ProfileRow[]>();
+      .returns<ProfileRow[]>(), signal);
 
     data = fallback.data;
     error = fallback.error;
