@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { Profile } from "@/lib/auth/roles";
 import { getRoleLabel } from "@/lib/auth/roles";
@@ -8,55 +7,22 @@ import { createClient } from "@/lib/supabase/client";
 import { attributes, overallRating, radarPoints, radarGrid, radarVertex, type RatingSummary } from "@/lib/ratings/summary";
 import { PlayerAvatar } from "./PlayerAvatar";
 import type { PublicPlayer } from "@/lib/players/public-profile";
+import { useViewData } from '@/components/live/useViewData';
+import { readAvatarView } from '@/lib/live/reads';
+import { withReadSignal } from '@/lib/live/read-signal';
 
 export function PlayerPerformance({ profile, children, view = "overview", publicData }: { profile: Profile; children?: ReactNode; view?: "overview" | "ratings" | "all"; publicData?: PublicPlayer }) {
-  const [privateSummary, setSummary] = useState<RatingSummary | null>(null);
-  const [avatar, setAvatar] = useState(profile.avatar_url ?? null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (publicData) return;
-    let mounted = true;
-    let pending = false;
-    const client = createClient();
-    async function refresh() {
-      if (pending || document.visibilityState === "hidden") return;
-      pending = true;
-      try {
-        const [ratings, photo] = await Promise.all([
-          client.rpc("medias_jogador", { p_jogador: profile.id }),
-          client.from("profiles").select("avatar_url").eq("id", profile.id).single(),
-        ]);
-        if (!mounted) return;
-        if (ratings.error) throw new Error(ratings.error.code === "PGRST202"
-          ? "As avaliações ainda não estão configuradas no banco."
-          : "Não foi possível carregar suas médias. Tente novamente.");
-        if (!ratings.data?.[0]) throw new Error("Não foi possível carregar suas médias. Tente novamente.");
-        if (!("fisico" in ratings.data[0])) throw new Error("Atualize a configuração das avaliações para incluir Físico.");
-        setSummary(ratings.data[0] as RatingSummary);
-        if (!photo.error) setAvatar(photo.data.avatar_url);
-        setError("");
-      } catch (e) {
-        console.error("Médias do jogador", e);
-        if (mounted) setError("Não foi possível carregar suas médias. Tente novamente.");
-      } finally {
-        pending = false;
-        if (mounted) setLoading(false);
-      }
-    }
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 15000);
-    const onFocus = () => void refresh();
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
-    return () => {
-      mounted = false;
-      window.clearInterval(timer);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
-    };
-  }, [profile.id, publicData]);
+  const state = useViewData(`performance:${profile.id}`, ['ratings', 'profile'], async signal => {
+    const [ratings, avatar] = await Promise.all([
+      withReadSignal(createClient().rpc('medias_jogador', { p_jogador: profile.id }), signal),
+      readAvatarView(profile.id, signal).catch(() => profile.avatar_url ?? null),
+    ]);
+    if (ratings.error || !ratings.data?.[0] || !('fisico' in ratings.data[0])) throw new Error('Não foi possível carregar suas médias.');
+    return { summary: ratings.data[0] as RatingSummary, avatar };
+  }, !publicData);
+  const privateSummary = state.data?.summary ?? null;
+  const avatar = state.data?.avatar ?? profile.avatar_url;
+  const { error, loading } = state;
 
   const summary = publicData ? publicData.summary : privateSummary;
   const overall = publicData ? publicData.nota_geral_100 : summary ? overallRating(summary) : null;

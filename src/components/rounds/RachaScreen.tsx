@@ -26,6 +26,8 @@ import {
 } from "@/lib/rounds/repository";
 import { createClient } from "@/lib/supabase/client";
 import { useLiveRefresh } from '@/components/live/useLiveRefresh';
+import { readRoundView, retryView, ROUND_DOMAINS } from '@/lib/live/reads';
+import { readMemory } from '@/lib/live/cache';
 import { updateRoundStatus, type RoundParticipant } from "@/lib/teams/repository";
 
 export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOpenResults?: () => void }) {
@@ -44,10 +46,10 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [editingRound, setEditingRound] = useState(false);
   const { confirm, confirmationDialog } = useConfirmation();
-  useLiveRefresh(async isCurrent => {
-    const data = await getCurrentRoundDetails(createClient());
+  useLiveRefresh(async (isCurrent, signal) => {
+    const data = await readRoundView(signal);
     if (isCurrent()) { setRound(data); setError(''); }
-  }, !isLoading && !isSaving && !confirmFinish && !editingRound);
+  }, !isLoading && !isSaving && !confirmFinish && !editingRound, undefined, ROUND_DOMAINS, () => setError('Não foi possível atualizar a rodada. Tente novamente.'));
 
   const [matchSummary, setMatchSummary] = useState<{ roundId: string; count: number | null } | null>(null);
   const onFinalizedCountChange = useCallback((roundId: string, count: number | null) => {
@@ -87,12 +89,13 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
 
     async function loadInitialRound() {
       const supabase = createClient();
       const [roundData, profilesData] = await Promise.all([
-        getCurrentRoundDetails(supabase),
-        organizer ? getAvailableProfiles(supabase) : Promise.resolve([]),
+        readRoundView(controller.signal, supabase),
+        organizer ? retryView(() => readMemory('available-profiles', ['profile'], signal => getAvailableProfiles(supabase, signal), controller.signal), controller.signal) : Promise.resolve([]),
       ]);
 
       if (!isMounted) {
@@ -110,6 +113,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
 
     return () => {
       isMounted = false;
+      controller.abort();
     };
   }, [organizer]);
 

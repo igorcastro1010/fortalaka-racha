@@ -10,6 +10,8 @@ import { useConfirmation } from "@/components/ui/useConfirmation";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
 import { useLiveRefresh } from '@/components/live/useLiveRefresh';
+import { readRoundView, retryView } from '@/lib/live/reads';
+import { readMemory } from '@/lib/live/cache';
 import { drawTeams, getTeamCount, hasCompleteTeams, swapPlayers, type DrawTeam, type TeamDraw, type TeamPlayer } from "@/lib/teams/draw";
 import { confirmTeams, getCurrentRoundTeamsState, saveDraftTeams, type RoundStatus, type RoundTeamsState } from "@/lib/teams/repository";
 
@@ -29,24 +31,25 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const { confirm, confirmationDialog } = useConfirmation();
-  useLiveRefresh(async isCurrent => {
-    const state = await fetchRoundTeamsState();
+  useLiveRefresh(async (isCurrent, signal) => {
+    const state = await fetchRoundTeamsView(signal);
     if (isCurrent()) {
       setRoundState(state);
       setDraw(state?.teams.length ? { teams: state.teams } : null);
       setError('');
     }
-  }, !isLoading && !isSaving && !adjustMode && !selectedPlayerId);
+  }, !isLoading && !isSaving && !adjustMode && !selectedPlayerId, undefined, ['round', 'teams', 'profile'], () => setError('Não foi possível atualizar os times. Tente novamente.'));
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
 
     async function loadTeams() {
       setIsLoading(true);
       setError("");
 
       try {
-        const state = await fetchRoundTeamsState();
+        const state = await fetchRoundTeamsView(controller.signal);
 
         if (!isMounted) {
           return;
@@ -69,6 +72,7 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
     return () => {
       isMounted = false;
+      controller.abort();
     };
   }, []);
 
@@ -117,9 +121,11 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
     setIsSaving(true);
 
     try {
-      const nextDraw = drawTeams(fieldPlayersToUse);
       const supabase = createClient();
-      await saveDraftTeams(supabase, roundState.roundId, nextDraw.teams, roundState.version);
+      const fresh = await getCurrentRoundTeamsState(supabase);
+      if (!fresh || fresh.roundId !== roundState.roundId || fresh.version !== roundState.version || fresh.status !== roundState.status) throw new Error('A rodada mudou. Atualize antes de sortear.');
+      const nextDraw = drawTeams(fresh.fieldPlayers);
+      await saveDraftTeams(supabase, fresh.roundId, nextDraw.teams, fresh.version);
       await reloadPersistedTeams();
       setAdjustMode(false);
       setSelectedPlayerId(null);
@@ -160,6 +166,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
     try {
       const supabase = createClient();
+      const fresh = await getCurrentRoundTeamsState(supabase);
+      if (!fresh || fresh.roundId !== roundState.roundId || fresh.version !== roundState.version || fresh.status !== roundState.status) throw new Error('A rodada mudou. Atualize os times.');
       await saveDraftTeams(supabase, roundState.roundId, nextDraw.teams, roundState.version);
       await reloadPersistedTeams();
       setMessage("Ajuste salvo.");
@@ -195,6 +203,8 @@ export function TeamsScreen({ profile }: TeamsScreenProps) {
 
     try {
       const supabase = createClient();
+      const fresh = await getCurrentRoundTeamsState(supabase);
+      if (!fresh || fresh.roundId !== roundState.roundId || fresh.version !== roundState.version || fresh.status !== roundState.status) throw new Error('A rodada mudou. Atualize os times.');
       await confirmTeams(supabase, roundState.roundId, roundState.version);
       await reloadPersistedTeams();
       setAdjustMode(false);
@@ -468,4 +478,12 @@ function getTeamsToFormLabel(teamCount: number) {
 async function fetchRoundTeamsState() {
   const supabase = createClient();
   return getCurrentRoundTeamsState(supabase);
+}
+
+async function fetchRoundTeamsView(signal?: AbortSignal) {
+  return retryView(() => readMemory('current-teams', ['round', 'teams', 'profile'], async next => {
+    const supabase = createClient();
+    const round = await readRoundView(next, supabase);
+    return round ? getCurrentRoundTeamsState(supabase, round, next) : null;
+  }, signal), signal);
 }

@@ -5,6 +5,7 @@ import type { Profile } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { Camera } from "lucide-react";
+import { readAvatarView } from '@/lib/live/reads';
 
 export function ProfilePhoto({ profile }: { profile: Profile }) {
   const [url, setUrl] = useState<string | null>(profile.avatar_url ?? null);
@@ -14,13 +15,13 @@ export function ProfilePhoto({ profile }: { profile: Profile }) {
   const [fileName, setFileName] = useState("");
   useEffect(() => {
     let active = true;
-    Promise.resolve(createClient().from("profiles").select("avatar_url").eq("id", profile.id).single())
-      .then(({ data, error }) => {
+    const controller = new AbortController();
+    readAvatarView(profile.id, controller.signal)
+      .then(data => {
         if (!active) return;
-        if (error) setError("Não foi possível carregar sua foto.");
-        else setUrl(data?.avatar_url ?? null);
+        setUrl(data);
       }).catch(() => { if (active) setError("Não foi possível carregar sua foto."); });
-    return () => { active = false; };
+    return () => { active = false; controller.abort(); };
   }, [profile.id]);
 
   async function upload(file: File) {

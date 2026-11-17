@@ -10,6 +10,7 @@ import { RoundHistory } from "@/components/results/RoundHistory";
 import { ViewTabs } from "@/components/ui/ViewTabs";
 import { useConfirmation } from "@/components/ui/useConfirmation";
 import { useLiveRefresh } from '@/components/live/useLiveRefresh';
+import { readMatchesView } from '@/lib/live/reads';
 import { LiveMatchScoring } from './LiveMatchScoring';
 
 const button = "fk-secondary min-h-11 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-bold disabled:opacity-50";
@@ -39,11 +40,11 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   const [draft, setDraft] = useState<Match | null>(null);
   const [penaltyWinner, setPenaltyWinner] = useState("");
   useEffect(() => { onEditingChange?.(Boolean(draft) || busy); }, [draft, busy, onEditingChange]);
-  useLiveRefresh(async isCurrent => {
+  useLiveRefresh(async (isCurrent, signal) => {
     const request = ++readSequence.current;
-    const data = await getRoundMatches(roundId);
+    const data = await readMatchesView(roundId, signal);
     if (isCurrent() && request === readSequence.current) { setState(data); setError(''); }
-  }, !loading && !busy && !draft, `${roundId}:${roundStatus}`);
+  }, !loading && !busy && !draft, `${roundId}:${roundStatus}`, ['matches'], () => setError('Não foi possível atualizar as partidas. Tente novamente.'));
   const [goalLimitTeam, setGoalLimitTeam] = useState<string | null>(null);
   const [view, setView] = useState<"auto" | "live" | "history" | "summary">(initialView);
   const [historyDetailOpen, setHistoryDetailOpen] = useState(false);
@@ -66,7 +67,8 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
   useEffect(() => {
     let active = true;
     const request = ++readSequence.current;
-    getRoundMatches(roundId).then(data => {
+    const controller = new AbortController();
+    readMatchesView(roundId, controller.signal).then(data => {
       if (active && request === readSequence.current) { setState(data); setError(""); }
     }).catch(e => {
       console.error("Falha ao carregar partidas", e);
@@ -74,7 +76,7 @@ export function MatchesPanel({ roundId, organizer, roundStatus, roundDate = null
     }).finally(() => {
       if (active) setLoading(false);
     });
-    return () => { active = false; };
+    return () => { active = false; controller.abort(); };
   }, [roundId, roundStatus]);
 
   useEffect(() => {

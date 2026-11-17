@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useMemo } from "react";
 import { getPlayerStatistics, type PlayerStatistics } from "@/lib/matches/repository";
 import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { Trophy } from "lucide-react";
@@ -9,40 +9,11 @@ import { rankingMetric, rankingOptions, sortRanking, type RankingSort } from "@/
 import { PlayerAchievements } from "./PlayerAchievements";
 import { VisualShareCard } from "@/components/results/VisualShareCard";
 import { rankingVisualCard } from "@/lib/results/visual-card";
-import { useLiveRefresh } from '@/components/live/useLiveRefresh';
+import { useViewData } from '@/components/live/useViewData';
 
 function useStatistics(playerId?: string) {
-  const [data, setData] = useState<PlayerStatistics[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  useLiveRefresh(async isCurrent => {
-    const rows = await getPlayerStatistics(playerId);
-    if (isCurrent()) { setData(rows); setError(''); }
-  }, !loading, playerId);
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try { setData(await getPlayerStatistics(playerId)); }
-    catch (e) { console.error("Estatísticas", e); setError("Não foi possível carregar as estatísticas. Tente novamente."); }
-    finally { setLoading(false); }
-  }, [playerId]);
-  useEffect(() => {
-    let active = true;
-    const read = async () => {
-      try {
-        const rows = await getPlayerStatistics(playerId);
-        if (active) { setData(rows); setError(""); }
-      } catch (e) {
-        console.error("Estatísticas", e);
-        if (active) setError("Não foi possível carregar as estatísticas. Tente novamente.");
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    void read();
-    return () => { active = false; };
-  }, [playerId]);
-  return { data, loading, error, reload };
+  const state = useViewData(`statistics:${playerId ?? 'all'}`, ['statistics', 'ratings', 'profile'], signal => getPlayerStatistics(playerId, signal));
+  return { ...state, data: state.data ?? [] };
 }
 
 function Metrics({ player }: { player: PlayerStatistics }) {
@@ -57,7 +28,7 @@ function ReadStatus({ loading, error, reload }: { loading: boolean; error: strin
 
 export function RankingScreen({ sort, onSortChange }: { sort: RankingSort; onSortChange: (sort: RankingSort) => void }) {
   const state = useStatistics();
-  const ranking = sortRanking(state.data, sort);
+  const ranking = useMemo(() => sortRanking(state.data, sort), [state.data, sort]);
   const activeLabel = rankingOptions.find(option => option.id === sort)!.label;
   return <section aria-label="Ranking dos jogadores" className="min-w-0 space-y-3"><div><h2 className="text-[29px] font-black leading-tight">Ranking</h2><p className="mt-0.5 text-sm text-zinc-600">{sort === "geral" ? "Classificação por overall — maior nota primeiro" : `${activeLabel} — maior valor primeiro`}</p></div>
     <div role="group" aria-label="Ordenação do ranking" className="flex w-full min-w-0 gap-2 overflow-x-auto pb-2">

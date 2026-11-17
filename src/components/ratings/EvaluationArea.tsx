@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Activity, useState } from "react";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import { useCurrentRound } from "@/components/rounds/useCurrentRound";
 import { RoundLoadStatus, RoundSummary } from "@/components/rounds/RoundSummary";
@@ -24,12 +24,16 @@ export function EvaluationArea({ profile }: { profile: Profile }) {
     {!loading && !error && round && <>
       <ViewTabs label="Visualização das avaliações" value={view} onChange={setView} items={[{ id: "avaliar", label: "Avaliar" }, { id: "progresso", label: "Progresso" }]} />
       <div hidden={view !== "avaliar"}>
+        <Activity mode={view === 'avaliar' ? 'visible' : 'hidden'}>
         <EvaluationScreen key={round.roundId} roundId={round.roundId} refreshToken={revision} onStateChange={setPersonal} onReadStatusChange={setReadStatus} onEditingChange={setEditing} />
+        </Activity>
       </div>
       <div hidden={view !== "progresso"} className="space-y-5">
+        <Activity mode={view === 'progresso' ? 'visible' : 'hidden'}>
         <details className="border-b border-zinc-200 pb-4"><summary className="min-h-11 cursor-pointer content-center text-sm font-bold focus-visible:outline-2 focus-visible:outline-red-600">Resumo da rodada</summary><div className="pt-3"><RoundSummary round={round} /></div></details>
-        <EvaluationAdminPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} organizer={organizer} personalState={personal} personalLoading={readStatus.loading} personalError={readStatus.error} onOpenEvaluate={() => setView("avaliar")} onUpdated={() => setRevision(value => value + 1)} />
+        <EvaluationAdminPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} organizer={organizer} personalState={organizer ? personal : undefined} personalLoading={readStatus.loading} personalError={readStatus.error} onOpenEvaluate={() => setView("avaliar")} onUpdated={() => setRevision(value => value + 1)} />
         {organizer && <button onClick={() => setView("avaliar")} className="fk-secondary min-h-12 w-full rounded-lg border border-zinc-300 px-3 text-sm font-bold">Ver minhas avaliações</button>}
+        </Activity>
       </div>
     </>}
   </section>;

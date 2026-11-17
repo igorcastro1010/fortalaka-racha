@@ -1,6 +1,7 @@
 "use client";
 
 import { homeHeading } from '@/lib/rounds/home-heading';
+import { useViewData } from '@/components/live/useViewData';
 import { useLiveRefresh } from '@/components/live/useLiveRefresh';
 
 import {
@@ -15,7 +16,9 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Activity, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { setMemorySession } from '@/lib/live/cache';
+import { readMatchesView } from '@/lib/live/reads';
 import { LogoMark } from "@/components/brand/LogoMark";
 import { ViewTabs } from "@/components/ui/ViewTabs";
 import { RachaScreen } from "@/components/rounds/RachaScreen";
@@ -30,7 +33,7 @@ import { EvaluationArea } from "@/components/ratings/EvaluationArea";
 import { ResultsScreen } from "@/components/results/ResultsScreen";
 import { useCurrentRound } from "@/components/rounds/useCurrentRound";
 import { RoundLoadStatus } from "@/components/rounds/RoundSummary";
-import { getRoundMatches, type MatchesState } from "@/lib/matches/repository";
+import { type MatchesState } from "@/lib/matches/repository";
 import { RoundProgress } from "@/components/rounds/RoundProgress";
 import { OrganizerPanel } from "@/components/rounds/OrganizerPanel";
 import { getRoundParticipantCounts } from "@/lib/rounds/organizer-overview";
@@ -38,7 +41,7 @@ import type { RoundDetails } from "@/lib/rounds/repository";
 import { OwnRegistration } from "@/components/rounds/OwnRegistration";
 import { PixSettingsForm } from "@/components/rounds/PixSettingsForm";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
-import { getEvaluationState, type EvaluationState } from "@/lib/ratings/repository";
+import { getEvaluationState } from "@/lib/ratings/repository";
 import { createClient } from "@/lib/supabase/client";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { cleanupPushOnLogout } from "@/lib/notifications/push";
@@ -54,6 +57,7 @@ const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
 ];
 
 export function FortalakaApp({ profile, initialPlayerId = null, initialTab = "home" }: { profile: Profile; initialPlayerId?: string | null; initialTab?: Tab }) {
+  useLayoutEffect(() => { setMemorySession(profile.id); }, [profile.id]);
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [publicPlayerId, setPublicPlayerId] = useState<string | null>(initialPlayerId);
   const [underlyingReady, setUnderlyingReady] = useState(!initialPlayerId);
@@ -100,13 +104,13 @@ export function FortalakaApp({ profile, initialPlayerId = null, initialTab = "ho
         <div className="min-h-screen px-5 pb-[calc(96px+env(safe-area-inset-bottom))] pt-[calc(16px+env(safe-area-inset-top))] sm:px-8">
           <div hidden={Boolean(publicPlayerId)}>
           {underlyingReady && <>
-          {activeTab !== "home" && <AppHeader profile={profile} onOpenProfile={() => navigate("profile")} />}
-          {activeTab === "home" && <HomeScreen profile={profile} onOpenProfile={() => navigate("profile")} onOpenRacha={() => navigate("racha")} onOpenEvaluate={() => navigate("evaluate")} onOpenResults={() => navigate("results")} onOpenTeams={() => navigate("teams")} />}
-          {activeTab === "racha" && <RachaScreen profile={profile} onOpenResults={() => navigate("results")} />}
-          {activeTab === "teams" && <TeamsScreen profile={profile} />}
-          {activeTab === "results" && <ResultsScreen profile={profile} />}
-          {activeTab === "profile" && <ProfileScreen profile={profile} />}
-          {activeTab === "evaluate" && <EvaluationArea profile={profile} />}
+          <Activity mode={publicPlayerId ? 'hidden' : 'visible'}><AppHeader profile={profile} onOpenProfile={() => navigate("profile")} /></Activity>
+          <div hidden={activeTab !== 'home'}><Activity mode={activeTab === 'home' && !publicPlayerId ? 'visible' : 'hidden'}><HomeScreen profile={profile} onOpenProfile={() => navigate("profile")} onOpenRacha={() => navigate("racha")} onOpenEvaluate={() => navigate("evaluate")} onOpenResults={() => navigate("results")} onOpenTeams={() => navigate("teams")} /></Activity></div>
+          <div hidden={activeTab !== 'racha'}><Activity mode={activeTab === 'racha' && !publicPlayerId ? 'visible' : 'hidden'}><RachaScreen profile={profile} onOpenResults={() => navigate("results")} /></Activity></div>
+          <div hidden={activeTab !== 'teams'}><Activity mode={activeTab === 'teams' && !publicPlayerId ? 'visible' : 'hidden'}><TeamsScreen profile={profile} /></Activity></div>
+          <div hidden={activeTab !== 'results'}><Activity mode={activeTab === 'results' && !publicPlayerId ? 'visible' : 'hidden'}><ResultsScreen profile={profile} /></Activity></div>
+          <div hidden={activeTab !== 'profile'}><Activity mode={activeTab === 'profile' && !publicPlayerId ? 'visible' : 'hidden'}><ProfileScreen profile={profile} /></Activity></div>
+          <div hidden={activeTab !== 'evaluate'}><Activity mode={activeTab === 'evaluate' && !publicPlayerId ? 'visible' : 'hidden'}><EvaluationArea profile={profile} /></Activity></div>
           </>}
           </div>
           {publicPlayerId && <><AppHeader profile={profile} onOpenProfile={() => navigate("profile")} /><PublicPlayerProfile key={publicPlayerId} playerId={publicPlayerId} viewer={profile} onBack={backFromPlayer} /></>}
@@ -136,7 +140,7 @@ function ProfileButton({ profile, onClick }: { profile: Profile; onClick: () => 
   return <button onClick={onClick} aria-label="Abrir meu perfil" className="shrink-0 rounded-full p-1 ring-1 ring-black/5 focus-visible:outline-2 focus-visible:outline-red-600"><PlayerAvatar name={profile.name} avatarUrl={profile.avatar_url} /></button>;
 }
 
-function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpenTeams, onOpenProfile }: { profile: Profile; onOpenRacha: () => void; onOpenEvaluate: () => void; onOpenResults: () => void; onOpenTeams: () => void; onOpenProfile: () => void }) {
+function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpenTeams }: { profile: Profile; onOpenRacha: () => void; onOpenEvaluate: () => void; onOpenResults: () => void; onOpenTeams: () => void; onOpenProfile: () => void }) {
   const { round, loading, error, retry } = useCurrentRound();
   const [matches, setMatches] = useState<{ roundId: string; roundStatus: RoundDetails["status"]; revision: RoundDetails | null; data: MatchesState | null; error: string } | null>(null);
   const matchReads = useRef(0);
@@ -144,22 +148,23 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
   const roundId = round?.roundId;
   const roundStatus = round?.status;
   // Atualizações de inscrição do jogador não precisam reler partidas.
-  const matchesRevision = organizer ? round : null;
-  useLiveRefresh(async isCurrent => {
+  const matchesRevision = null;
+  useLiveRefresh(async (isCurrent, signal) => {
     if (!roundId || !roundStatus) return;
     const request = ++matchReads.current;
-    const data = await getRoundMatches(roundId);
+    const data = await readMatchesView(roundId, signal);
     if (isCurrent() && request === matchReads.current) setMatches({ roundId, roundStatus, revision: matchesRevision, data, error: '' });
-  }, !loading && Boolean(roundId), JSON.stringify(round));
+  }, !loading && Boolean(roundId), roundId, ['matches'], () => setMatches(current => current ? { ...current, error: 'Não foi possível atualizar as partidas.' } : null));
   useEffect(() => {
     if (!roundId || !roundStatus) return;
     let active = true;
     const request = ++matchReads.current;
-    getRoundMatches(roundId).then(data => {
+    const controller = new AbortController();
+    readMatchesView(roundId, controller.signal).then(data => {
       if (data.roundStatus && data.roundStatus !== roundStatus) throw new Error("A rodada mudou durante a consulta. Atualize o painel.");
       if (active && request === matchReads.current) setMatches({ roundId, roundStatus, revision: matchesRevision, data, error: "" });
     }).catch(() => { if (active && request === matchReads.current) setMatches({ roundId, roundStatus, revision: matchesRevision, data: null, error: "Não foi possível atualizar as partidas." }); });
-    return () => { active = false; };
+    return () => { active = false; controller.abort(); };
   }, [roundId, roundStatus, matchesRevision]);
   const currentMatches = matches?.roundId === roundId && matches?.roundStatus === roundStatus && matches?.revision === matchesRevision ? matches : null;
   const counts = getRoundParticipantCounts(round?.participants ?? []);
@@ -175,7 +180,6 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
   }, []);
 
   return <section className="space-y-5">
-    <AppHeader profile={profile} onOpenProfile={onOpenProfile} />
     <div><p className="text-sm text-zinc-600">Fala, {firstName}!</p><h2 className="mt-1 text-2xl font-black leading-tight">{homeHeading(round, now)}</h2></div>
     <RoundLoadStatus loading={loading && !round} error={error} empty={!round} retry={retry} />
     {organizer && !round && !error && <OrganizerPanel profile={profile} round={round} loading={loading}
@@ -211,24 +215,7 @@ function HomeScreen({ profile, onOpenRacha, onOpenEvaluate, onOpenResults, onOpe
 }
 
 function HomeEvaluationCard({ onOpenEvaluate }: { onOpenEvaluate: () => void }) {
-  const [state, setState] = useState<EvaluationState | null>(null);
-  const reads = useRef(0);
-  useLiveRefresh(async isCurrent => {
-    const request = ++reads.current;
-    const data = await getEvaluationState();
-    if (isCurrent() && request === reads.current) setState(data);
-  });
-
-  useEffect(() => {
-    let active = true;
-    const request = ++reads.current;
-    getEvaluationState().then(data => {
-      if (active && request === reads.current) setState(data);
-    }).catch(() => {
-      if (active && request === reads.current) setState(null);
-    });
-    return () => { active = false; };
-  }, []);
+  const { data: state } = useViewData('evaluations:current', ['round', 'ratings', 'teams', 'matches'], signal => getEvaluationState(undefined, signal));
 
   if (!state?.open) return null;
 
@@ -283,9 +270,9 @@ function ProfileScreen({ profile }: { profile: Profile }) {
       <h2>Meu perfil</h2>
       <a href={`/comparar?jogadorA=${encodeURIComponent(profile.id)}`} className="fk-secondary">Comparar jogadores</a>
       <ViewTabs label="Áreas do perfil" value={view} onChange={setView} items={[{ id: "overview", label: "Visão geral" }, { id: "stats", label: "Estatísticas" }, { id: "ratings", label: "Avaliações" }]} />
-      <div hidden={view === "stats"}><PlayerPerformance profile={profile} view={view === "ratings" ? "ratings" : "overview"} /></div>
-      <div hidden={view === "ratings"}><PlayerStatisticsCard playerId={profile.id} /></div>
-      <div hidden={view !== "overview"}><ProfilePhoto profile={profile} /></div>
+      <div hidden={view === "stats"}><Activity mode={view === 'stats' ? 'hidden' : 'visible'}><PlayerPerformance profile={profile} view={view === "ratings" ? "ratings" : "overview"} /></Activity></div>
+      <div hidden={view === "ratings"}><Activity mode={view === 'ratings' ? 'hidden' : 'visible'}><PlayerStatisticsCard playerId={profile.id} /></Activity></div>
+      <div hidden={view !== "overview"}><Activity mode={view === 'overview' ? 'visible' : 'hidden'}><ProfilePhoto profile={profile} /></Activity></div>
       {view === "overview" && isOrganizer(profile) && profile.active && <PixSettingsForm />}
 
       {signOutError && <p role="alert" className="text-sm text-red-700">{signOutError}</p>}

@@ -2,11 +2,12 @@
 
 import { Star } from "lucide-react";
 import { PlayerIdentity } from "@/components/players/PlayerIdentity";
-import { getEvaluationPending, type EvaluationPending } from "@/lib/ratings/repository";
+import { type EvaluationPending } from "@/lib/ratings/repository";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { useEffect, useId, useRef, useState } from "react";
 import { subscribeLiveRefresh } from '@/lib/live/refresh';
-import { getEvaluationProgress, getEvaluationState, setRoundEvaluationsOpen, type EvaluationProgress, type EvaluationState } from "@/lib/ratings/repository";
+import { setRoundEvaluationsOpen, type EvaluationProgress, type EvaluationState } from "@/lib/ratings/repository";
+import { readEvaluationView, readEvaluationProgressView, readEvaluationPendingView } from '@/lib/live/reads';
 
 export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEvaluate, onUpdated, personalState, personalLoading = true, personalError = "" }: { roundId: string; organizer: boolean; roundStatus: string; onOpenEvaluate: (roundId: string) => void; onUpdated?: () => void; personalState?: EvaluationState | null; personalLoading?: boolean; personalError?: string }) {
   const [progress, setProgress] = useState<EvaluationProgress | null>(null);
@@ -32,22 +33,23 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
   useEffect(() => {
     if (!organizer && sharedPersonal) return;
     let active = true;
+    const controller = new AbortController();
     async function refresh() {
       if (busyRef.current) return;
       const currentRequest = ++readSequence.current;
       try {
         if (organizer) {
-          const data = await getEvaluationProgress(roundId);
+          const data = await readEvaluationProgressView(roundId, controller.signal);
           if (active && currentRequest === readSequence.current) { setProgress(data); setError(""); }
           try {
-            const people = await getEvaluationPending(roundId);
+            const people = await readEvaluationPendingView(roundId, controller.signal);
             if (active && currentRequest === readSequence.current) { setPending(people); setPendingError(""); }
           } catch (e) {
             console.error("Pendências de avaliações", e);
             if (active && currentRequest === readSequence.current) { setPending(null); setPendingError("Não foi possível carregar as pendências."); }
           }
         } else {
-          const data = await getEvaluationState(roundId);
+          const data = await readEvaluationView(roundId, controller.signal);
           if (active && currentRequest === readSequence.current) { setPersonal(data); setError(""); }
         }
       } catch (e) {
@@ -56,8 +58,8 @@ export function EvaluationAdminPanel({ roundId, organizer, roundStatus, onOpenEv
       }
     }
     void refresh();
-    const unsubscribe = subscribeLiveRefresh(refresh);
-    return () => { active = false; unsubscribe(); };
+    const unsubscribe = subscribeLiveRefresh(refresh, ['round', 'ratings', 'teams', 'matches']);
+    return () => { active = false; controller.abort(); unsubscribe(); };
   }, [roundId, roundStatus, organizer, sharedPersonal]);
 
   const open = organizer ? progress?.abertas : personal?.open;

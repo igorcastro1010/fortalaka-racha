@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { ArrowRight, RefreshCw, ShieldCheck } from "lucide-react";
 import { isOrganizer, type Profile } from "@/lib/auth/roles";
 import type { RoundDetails } from "@/lib/rounds/repository";
 import type { MatchesState } from "@/lib/matches/repository";
-import { getCurrentRoundTeamsState, type RoundTeamsState } from "@/lib/teams/repository";
-import { getEvaluationProgress, type EvaluationProgress } from "@/lib/ratings/repository";
+import { getCurrentRoundTeamsState } from "@/lib/teams/repository";
+import { getEvaluationProgress } from "@/lib/ratings/repository";
 import { buildOrganizerOverview, type OrganizerDestination } from "@/lib/rounds/organizer-overview";
 import { createClient } from "@/lib/supabase/client";
-import { useLiveRefresh } from '@/components/live/useLiveRefresh';
+import { useViewData } from '@/components/live/useViewData';
 import { RoundProgress } from "./RoundProgress";
 
 type Props = {
@@ -40,32 +39,12 @@ function dateLabel(value: string | null) {
 }
 
 function OrganizerRoundPanel({ round, matches, matchesError, loading, onRefresh, onNavigate }: Props & { round: RoundDetails }) {
-  const readSequence = useRef(0);
-  const [snapshot, setSnapshot] = useState<{ round: RoundDetails; teams: RoundTeamsState | null; evaluations: EvaluationProgress | null; errors: string[] } | null>(null);
-  useLiveRefresh(async isCurrent => {
-    const request = ++readSequence.current;
-    const [teams, evaluations] = await Promise.allSettled([getCurrentRoundTeamsState(createClient(), round), getEvaluationProgress(round.roundId)]);
-    if (isCurrent() && request === readSequence.current) setSnapshot({ round,
-      teams: teams.status === 'fulfilled' ? teams.value : null,
-      evaluations: evaluations.status === 'fulfilled' ? evaluations.value : null,
-      errors: [teams.status === 'rejected' ? 'Não foi possível atualizar os times.' : '', evaluations.status === 'rejected' ? 'Não foi possível atualizar as avaliações.' : ''].filter(Boolean) });
-  }, !loading, round.roundId);
-  useEffect(() => {
-    let active = true;
-    const request = ++readSequence.current;
-    // Reaproveita a rodada da Home: não relê participantes, perfis ou avatares.
-    Promise.allSettled([getCurrentRoundTeamsState(createClient(), round), getEvaluationProgress(round.roundId)]).then(([teams, evaluations]) => {
-      if (!active || request !== readSequence.current) return;
-      setSnapshot({ round, teams: teams.status === "fulfilled" ? teams.value : null,
-        evaluations: evaluations.status === "fulfilled" ? evaluations.value : null,
-        errors: [teams.status === "rejected" ? "Não foi possível atualizar os times." : "", evaluations.status === "rejected" ? "Não foi possível atualizar as avaliações." : ""].filter(Boolean) });
-    });
-    return () => { active = false; };
-  }, [round]);
-  const data = snapshot?.round === round ? snapshot : null;
+  const teams = useViewData('current-teams', ['round', 'teams', 'profile'], signal => getCurrentRoundTeamsState(createClient(), round, signal));
+  const evaluations = useViewData(`evaluation-progress:${round.roundId}`, ['round', 'ratings'], signal => getEvaluationProgress(round.roundId, signal));
+  const data = { teams: teams.data, evaluations: evaluations.data };
   const view = buildOrganizerOverview(round, data?.teams ?? null, matches, data?.evaluations ?? null);
-  const errors = [...(data?.errors ?? []), matchesError].filter(Boolean);
-  const pending = loading || !data || (!matches && !matchesError);
+  const errors = [teams.error ? 'Não foi possível atualizar os times.' : '', evaluations.error ? 'Não foi possível atualizar as avaliações.' : '', matchesError].filter(Boolean);
+  const pending = loading || (!errors.length && (teams.loading || evaluations.loading || (!matches && !matchesError)));
   const shortcuts = [
     { label: "Lista", destination: "racha" }, { label: "Times", destination: "teams" },
     { label: "Resultados", destination: "results" }, { label: "Avaliações", destination: "evaluate" },

@@ -6,6 +6,7 @@ import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { attributes } from "@/lib/ratings/summary";
 import { subscribeLiveRefresh } from '@/lib/live/refresh';
+import { readEvaluationView } from '@/lib/live/reads';
 import { getEvaluationState, saveEvaluation, type EvaluationPlayer, type EvaluationScores, type EvaluationState } from "@/lib/ratings/repository";
 
 const emptyScores: EvaluationScores = { passe: 3, chute: 3, velocidade: 3, defesa: 3, fisico: 3 };
@@ -42,11 +43,12 @@ export function EvaluationScreen({ roundId, onStateChange, onReadStatusChange, r
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     async function read() {
       if (savingRef.current) return;
       const currentRequest = ++readSequence.current;
       try {
-        const data = await getEvaluationState(roundId);
+        const data = await readEvaluationView(roundId, controller.signal);
         if (active && currentRequest === readSequence.current && !savingRef.current) { setState(data); onStateChange?.(data); onReadStatusChange?.({ loading: false, error: "" }); setError(""); }
       } catch (e) {
         console.error("Atualizar avaliações", e);
@@ -56,8 +58,8 @@ export function EvaluationScreen({ roundId, onStateChange, onReadStatusChange, r
       }
     }
     void read();
-    const unsubscribe = subscribeLiveRefresh(read);
-    return () => { active = false; unsubscribe(); };
+    const unsubscribe = subscribeLiveRefresh(read, ['round', 'ratings', 'teams', 'matches']);
+    return () => { active = false; controller.abort(); unsubscribe(); };
   }, [roundId, onStateChange, onReadStatusChange, refreshToken]);
 
   const formArea = useRef<HTMLDivElement>(null);
