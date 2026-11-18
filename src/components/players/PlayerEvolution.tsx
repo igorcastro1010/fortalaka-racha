@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import { ArrowDownRight, ArrowUpRight, Minus, Medal, LockKeyhole, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useId, useState } from 'react';
+import { ArrowDownRight, ArrowUpRight, Minus, Medal, LockKeyhole, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useViewData } from '@/components/live/useViewData';
 import { ViewTabs } from '@/components/ui/ViewTabs';
 import { EmptyState, LoadingCards } from '@/components/ui/ScreenState';
@@ -59,6 +59,34 @@ function History({ playerId }: { playerId: string }) {
   </div>;
 }
 
+function Achievements({ items }: { items: ReturnType<typeof evolutionAchievements> }) {
+  const [expanded, setExpanded] = useState(false);
+  const listId = useId();
+  const earned = items.filter(a => a.earned);
+  const locked = items.filter(a => !a.earned).sort((a, b) => b.current / b.target - a.current / a.target);
+  const visibleLocked = expanded ? locked : locked.slice(0, 3);
+  const row = (a: (typeof items)[number]) => <li key={a.id} className="min-w-0 border-b border-zinc-200">
+    <details className="group">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 py-3 focus-visible:outline-2 focus-visible:outline-red-700 [&::-webkit-details-marker]:hidden">
+        {a.earned ? <Medal size={22} className="shrink-0 text-red-700" aria-hidden="true" /> : <LockKeyhole size={20} className="shrink-0 text-zinc-500" aria-hidden="true" />}
+        <span className="min-w-0 flex-1">
+          <span className="block break-words text-sm font-bold">{a.title}</span>
+          <span className="mt-1 block text-xs text-zinc-600">{a.earned ? `Desbloqueada${a.date ? ` · ${historyDate(a.date)}` : ''}` : `Bloqueada · ${Math.min(a.current, a.target)} de ${a.target}`}</span>
+          {!a.earned && <progress aria-label={`Progresso: ${a.title}`} value={Math.min(a.current, a.target)} max={a.target} className="mt-2 block h-1 w-full appearance-none overflow-hidden rounded bg-zinc-200 [&::-webkit-progress-bar]:bg-zinc-200 [&::-webkit-progress-value]:bg-red-700 [&::-moz-progress-bar]:bg-red-700" />}
+        </span>
+        <ChevronDown size={18} className="shrink-0 text-zinc-500 transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+      </summary>
+      <p className="pb-3 pl-8 text-sm leading-relaxed text-zinc-600">{a.description}</p>
+    </details>
+  </li>;
+  return <div className="space-y-4">
+    <p className="text-sm text-zinc-600">{earned.length} de {items.length} conquistas desbloqueadas</p>
+    {earned.length > 0 && <section aria-label="Desbloqueadas"><h4 className="text-sm font-bold">Desbloqueadas</h4><ul>{earned.map(row)}</ul></section>}
+    {locked.length > 0 && <section aria-label="Próximas conquistas"><h4 className="text-sm font-bold">Próximas conquistas</h4><ul id={listId}>{visibleLocked.map(row)}</ul></section>}
+    {locked.length > 3 && <button type="button" className="fk-secondary min-h-11 w-full gap-2" aria-expanded={expanded} aria-controls={listId} onClick={() => setExpanded(value => !value)}>{expanded ? 'Mostrar menos' : `Ver todas (${items.length})`}<ChevronDown size={18} className={`shrink-0 transition-transform motion-reduce:transition-none ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" /></button>}
+  </div>;
+}
+
 export default function PlayerEvolution({ playerId }: { playerId: string }) {
   const [tab, setTab] = useState<'evolution' | 'history' | 'achievements'>('evolution');
   const state = useViewData(`evolution:${playerId}:resumo`, domains, signal => getPlayerEvolution(playerId, 'resumo', 0, signal));
@@ -74,12 +102,7 @@ export default function PlayerEvolution({ playerId }: { playerId: string }) {
         <p className={`flex items-center gap-2 text-sm font-semibold ${delta !== null && delta > 0 ? 'text-green-800' : delta !== null && delta < 0 ? 'text-red-800' : 'text-zinc-600'}`}><Trend size={20} aria-hidden="true" />{delta === null ? 'Sem comparação entre rodadas' : delta === 0 ? 'Estável na última rodada' : `${delta > 0 ? '+' : ''}${delta} pontos na última rodada`}</p>
         <Ratings playerId={playerId} /></>}
       {tab === 'history' && <><dl className="grid grid-cols-3 gap-x-3 gap-y-5 border-b border-zinc-200 py-4">{[['Partidas', summary.stats.jogos], ['Gols', summary.stats.gols], ['Aproveitamento', pointsPercentage(summary.stats) === null ? '--' : `${pointsPercentage(summary.stats)}%`], ['Vitórias', summary.stats.vitorias], ['Empates', summary.stats.empates], ['Derrotas', summary.stats.derrotas]].map(([label, value]) => <div key={label}><dt className="break-words text-xs text-zinc-600">{label}</dt><dd className="mt-1 text-xl font-black tabular-nums">{value}</dd></div>)}</dl><History playerId={playerId} /></>}
-      {tab === 'achievements' && <><p className="text-sm text-zinc-600">{achievements.filter(a => a.earned).length} de {achievements.length} conquistas desbloqueadas</p><ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{achievements.map(a => <li key={a.id} className={`min-w-0 rounded-lg border p-4 ${a.earned ? 'border-red-200 bg-red-50' : 'border-zinc-200 bg-white'}`}>
-        <div className="flex items-center gap-2">{a.earned ? <Medal size={23} className="shrink-0 text-red-700" aria-hidden="true" /> : <LockKeyhole size={20} className="shrink-0 text-zinc-500" aria-hidden="true" />}<h4 className="text-base font-bold">{a.title}</h4></div>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-600">{a.description}</p>
-        <p className="mt-3 text-xs font-semibold">{a.earned ? `Desbloqueada${a.date ? ` · ${historyDate(a.date)}` : ''}` : `Bloqueada · ${Math.min(a.current, a.target)} de ${a.target}`}</p>
-        <progress aria-label={`Progresso: ${a.title}`} value={Math.min(a.current, a.target)} max={a.target} className="mt-2 h-1.5 w-full appearance-none overflow-hidden rounded bg-zinc-200 [&::-webkit-progress-bar]:bg-zinc-200 [&::-webkit-progress-value]:bg-red-700 [&::-moz-progress-bar]:bg-red-700" />
-      </li>)}</ul></>}
+      {tab === 'achievements' && <Achievements key={playerId} items={achievements} />}
     </>}
   </div>;
 }

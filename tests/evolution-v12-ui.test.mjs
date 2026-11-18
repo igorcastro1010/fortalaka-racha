@@ -63,12 +63,29 @@ try {
    await page.screenshot({path:join(output,`${tab}-${width}.png`),fullPage:true});
   }
  }
+ assert.equal(await page.getByRole('region',{name:'Próximas conquistas',exact:true}).getByRole('listitem').count(),3);
+ assert.equal(await page.getByRole('listitem').count(),12,'Desbloqueadas e apenas tres proximas');
+ const firstGoal=page.locator('details').filter({has:page.getByText('Primeiro gol',{exact:true})});
+ assert.equal(await firstGoal.locator('p').isVisible(),false,'Descricao recolhida');
+ await firstGoal.locator('summary').focus();await page.keyboard.press('Enter');
+ assert.equal(await firstGoal.locator('p').isVisible(),true,'Descricao acessivel por teclado');
+ await firstGoal.locator('summary').click();
+ const callsBefore=await page.evaluate(()=>window.calls.length);
+ await page.getByRole('button',{name:'Ver todas (21)'}).click();
  assert.equal(await page.getByRole('listitem').count(),21);
- await page.evaluate(()=>window.correct());await page.waitForFunction(()=>document.querySelector('progress').value===0);
+ assert.equal(await page.getByRole('button',{name:'Mostrar menos'}).getAttribute('aria-expanded'),'true');
+ await page.getByRole('button',{name:'Mostrar menos'}).click();
+ assert.equal(await page.getByRole('listitem').count(),12);
+ assert.equal(await page.evaluate(()=>window.calls.length),callsBefore,'Expandir nao consulta o banco');
+ await page.evaluate(()=>window.correct());await page.waitForFunction(()=>!document.querySelector('[aria-label="Desbloqueadas"]'));
  assert.equal(await page.getByText(/Desbloqueada/).count(),0,'Correcao invalida conquistas');
  await page.emulateMedia({reducedMotion:'reduce'});await page.getByRole('tab',{name:'Evolução',exact:true}).focus();await page.keyboard.press('ArrowRight');assert.equal(await page.getByRole('tab',{name:'Histórico',exact:true}).getAttribute('aria-selected'),'true');
  await page.goto(url+'/empty');await open();await page.getByText('Evolução ainda indisponível').waitFor();assert.equal(await page.getByRole('img').count(),0);
  await page.getByRole('tab',{name:'Histórico',exact:true}).click();await page.getByText('Sem partidas registradas').waitFor();
+ await page.getByRole('tab',{name:'Conquistas',exact:true}).click();
+ assert.equal(await page.getByRole('listitem').count(),3,'Perfil vazio mostra so tres objetivos');
+ assert.equal(await page.getByRole('region',{name:'Desbloqueadas',exact:true}).count(),0);
+ assert.deepEqual(await page.locator('summary span.font-bold').allTextContents(),['Primeiro gol','10 gols','25 gols'],'Empates de progresso preservam ordem');
  await page.goto(url+'/error');await open();await page.getByRole('alert').waitFor();assert.ok(!(await page.locator('body').innerText()).includes('private sql'));
  assert.deepEqual(errors,[]);console.log('PASS V1.2 UI: lazy/cache, correcao, paginacao, vazio/erro, teclado, 360/375/390/430/1280px. Screenshots: '+output);
 } finally {await browser?.close();await new Promise(r=>server.close(r));}
