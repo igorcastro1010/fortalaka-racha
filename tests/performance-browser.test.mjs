@@ -11,7 +11,7 @@ try {
   await new Promise((done,fail)=>{fixture.stdout.on('data',c=>{if(String(c).includes('Validação isolada:'))done()});fixture.once('error',fail);fixture.once('exit',c=>fail(Error('Fixture saiu: '+c)));});
   browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:390,height:844}});
   const calls=[],errors=[];page.on('request',r=>{if(r.url().endsWith('/api'))calls.push(r.postDataJSON())});page.on('pageerror',e=>errors.push(e.message));
-  await page.goto('http://127.0.0.1:3011/');
+  await page.goto(`http://127.0.0.1:${process.env.FORTALAKA_TEST_PORT || 3011}/`);
   const nav=name=>page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name,exact:true}).click();
   await page.getByRole('region',{name:'Painel do Organizador'}).getByText('Próxima ação',{exact:true}).waitFor();
   await page.waitForTimeout(800);
@@ -22,11 +22,14 @@ try {
   assert.equal(returnReads.length,0,'Voltar à Home dentro do TTL não refaz leituras válidas');
   await page.getByRole('button',{name:'Abrir meu perfil',exact:true}).click();await page.getByRole('heading',{name:'Meu perfil',exact:true}).waitFor();
   await page.getByRole('heading',{name:'Estatisticas reais',exact:true}).waitFor();await page.waitForTimeout(700);
+  await page.getByRole('button',{name:'Evolução, histórico e conquistas'}).click();
+  await page.getByText('Evolução ainda indisponível').waitFor();
   await nav('Início');await page.waitForTimeout(700);const start=calls.length;
   const duration=process.argv.includes('--minute')?60000:6100;
   const at=performance.now();await page.waitForTimeout(duration);const elapsed=performance.now()-at;
   const idle=calls.slice(start),counts={};for(const call of idle){const name=call.name??call.table??call.kind;counts[name]=(counts[name]??0)+1;}
   assert.equal(idle.filter(c=>c.table==='profiles'||c.name==='medias_jogador'||c.name==='ler_estatisticas_jogadores').length,0,'Perfil oculto não consulta foto, médias nem estatísticas');
+  assert.equal(idle.filter(c=>c.name==='ler_evolucao_jogador').length,0,'Painel V1.2 aberto antes de ocultar nao continua consultando');
   assert.equal(idle.filter(c=>c.name==='ler_partidas_rodada').length,0,'Realtime saudável não faz polling de partidas');
   assert.equal(await page.evaluate(()=>performance.getEntriesByType('navigation').length),1,'Abas sem recarga de documento');
   assert.deepEqual(errors,[]);

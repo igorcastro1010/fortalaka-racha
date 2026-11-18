@@ -11,6 +11,8 @@ import { randomUUID } from 'node:crypto';
 const { build }=createRequire(resolve(process.argv[2],'package.json'))('esbuild');
 const { PGlite }=createRequire(resolve(process.argv[3],'package.json'))('@electric-sql/pglite');
 const db=new PGlite();
+const port=Number(process.env.FORTALAKA_TEST_PORT || 3011);
+const origin=`http://127.0.0.1:${port}`;
 await db.exec(`create role anon;create role authenticated;create schema auth;
 create table auth.users(id uuid primary key,email text,raw_user_meta_data jsonb);
 create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
@@ -23,12 +25,13 @@ create function storage.foldername(text) returns text[] language sql immutable a
 grant usage on schema storage to authenticated,anon;grant select,insert,update,delete on storage.objects to authenticated;`);
 for(const path of ['supabase/schema.sql','supabase/sorteio-times.sql','supabase/validacao-sorteio-avatars.sql','supabase/partidas-estatisticas.sql','supabase/avaliacoes.sql','supabase/finalizar-rodada.sql','supabase/entrada-avaliacoes.sql','supabase/fluxo-principal.sql','supabase/fluxo-sem-posicoes.sql','supabase/avaliacoes-elegibilidade.sql','supabase/empates-e-correcoes.sql'])await db.exec(readFileSync(path,'utf8'));
 const organizer=randomUUID(),viewer=randomUUID();const ids=Array.from({length:14},()=>randomUUID());
+await db.exec(readFileSync('supabase/migrations/20261117231523_player_evolution_v12.sql','utf8'));
 for(const [i,id] of [organizer,viewer,...ids].entries())await db.query('insert into auth.users values($1,$2,$3)',[id,'test@example.invalid',JSON.stringify({name:i<2?'Conta teste':`Pessoa ${i-2}`})]);
 await db.query("update public.profiles set role='organizador' where id=$1",[organizer]);
 // A conta de jogador também participa da rodada para validar o fluxo de avaliação.
 ids[0]=viewer;
-await db.query('update public.profiles set avatar_url=$2 where id=$1',[ids[0],'http://127.0.0.1:3011/photo.png']);
-await db.query('update public.profiles set avatar_url=$2 where id=$1',[ids[2],'http://127.0.0.1:3011/missing.png']);
+await db.query('update public.profiles set avatar_url=$2 where id=$1',[ids[0],`${origin}/photo.png`]);
+await db.query('update public.profiles set avatar_url=$2 where id=$1',[ids[2],`${origin}/missing.png`]);
 await db.query("select set_config('request.jwt.claim.sub',$1,false)",[organizer]);
 const round=randomUUID();await db.query("insert into public.rachas(id,nome,data) values($1,'Rodada isolada','2026-10-08')",[round]);
 for(let i=0;i<8;i++)await db.query("insert into public.racha_participantes(racha_id,jogador_id,nome,tipo) values($1,$2,$3,'linha')",[round,ids[i],`Pessoa ${i}`]);
@@ -92,6 +95,7 @@ async function api(input){
   else if(input.kind==='rpc'){
    const specs={inscricao_rodada:['p_racha','p_tipo','p_entrar'],criar_proxima_partida:['p_racha','p_versao'],medias_jogador:['p_jogador'],ler_avaliacoes_atual:['p_racha'],ler_progresso_avaliacoes:['p_racha'],alterar_avaliacoes_rodada:['p_racha','p_abertas'],salvar_avaliacao:['p_racha','p_avaliado','p_passe','p_chute','p_velocidade','p_defesa','p_fisico'],finalizar_rodada:['p_racha'],ler_estatisticas_jogadores:['p_jogador'],ler_partidas_rodada:['p_racha'],criar_partida:['p_racha','p_time_a','p_time_b'],salvar_partida:['p_partida','p_versao','p_placar_a','p_placar_b','p_status','p_jogadores'],ler_times_rodada:[],avatars_da_rodada:['p_racha'],alterar_estado_rodada:['p_racha','p_estado'],salvar_rascunho_times:['p_racha','p_versao','p_times'],confirmar_rascunho_times:['p_racha','p_versao']};
    Object.assign(specs,{salvar_partida_com_desempate:['p_partida','p_versao','p_placar_a','p_placar_b','p_status','p_jogadores','p_vencedor_penaltis'],ler_pendencias_avaliacoes:['p_racha']});
+   specs.ler_evolucao_jogador=['p_jogador','p_secao','p_pagina'];
    if(process.argv.includes('--payments')) Object.assign(specs,{inscricao_rodada:['p_racha','p_tipo','p_entrar','p_forma_pagamento'],alterar_forma_pagamento:['p_participante','p_forma_pagamento'],atualizar_pagamento:['p_participante','p_status','p_valor']});
    const keys=specs[input.name];if(!keys)throw Error('RPC inválida');const values=keys.map(k=>['p_times','p_jogadores'].includes(k)?JSON.stringify(input.args[k]):input.args[k]);
    const rows=(await db.query('select * from public.'+input.name+'('+values.map((_,i)=>'$'+(i+1)).join(',')+')',values)).rows;
@@ -136,11 +140,11 @@ createServer(async(req,res)=>{
   if(!result.error && ((input.kind==='rpc'&&!/^(ler_|avatars_da_rodada$|medias_jogador$)/.test(input.name)) || (input.kind==='table'&&input.op!=='select')))for(const client of eventClients)client.write('data: '+JSON.stringify(input.kind==='table'?input.table:['inscricao_rodada','alterar_forma_pagamento','atualizar_pagamento'].includes(input.name)?'racha_participantes':'*')+'\n\n');
   res.setHeader('Content-Type','application/json');res.end(JSON.stringify(result));return;
  }
- const assetUrl=new URL(req.url??'/','http://127.0.0.1:3011');
+ const assetUrl=new URL(req.url??'/',origin);
  if(assetUrl.pathname==='/fortalaka-escudo.jpeg'||(assetUrl.pathname==='/_next/image'&&assetUrl.searchParams.get('url')==='/fortalaka-escudo.jpeg')){res.setHeader('Content-Type','image/jpeg');res.end(readFileSync(resolve('public/fortalaka-escudo.jpeg')));return;}
  if(req.url==='/photo.png'){res.setHeader('Content-Type','image/png');res.end(photo);return;}
  if(req.url?.startsWith('/avatar/')){const image=uploaded.get(req.url.slice(8));if(image){res.setHeader('Content-Type',image.type);res.end(image.bytes);return;}}
  if(req.url?.endsWith('.png')){res.statusCode=404;res.end('missing');return;}
  const path=req.url?.split('?')[0];const file=path==='/app.js'?'app.js':path==='/app.css'?'app.css':'index.html';
  res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html');res.end(readFileSync(join(output,file)));
-}).listen(3011,'127.0.0.1',()=>console.log('Validação isolada: http://127.0.0.1:3011; dados apenas no PostgreSQL local.'));
+}).listen(port,'127.0.0.1',()=>console.log(`Validação isolada: ${origin}; dados apenas no PostgreSQL local.`));

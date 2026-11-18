@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 
 const { chromium } = createRequire(resolve(process.argv[2], 'package.json'))('playwright');
+const origin=`http://127.0.0.1:${process.env.FORTALAKA_TEST_PORT || 3011}`;
 const fixture = spawn(process.execPath, ['tests/preview-sorteio.mjs', process.argv[2], process.argv[2], '--app'], { stdio: ['ignore', 'pipe', 'inherit'] });
 const output = mkdtempSync(join(tmpdir(), 'fortalaka-public-profile-'));
 let browser;
@@ -25,7 +26,7 @@ try {
   page.on('dialog', d => d.accept());
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Runtime.enable'); await cdp.send('Performance.enable');
-  async function api(body) { const { data, error } = await fetch('http://127.0.0.1:3011/api', { method: 'POST', body: JSON.stringify({ role: 'jogador', ...body }) }).then(r => r.json()); assert.equal(error, null); return data; }
+  async function api(body) { const { data, error } = await fetch(`${origin}/api`, { method: 'POST', body: JSON.stringify({ role: 'jogador', ...body }) }).then(r => r.json()); assert.equal(error, null); return data; }
   const ownId = (await api({ kind: 'user' })).id;
   const all = await api({ kind: 'rpc', name: 'ler_estatisticas_jogadores', args: { p_jogador: null } });
   const other = all.find(p => p.jogador_id !== ownId && !p.avatar_url);
@@ -42,7 +43,7 @@ try {
   }
   for (const [width, height] of [[360,800],[375,812],[390,844],[430,932]]) {
     await page.setViewportSize({ width, height });
-    await page.goto('http://127.0.0.1:3011/?role=jogador');
+    await page.goto(`${origin}/?role=jogador`);
     await nav('Resultados'); await tab('Ranking');
     await page.getByRole('button', { name: 'Assistências', exact: true }).click();
     const ranking = page.getByRole('region', { name: 'Ranking dos jogadores' });
@@ -55,6 +56,12 @@ try {
     assert.equal(reads.filter(c => c.name === 'medias_jogador').length, 0, 'Jogador comum não consulta médias restritas de terceiros');
     assert.equal(reads.some(c => c.kind === 'table'), false, 'Não lê profiles nem votos individuais');
     await check(`ranking-${width}`);
+    assert.equal(calls.slice(before).filter(c => c.name === 'ler_evolucao_jogador').length,0,'V1.2 nao consulta antes de expandir');
+    await profile().getByRole('button',{name:'Evolução, histórico e conquistas'}).click();
+    await profile().getByText('Evolução ainda indisponível').waitFor();
+    await tab('Histórico'); await profile().getByText('Sem partidas registradas').waitFor();
+    await tab('Conquistas'); await profile().getByText('0 de 21 conquistas desbloqueadas').waitFor();
+    await check(`evolucao-${width}`);
     await profile().getByRole('button', { name: 'Voltar', exact: true }).click();
     await ranking.waitFor({ state: 'visible' });
     assert.equal(await page.getByRole('button', { name: 'Assistências', exact: true }).getAttribute('aria-pressed'), 'true');
@@ -63,20 +70,20 @@ try {
     await target.click(); await ready(); await page.goBack(); await ranking.waitFor({ state: 'visible' });
     await nav('Racha'); const list = page.getByRole('link', { name: /^Ver perfil de / }).first(); await list.click(); await ready(); await check(`racha-${width}`); await profile().getByRole('button', { name: 'Voltar', exact: true }).click();
     await page.getByRole('heading', { name: 'Racha', exact: true }).waitFor();
-    await page.goto(`http://127.0.0.1:3011/perfil/${ownId}?role=jogador`); await ready(); await check(`proprio-${width}`);
+    await page.goto(`${origin}/perfil/${ownId}?role=jogador`); await ready(); await check(`proprio-${width}`);
     assert.equal(await profile().getByText('Ainda sem avaliações. Suas médias aparecerão aqui.').count(), 1);
     await profile().getByRole('button', { name: 'Voltar', exact: true }).click(); await page.getByRole('button', { name: 'Ver racha', exact: true }).waitFor();
-    await page.goto('http://127.0.0.1:3011/perfil/00000000-0000-0000-0000-000000000000?role=jogador');
+    await page.goto(`${origin}/perfil/00000000-0000-0000-0000-000000000000?role=jogador`);
     await profile().getByText('Jogador não encontrado.', { exact: true }).waitFor(); await page.screenshot({ path: join(output, `inexistente-${width}.png`) });
   }
-  await page.goto('http://127.0.0.1:3011/?role=organizador'); await nav('Racha'); await tab('Gestão'); await page.getByRole('button', { name: 'Fechar lista' }).click(); await page.getByRole('dialog', { name: 'Fechar lista?' }).getByRole('button', { name: 'Confirmar', exact: true }).click(); await page.getByRole('button', { name: 'Reabrir lista' }).waitFor();
+  await page.goto(`${origin}/?role=organizador`); await nav('Racha'); await tab('Gestão'); await page.getByRole('button', { name: 'Fechar lista' }).click(); await page.getByRole('dialog', { name: 'Fechar lista?' }).getByRole('button', { name: 'Confirmar', exact: true }).click(); await page.getByRole('button', { name: 'Reabrir lista' }).waitFor();
   await nav('Times'); await tab('Ajustes'); await page.getByRole('button', { name: 'Sortear times', exact: true }).click(); await page.getByRole('button', { name: 'Ajustar times', exact: true }).click();
   assert.equal(await page.locator('div.order-10 a[href^="/perfil/"]').count(), 0, 'Modo de troca não deve abrir perfil');
   await page.getByRole('button', { name: 'Concluir ajuste', exact: true }).click(); await page.getByRole('button', { name: 'Confirmar times', exact: true }).click(); await page.getByRole('dialog', { name: 'Confirmar times?' }).getByRole('button', { name: 'Confirmar', exact: true }).click(); await page.getByText('Times confirmados com sucesso.').waitFor();
-  await page.goto('http://127.0.0.1:3011/?role=jogador'); await nav('Times'); await page.getByRole('link', { name: /^Ver perfil de / }).first().click(); await ready(); await check('times-jogador');
+  await page.goto(`${origin}/?role=jogador`); await nav('Times'); await page.getByRole('link', { name: /^Ver perfil de / }).first().click(); await ready(); await check('times-jogador');
   await profile().getByRole('button', { name: 'Voltar', exact: true }).click(); await page.getByRole('heading', { name: 'Times', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Abrir meu perfil' }).click(); await page.getByRole('button', { name: 'Sair da conta' }).waitFor();
-  await page.goto('http://127.0.0.1:3011/?role=organizador'); await nav('Resultados');
+  await page.goto(`${origin}/?role=organizador`); await nav('Resultados');
   await page.getByRole('button', { name: 'INICIAR PRIMEIRA PARTIDA' }).click();
   await page.getByRole('button', { name: 'Aumentar placar de Time 1' }).click();
   await page.getByRole('button', { name: /^Adicionar gols de / }).first().click();
@@ -109,7 +116,7 @@ try {
   if (!await history.getAttribute('open').then(v=>v!==null)) await history.locator('summary').first().click();
   await page.getByText('Participantes e eventos', { exact: true }).first().click();
   await page.locator('article details').getByRole('link').first().click(); await ready(); await check('historico');
-  await page.goto('http://127.0.0.1:3011/?role=jogador'); await nav('Avaliação');
+  await page.goto(`${origin}/?role=jogador`); await nav('Avaliação');
   await page.getByRole('button', { name: /^Avaliar / }).first().click();
   await page.getByRole('button', { name: 'Passe: 5 de 5', exact: true }).click();
   const form = page.locator('div[aria-label^="Avaliação de "]');

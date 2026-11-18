@@ -6,7 +6,7 @@ import { PlayerIdentity } from "@/components/players/PlayerIdentity";
 import { Trophy } from "lucide-react";
 import { EmptyState, LoadingCards } from "@/components/ui/ScreenState";
 import { rankingMetric, rankingOptions, sortRanking, type RankingSort } from "@/lib/players/ranking";
-import { PlayerAchievements } from "./PlayerAchievements";
+import { PlayerJourney } from "./PlayerJourney";
 import { VisualShareCard } from "@/components/results/VisualShareCard";
 import { rankingVisualCard } from "@/lib/results/visual-card";
 import { useViewData } from '@/components/live/useViewData';
@@ -50,5 +50,5 @@ export function RankingScreen({ sort, onSortChange }: { sort: RankingSort; onSor
 
 export function PlayerStatisticsCard({ playerId, compact = false }: { playerId: string; compact?: boolean }) {
   const state = useStatistics(playerId);
-  return <section className={`fk-section min-w-0 bg-white py-4 text-neutral-950 ${compact ? "px-3" : "border-t border-zinc-200"}`}><h3 className={`mb-4 font-bold ${compact ? "text-xs text-zinc-600" : "text-lg"}`}>Estatisticas reais</h3><ReadStatus {...state} />{!state.error && state.data[0] && <><Metrics player={state.data[0]} /><p className="mt-3 text-center text-xs text-zinc-600">Jogos = partidas jogadas, nao rodadas.</p><PlayerAchievements playerId={playerId} stats={state.data[0]} /></>}</section>;
+  return <section className={`fk-section min-w-0 bg-white py-4 text-neutral-950 ${compact ? "px-3" : "border-t border-zinc-200"}`}><h3 className={`mb-4 font-bold ${compact ? "text-xs text-zinc-600" : "text-lg"}`}>Estatisticas reais</h3><ReadStatus {...state} />{!state.error && state.data[0] && <><Metrics player={state.data[0]} /><p className="mt-3 text-center text-xs text-zinc-600">Jogos = partidas jogadas, nao rodadas.</p><PlayerJourney playerId={playerId} /></>}</section>;
 }
