@@ -87,4 +87,26 @@ await check('pendencias somente organizadores, parciais continuam, concluidas sa
  assert.deepEqual(await read(f.round),before);
  await db.exec('reset role;set role anon');await assert.rejects(()=>scalar('select ler_pendencias_avaliacoes($1)',[f.round]),/permission denied/);
 });
+await check('gol rapido atomico, repeticao, desfazer e autorizacao',async()=>{
+ const f=await fixture(2),before=(await read(f.round)).partidas[0];
+ const team=before.jogadores.filter(p=>p.time_id===before.timeAId);
+ const next=structuredClone(before.jogadores);
+ next.find(p=>p.jogador_id===team[0].jogador_id).gols++;
+ next.find(p=>p.jogador_id===team[1].jogador_id).assistencias++;
+ const args=[before.id,before.versao,1,0,'aberta',JSON.stringify(next)];
+ const write=values=>scalar('select salvar_partida_com_desempate($1,$2,$3,$4,$5,$6,null)',values);
+ await user(players[0]);await invalid(()=>write(args),/organizadores/);await user();
+ assert.deepEqual((await read(f.round)).partidas[0],before);
+ await write(args);
+ const saved=(await read(f.round)).partidas[0];
+ assert.equal(saved.placarA,1);assert.equal(saved.jogadores.find(p=>p.jogador_id===team[0].jogador_id).gols,1);
+ assert.equal(saved.jogadores.find(p=>p.jogador_id===team[1].jogador_id).assistencias,1);
+ await invalid(()=>write(args),/alterada/);
+ assert.deepEqual((await read(f.round)).partidas[0],saved,'Repeticao nao duplica lance');
+ const broken=structuredClone(next);broken[0].gols=-1;
+ await invalid(()=>write([before.id,saved.versao,2,0,'aberta',JSON.stringify(broken)]),/gol|evento|negativ|inteir|inv.lid/i);
+ assert.deepEqual((await read(f.round)).partidas[0],saved,'Erro nao grava placar parcial');
+ await write([before.id,saved.versao,0,0,'aberta',JSON.stringify(before.jogadores)]);
+ const undone=(await read(f.round)).partidas[0];assert.equal(undone.placarA,0);assert.deepEqual(undone.jogadores,before.jogadores);
+});
 await db.close();console.log(`${checks} cenarios passaram.`);
