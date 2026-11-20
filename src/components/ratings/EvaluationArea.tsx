@@ -8,6 +8,7 @@ import { EvaluationAdminPanel } from "./EvaluationAdminPanel";
 import { EvaluationScreen } from "./EvaluationScreen";
 import { ViewTabs } from "@/components/ui/ViewTabs";
 import type { EvaluationState } from "@/lib/ratings/repository";
+import { EvaluationDetails } from './EvaluationDetails';
 
 export function EvaluationArea({ profile }: { profile: Profile }) {
   const [editing, setEditing] = useState(false);
@@ -33,6 +34,7 @@ export function EvaluationArea({ profile }: { profile: Profile }) {
         <details className="border-b border-zinc-200 pb-4"><summary className="min-h-11 cursor-pointer content-center text-sm font-bold focus-visible:outline-2 focus-visible:outline-red-600">Resumo da rodada</summary><div className="pt-3"><RoundSummary round={round} /></div></details>
         <EvaluationAdminPanel key={round.roundId} roundId={round.roundId} roundStatus={round.status} organizer={organizer} personalState={organizer ? personal : undefined} personalLoading={readStatus.loading} personalError={readStatus.error} onOpenEvaluate={() => setView("avaliar")} onUpdated={() => setRevision(value => value + 1)} />
         {organizer && <button onClick={() => setView("avaliar")} className="fk-secondary min-h-12 w-full rounded-lg border border-zinc-300 px-3 text-sm font-bold">Ver minhas avaliações</button>}
+        {organizer && <EvaluationDetails roundId={round.roundId} />}
         </Activity>
       </div>
     </>}

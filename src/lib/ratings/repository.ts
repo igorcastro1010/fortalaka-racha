@@ -45,6 +45,24 @@ export type EvaluationScores = {
   fisico: number;
 };
 
+export type EvaluationDetail = {
+  avaliador_id: string; avaliador_nome: string; avaliador_avatar: string | null;
+  avaliado_id: string; avaliado_nome: string; avaliado_avatar: string | null;
+  avaliado: boolean; updated_at: string | null;
+} & { [K in keyof EvaluationScores]: number | null };
+
+export async function getEvaluationDetails(roundId: string, signal?: AbortSignal): Promise<EvaluationDetail[]> {
+  const { data, error } = await withReadSignal(createClient().rpc('ler_detalhes_avaliacoes', { p_racha: roundId }), signal);
+  if (error) throw new Error('Não foi possível carregar os detalhes das avaliações.');
+  return (data ?? []) as EvaluationDetail[];
+}
+
+export async function getEvaluationRounds(signal?: AbortSignal): Promise<{ id: string; nome: string; data: string | null }[]> {
+  const { data, error } = await withReadSignal(createClient().from('rachas').select('id,nome,data').order('data', { ascending: false }).limit(100), signal);
+  if (error) throw new Error('Não foi possível carregar as rodadas.');
+  return data ?? [];
+}
+
 function check(error: { message: string; code?: string } | null) {
   if (error) throw new Error(error.code === "PGRST202" ? "Execute o SQL de avaliacoes no Supabase." : error.message);
 }
