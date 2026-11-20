@@ -21,16 +21,20 @@ const root = createRoot(document.getElementById('root'));
 await act(async () => root.render(createElement(RoundAttendance, { roundId: 'round' })));
 assert.equal(calls.length, 0, 'Carregar somente ao expandir');
 await act(async () => { const details=document.querySelector('details'); details.open=true; details.dispatchEvent(new dom.window.Event('toggle')); });
-async function select(value) { await act(async () => { const control=document.querySelector('select'); control.value=value; control.dispatchEvent(new dom.window.Event('change',{bubbles:true})); }); }
+const feedback=document.querySelector('[role="status"]');
+assert(feedback,'Reserva feedback antes da primeira alteracao');
+async function select(value) { await act(async () => { const control=document.querySelector(`[aria-label="${value === 'presente' ? 'Presente' : 'Faltou'}: Alerrandro"]`); control.focus(); control.click(); }); }
 await select('faltou');
 assert(calls.some(c=>c.description?.includes('4 avaliações')));
 assert(!calls.some(c=>c.round),'Cancelar nao grava');
 approve(); await select('faltou');
 assert.equal(calls.filter(c=>c.round).length,1);
-assert.equal(document.querySelector('select').value,'faltou');
+assert.equal(document.querySelector('[aria-label="Faltou: Alerrandro"]').getAttribute('aria-pressed'),'true');
+assert.equal(document.querySelector('[role="status"]'),feedback,'Feedback permanece montado');
+assert.equal(document.activeElement.getAttribute('aria-label'),'Faltou: Alerrandro');
 assert(document.querySelector('[role="status"]').textContent.includes('Falta registrada'));
 await select('presente');
-assert.equal(document.querySelector('select').value,'presente');
+assert.equal(document.querySelector('[aria-label="Presente: Alerrandro"]').getAttribute('aria-pressed'),'true');
 await act(async()=>root.unmount()); dom.window.close();
 console.log('PASS: lazy load, confirmation/count, cancel, absence and presence updates');
 process.exit(0);
