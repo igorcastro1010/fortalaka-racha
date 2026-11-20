@@ -1,5 +1,6 @@
 import type { VisualCard } from './visual-card';
 import { wrapCardText } from './card-text';
+import { drawAvatar } from './image-export';
 
 async function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise(resolve => {
@@ -49,7 +50,7 @@ export async function renderVisualCard(card: VisualCard): Promise<Blob> {
     const image = avatars[i];
     ctx.save(); ctx.beginPath(); ctx.arc(184, y + 58, 39, 0, Math.PI * 2); ctx.clip();
     ctx.fillStyle = '#333333'; ctx.fillRect(145, y + 19, 78, 78);
-    if (image) ctx.drawImage(image, 145, y + 19, 78, 78);
+    if (image) drawAvatar(ctx, image, 145, y + 19, 78);
     else { ctx.fillStyle = '#ffffff'; ctx.font = 'bold 28px Arial'; ctx.textAlign = 'center'; ctx.fillText(row.name.split(/\s+/).map(n => n[0]).slice(0, 2).join('').toUpperCase(), 184, y + 68); }
     ctx.restore(); ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff'; text(row.name, 249, y + 46, 505, 32);

@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, Share2 } from 'lucide-react';
 import Image from 'next/image';
 import type { VisualCard } from '@/lib/results/visual-card';
+import { saveCardImage } from '@/lib/results/image-export';
 
 export function VisualShareCard({ cards }: { cards: { id: string; label: string; data: VisualCard }[] }) {
   const [selected, setSelected] = useState(cards[0]?.id ?? '');
   const [preview, setPreview] = useState<{ blob: Blob; url: string; key: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const sequence = useRef(0);
   const card = cards.find(c => c.id === selected) ?? cards[0];
@@ -36,10 +38,19 @@ export function VisualShareCard({ cards }: { cards: { id: string; label: string;
     try { await navigator.share({ files: [file], title: 'Racha Fortalaka' }); setMessage('Imagem compartilhada.'); }
     catch (error) { if (!(error instanceof Error && error.name === 'AbortError')) setMessage('Não foi possível compartilhar. Use Salvar imagem.'); }
   }
+  async function save() {
+    if (!current || saving) return;
+    setSaving(true); setMessage('');
+    try {
+      const result = await saveCardImage(current.blob, current.url);
+      if (result === 'downloaded') setMessage('Download solicitado.');
+    } catch { setMessage('Não foi possível salvar a imagem. Tente novamente.'); }
+    finally { setSaving(false); }
+  }
   return <section aria-label="Card visual compartilhável" className="fk-section space-y-3"><h3 className="text-lg font-black">Compartilhar imagem</h3><p className="text-sm text-zinc-600">Story · 1080 × 1920 · confira antes de enviar.</p>
     <label className="block text-sm font-bold">Tipo de card<select value={card?.id ?? ''} onChange={event => setSelected(event.target.value)} className="fk-field mt-2" disabled={busy}>{cards.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
     <button onClick={generate} disabled={busy} className="fk-secondary w-full">{busy ? 'Gerando imagem...' : 'Gerar preview'}</button>
-    {current && <><figure className="mx-auto max-w-[300px] overflow-hidden rounded-lg bg-neutral-950"><Image unoptimized src={current.url} alt={`Preview: ${card.data.title}`} width={1080} height={1920} className="h-auto w-full" /><figcaption className="p-3 text-center text-xs text-white">{card.label} · 1080 × 1920</figcaption></figure><div className="grid grid-cols-2 gap-2"><button onClick={share} className="fk-primary"><Share2 size={18} aria-hidden="true" />Compartilhar</button><a href={current.url} download="fortalaka-story.png" className="fk-secondary"><Download size={18} aria-hidden="true" />Salvar imagem</a></div></>}
+    {current && <><figure className="mx-auto max-w-[300px] overflow-hidden rounded-lg bg-neutral-950"><Image unoptimized src={current.url} alt={`Preview: ${card.data.title}`} width={1080} height={1920} className="h-auto w-full" /><figcaption className="p-3 text-center text-xs text-white">{card.label} · 1080 × 1920</figcaption></figure><div className="grid grid-cols-2 gap-2"><button onClick={share} disabled={saving} className="fk-primary"><Share2 size={18} aria-hidden="true" />Compartilhar</button><button onClick={save} disabled={saving} className="fk-secondary"><Download size={18} aria-hidden="true" />{saving ? 'Salvando...' : 'Salvar imagem'}</button></div></>}
     {message && <p role="status" className="text-sm text-zinc-600">{message}</p>}
   </section>;
 }
