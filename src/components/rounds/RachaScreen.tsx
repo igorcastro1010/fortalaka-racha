@@ -10,6 +10,7 @@ import { RoundForm } from "./RoundForm";
 import { OwnRegistration } from "./OwnRegistration";
 import { PaymentChoice } from "./PaymentChoice";
 import { RoundFinance } from "./RoundFinance";
+import { RoundAttendance } from "./RoundAttendance";
 import { changePaymentMethod } from "@/lib/payments/repository";
 import { paymentMethodLabel, type PaymentMethod } from "@/lib/payments/summary";
 import { LoadingCards, EmptyState } from "@/components/ui/ScreenState";
@@ -301,6 +302,7 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
       {round && <OwnRegistration key={round.roundId} round={round} profile={profile} onUpdated={loadRound} />}
       {round && organizer && view === "gestao" && <details className="border-y border-zinc-200 py-2"><summary className="min-h-11 cursor-pointer content-center text-sm font-bold">{round.status === "finalizado" ? "CRIAR PRÓXIMA RODADA" : "EDITAR DADOS DA RODADA"}</summary><RoundForm key={`${round.roundId}-${round.status}-${round.date}-${round.time}-${round.address}`} round={round.status === "finalizado" ? undefined : round} onSaved={loadRound} onEditingChange={setEditingRound} /></details>}
       {round && round.paymentsAvailable !== false && organizer && view === "gestao" && <RoundFinance participants={round.participants} onUpdated={loadRound} />}
+      {round && organizer && view === "gestao" && <RoundAttendance key={round.roundId} roundId={round.roundId} />}
 
       {round ? (
         <>
@@ -484,7 +486,7 @@ function ParticipantSection({
                   <option value="suplente">Suplente</option>
                 </select>
                 <select
-                  aria-label={`Presença de ${participant.name}`}
+                  aria-label={`Situação da inscrição de ${participant.name}`}
                   value={participant.status}
                   onChange={(event) => onUpdate(participant, "status", event.target.value)}
                   className="h-11 rounded-lg border border-zinc-200 bg-zinc-50 px-2 text-xs font-bold outline-none"

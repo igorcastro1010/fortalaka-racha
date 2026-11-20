@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { resolve, join } from 'node:path';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
+const require = createRequire(resolve(process.argv[2], 'package.json'));
+const { JSDOM } = require('jsdom'), { build } = require('esbuild');
+const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost' });
+globalThis.window = dom.window; globalThis.document = dom.window.document;
+globalThis.HTMLElement = dom.window.HTMLElement; globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+const outfile = join(mkdtempSync(join(tmpdir(), 'attendance-ui-')), 'test.mjs');
+await build({ stdin: { contents: `export {createRoot} from 'react-dom/client'; export {act,createElement} from 'react'; export {RoundAttendance} from './src/components/rounds/RoundAttendance'; export * from 'test-control';`, resolveDir: process.cwd() }, outfile, bundle: true, format: 'esm', platform: 'node', jsx: 'automatic', tsconfig: resolve('tsconfig.json'), plugins: [{ name: 'fixture', setup(b) {
+  b.onResolve({ filter: /^test-control$|^@\/lib\/rounds\/attendance$|^@\/components\/ui\/useConfirmation$/ }, () => ({ path: 'control', namespace: 'mock' }));
+  b.onLoad({ filter: /control/, namespace: 'mock' }, () => ({ contents: `export const calls=[]; export let accept=false; export function approve(){accept=true;} let present=null; export async function getAttendance(){calls.push('read');return [{id:'p',nome:'Alerrandro',presente:present,avaliacoes:4}];} export async function setAttendance(round,player,value){calls.push({round,player,value});present=value;} export function useConfirmation(){return {confirm:async request=>{calls.push(request);return accept;},confirmationDialog:null};}`, loader: 'js' }));
+  b.onResolve({ filter: /^@\/components\/players\/PlayerIdentity$/ }, () => ({ path: 'identity', namespace: 'mock' }));
+  b.onLoad({ filter: /identity/, namespace: 'mock' }, () => ({ contents: 'export function PlayerIdentity({name}){return name;}', loader: 'js' }));
+} }] });
+const { createRoot, act, createElement, RoundAttendance, calls, approve } = await import(pathToFileURL(outfile));
+const root = createRoot(document.getElementById('root'));
+await act(async () => root.render(createElement(RoundAttendance, { roundId: 'round' })));
+assert.equal(calls.length, 0, 'Carregar somente ao expandir');
+await act(async () => { const details=document.querySelector('details'); details.open=true; details.dispatchEvent(new dom.window.Event('toggle')); });
+async function select(value) { await act(async () => { const control=document.querySelector('select'); control.value=value; control.dispatchEvent(new dom.window.Event('change',{bubbles:true})); }); }
+await select('faltou');
+assert(calls.some(c=>c.description?.includes('4 avaliações')));
+assert(!calls.some(c=>c.round),'Cancelar nao grava');
+approve(); await select('faltou');
+assert.equal(calls.filter(c=>c.round).length,1);
+assert.equal(document.querySelector('select').value,'faltou');
+assert(document.querySelector('[role="status"]').textContent.includes('Falta registrada'));
+await select('presente');
+assert.equal(document.querySelector('select').value,'presente');
+await act(async()=>root.unmount()); dom.window.close();
+console.log('PASS: lazy load, confirmation/count, cancel, absence and presence updates');
+process.exit(0);
