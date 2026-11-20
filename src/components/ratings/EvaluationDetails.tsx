@@ -40,7 +40,7 @@ function DetailContent({ roundId }: { roundId: string }) {
     let sequence = 0;
     async function load() {
       const request = ++sequence;
-      setLoading(true);
+      // Keep expanded rows mounted during background refresh to preserve scroll.
       setError('');
       try {
         const data = await getEvaluationDetails(selected, controller.signal);
@@ -52,7 +52,7 @@ function DetailContent({ roundId }: { roundId: string }) {
       }
     }
     void load();
-    const unsubscribe = subscribeLiveRefresh(load, ['ratings', 'round', 'teams', 'matches', 'profile']);
+    const unsubscribe = subscribeLiveRefresh(load, ['ratings', 'round', 'teams', 'matches', 'profile'], false);
     return () => { controller.abort(); unsubscribe(); };
   }, [selected, retry]);
 
@@ -82,6 +82,6 @@ function DetailContent({ roundId }: { roundId: string }) {
         </li>)}</ul>
       </details>)}
     </>}
-    {(error || roundError) && <button onClick={() => setRetry(value => value + 1)} className="fk-secondary min-h-12 rounded-lg border border-zinc-300 px-4 font-bold">Tentar novamente</button>}
+    {(error || roundError) && <button onClick={() => { setLoading(rows.length === 0); setRetry(value => value + 1); }} className="fk-secondary min-h-12 rounded-lg border border-zinc-300 px-4 font-bold">Tentar novamente</button>}
   </div>;
 }
