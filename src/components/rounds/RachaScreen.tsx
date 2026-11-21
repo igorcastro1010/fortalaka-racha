@@ -299,10 +299,10 @@ export function RachaScreen({ profile, onOpenResults }: { profile: Profile; onOp
       {!isLoading && !round && !organizer && <Feedback tone="neutral" text="Nenhuma rodada cadastrada. Aguarde um organizador." />}
       {round && <RoundSummary round={round} />}
       {organizer && <ViewTabs label="Áreas do racha" value={view} onChange={setView} items={[{ id: "lista", label: "Lista" }, { id: "gestao", label: "Gestão" }]} />}
-      {round && <OwnRegistration key={round.roundId} round={round} profile={profile} onUpdated={loadRound} />}
+      {round && <OwnRegistration key={`registration-${round.roundId}`} round={round} profile={profile} onUpdated={loadRound} />}
       {round && organizer && view === "gestao" && <details className="border-y border-zinc-200 py-2"><summary className="min-h-11 cursor-pointer content-center text-sm font-bold">{round.status === "finalizado" ? "CRIAR PRÓXIMA RODADA" : "EDITAR DADOS DA RODADA"}</summary><RoundForm key={`${round.roundId}-${round.status}-${round.date}-${round.time}-${round.address}`} round={round.status === "finalizado" ? undefined : round} onSaved={loadRound} onEditingChange={setEditingRound} /></details>}
       {round && round.paymentsAvailable !== false && organizer && view === "gestao" && <RoundFinance participants={round.participants} onUpdated={loadRound} />}
-      {round && organizer && view === "gestao" && <RoundAttendance key={round.roundId} roundId={round.roundId} />}
+      {round && organizer && view === "gestao" && <RoundAttendance key={`attendance-${round.roundId}`} roundId={round.roundId} />}
 
       {round ? (
         <>
